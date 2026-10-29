@@ -16,6 +16,10 @@ interface LyricHttpTransport {
     /** Raw response bytes for callers that must verify remote size and hash. */
     fun getBytes(url: String): ByteArray? = get(url)?.toByteArray(Charsets.UTF_8)
 
+    /** Walk interchangeable public endpoints; existing transports and test fakes retain their byte validation. */
+    fun getFirstBytes(urls: List<String>): ByteArray? =
+        urls.firstNotNullOfOrNull { url -> runCatching { getBytes(url) }.getOrNull() }
+
     /** Optional response metadata used by catalog clients for conditional GET. */
     fun getResponse(url: String, ifNoneMatch: String? = null): LyricHttpResponse? =
         getBytes(url)?.let { bytes -> LyricHttpResponse(HttpURLConnection.HTTP_OK, bytes) }
@@ -43,12 +47,25 @@ class HttpLyricTransport(
     override fun getResponse(url: String, ifNoneMatch: String?): LyricHttpResponse? =
         requestResponse(url, ifNoneMatch)
 
-    private fun requestResponse(url: String, ifNoneMatch: String?): LyricHttpResponse? = runCatching {
+    override fun getFirstBytes(urls: List<String>): ByteArray? {
+        for (url in urls) {
+            if (Thread.currentThread().isInterrupted) return null
+            val body = requestResponse(url, null, minOf(connectTimeoutMs, 4_000), minOf(readTimeoutMs, 6_000))
+                ?.takeIf { it.statusCode == HttpURLConnection.HTTP_OK }?.body
+            if (body != null) return body
+        }
+        return null
+    }
+
+    private fun requestResponse(
+        url: String, ifNoneMatch: String?,
+        connectTimeoutMsOverride: Int = connectTimeoutMs, readTimeoutMsOverride: Int = readTimeoutMs,
+    ): LyricHttpResponse? = runCatching {
         val connection = URL(url).openConnection() as HttpURLConnection
         try {
             connection.requestMethod = "GET"
-            connection.connectTimeout = connectTimeoutMs
-            connection.readTimeout = readTimeoutMs
+            connection.connectTimeout = connectTimeoutMsOverride
+            connection.readTimeout = readTimeoutMsOverride
             connection.instanceFollowRedirects = true
             connection.setRequestProperty("User-Agent", USER_AGENT)
             connection.setRequestProperty("Accept", "text/plain, application/json;q=0.9, */*;q=0.5")
