@@ -15,7 +15,7 @@ import org.json.JSONObject
 /**
  * AMLL TTML DB client. Direct, fixed URL per Adam ID; failures return null.
  */
-class AmllTtmlClient(private val transport: LyricHttpTransport) {
+class AmllTtmlClient(private val transport: LyricHttpTransport, private val customRoot: String? = null) {
     fun fetch(adamId: Long): String? =
         transport.getFirstBytes(urls(adamId))?.toString(Charsets.UTF_8)
 
@@ -26,7 +26,8 @@ class AmllTtmlClient(private val transport: LyricHttpTransport) {
      * purely about who serves it: jsDelivr, then the proxies, then raw.
      */
     fun urls(adamId: Long): List<String> =
-        GitHubContentEndpoints.urls(OWNER, REPO, REF, "am-lyrics/$adamId.ttml")
+        listOfNotNull(customRoot?.trim()?.trimEnd('/')?.takeIf(String::isNotEmpty)?.let { "$it/amll/am-lyrics/$adamId.ttml" }) +
+            GitHubContentEndpoints.urls(OWNER, REPO, REF, "am-lyrics/$adamId.ttml")
 
     companion object {
         private const val OWNER = "amll-dev"
@@ -61,13 +62,16 @@ class AutoLyricsSourceResolver(
         appleMusicId: Long,
         sourceOrder: List<String>,
         cached: AutoLyricsCandidate? = null,
+        budgetMs: Long = DEFAULT_CHAIN_BUDGET_MS,
     ): AutoLyricsCandidate? {
         if (appleMusicId <= 0L) return null
+        val started = System.nanoTime()
         val sourcesById = sources.associateBy { it.name }
         sourceOrder.forEach { sourceId ->
             if (sourceId == CustomLyricsSources.AM_NATIVE) return@forEach
             val source = sourcesById[sourceId] ?: return@forEach
             cached?.takeIf { it.source == sourceId && isUsable(it.ttml) }?.let { return it }
+            if (Thread.currentThread().isInterrupted || (System.nanoTime() - started) / 1_000_000L >= budgetMs) return null
             val ttml = runCatching { source.fetch(appleMusicId) }.getOrNull() ?: return@forEach
             if (!isUsable(ttml)) return@forEach
             return AutoLyricsCandidate(source.name, ttml)
@@ -79,6 +83,7 @@ class AutoLyricsSourceResolver(
         TtmlInputPolicy.isAcceptable(ttml) && TtmlTimingPolicy.isWord(ttml)
 
     companion object {
+        const val DEFAULT_CHAIN_BUDGET_MS = 8_000L
         /** Wires the known provider adapters; ordered lookups use the caller's source order. */
         fun fixed(
             amll: AmllTtmlClient,
@@ -118,10 +123,13 @@ data class AmLyricsIndex(
     }
 }
 
-class AmLyricsClient(private val transport: LyricHttpTransport) {
+fun interface AmLyricsIndexProvider { fun index(): AmLyricsIndex? }
+
+class AmLyricsClient(private val transport: LyricHttpTransport, private val customRoot: String? = null,
+    private val indexProvider: AmLyricsIndexProvider? = null) {
     fun fetch(adamId: Long): String? {
         if (adamId <= 0L) return null
-        val entry = fetchIndex()?.entryFor(adamId) ?: return null
+        val entry = (indexProvider?.index() ?: fetchIndex())?.entryFor(adamId) ?: return null
         return fetchTtml(entry)
     }
 
@@ -146,7 +154,8 @@ class AmLyricsClient(private val transport: LyricHttpTransport) {
      * resets raw resets both.
      */
     fun urls(path: String): List<String> =
-        GitHubContentEndpoints.urls(OWNER, REPO, REF, path)
+        listOfNotNull(customRoot?.trim()?.trimEnd('/')?.takeIf(String::isNotEmpty)?.let { "$it/amlyrics/$path" }) +
+            GitHubContentEndpoints.urls(OWNER, REPO, REF, path)
 
     companion object {
         private const val OWNER = "Zennmn"

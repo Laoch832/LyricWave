@@ -552,6 +552,9 @@ internal fun EmbeddedSettingsHost.EmbeddedAutomaticLyricsPage(
         modifier = Modifier.fillMaxWidth(),
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
+        EmbeddedSourceMirrorSetting(settings) { value ->
+            settingsChanged(currentSettings.copy(customLyricsSourceBaseUrl = value))
+        }
         EmbeddedSettingsGroup {
             EmbeddedSettingSwitch(
                 title = localizedText(ModuleText.AUTO_LYRICS_ENABLED),

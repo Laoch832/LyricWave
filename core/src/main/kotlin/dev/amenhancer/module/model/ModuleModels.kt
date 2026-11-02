@@ -79,6 +79,7 @@ data class ModuleSettings(
     val customLyricsEnabled: Boolean = false,
     /** Enables background AMLL/Lunabeat/user-repository lyric completion. */
     val automaticLyricsEnabled: Boolean = true,
+    val customLyricsSourceBaseUrl: String = "",
     /** Prefers AM native lyrics over configured automatic sources when available. */
     val automaticLyricsPreferNative: Boolean = true,
     /** Automatic provider priority, normalized against [DEFAULT_AUTOMATIC_LYRICS_SOURCE_ORDER]. */
@@ -161,6 +162,17 @@ data class ModuleSettings(
 
         fun normalizeLlmLyricsApiKey(value: String): String =
             value.trim().take(MAX_LLM_LYRICS_API_KEY_LENGTH)
+
+        const val MAX_CUSTOM_LYRICS_SOURCE_BASE_URL_LENGTH = 300
+        fun normalizeCustomLyricsSourceBaseUrl(value: String): String {
+            val normalized = value.trim().trimEnd('/')
+            if (normalized.isEmpty() || normalized.length > MAX_CUSTOM_LYRICS_SOURCE_BASE_URL_LENGTH) return ""
+            return runCatching {
+                val uri = java.net.URI(normalized)
+                normalized.takeIf { uri.scheme?.lowercase(java.util.Locale.ROOT) in setOf("http", "https") &&
+                    !uri.host.isNullOrBlank() && uri.userInfo == null && uri.rawQuery == null && uri.rawFragment == null }
+            }.getOrNull().orEmpty()
+        }
 
         fun normalizeLlmLyricsModel(value: String): String =
             value.trim().take(MAX_LLM_LYRICS_MODEL_LENGTH)

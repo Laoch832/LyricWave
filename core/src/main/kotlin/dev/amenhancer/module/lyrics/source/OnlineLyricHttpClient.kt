@@ -17,7 +17,7 @@ interface LyricHttpTransport {
     fun getBytes(url: String): ByteArray? = get(url)?.toByteArray(Charsets.UTF_8)
 
     /** Walk interchangeable public endpoints; existing transports and test fakes retain their byte validation. */
-    fun getFirstBytes(urls: List<String>): ByteArray? =
+    fun getFirstBytes(urls: List<String>, totalBudgetMs: Long = 0L): ByteArray? =
         urls.firstNotNullOfOrNull { url -> runCatching { getBytes(url) }.getOrNull() }
 
     /** Optional response metadata used by catalog clients for conditional GET. */
@@ -47,10 +47,14 @@ class HttpLyricTransport(
     override fun getResponse(url: String, ifNoneMatch: String?): LyricHttpResponse? =
         requestResponse(url, ifNoneMatch)
 
-    override fun getFirstBytes(urls: List<String>): ByteArray? {
+    override fun getFirstBytes(urls: List<String>, totalBudgetMs: Long): ByteArray? {
+        val budget = if (totalBudgetMs > 0) totalBudgetMs else 6_000L
+        val started = System.nanoTime()
         for (url in urls) {
+            val remaining = (budget - (System.nanoTime() - started) / 1_000_000L).coerceAtMost(Int.MAX_VALUE.toLong()).toInt()
+            if (remaining <= 0) return null
             if (Thread.currentThread().isInterrupted) return null
-            val body = requestResponse(url, null, minOf(connectTimeoutMs, 4_000), minOf(readTimeoutMs, 6_000))
+            val body = requestResponse(url, null, minOf(connectTimeoutMs, 4_000, remaining), minOf(readTimeoutMs, 6_000, remaining))
                 ?.takeIf { it.statusCode == HttpURLConnection.HTTP_OK }?.body
             if (body != null) return body
         }

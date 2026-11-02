@@ -7,6 +7,8 @@ import dev.amenhancer.module.lyrics.source.HttpLyricTransport
 import dev.amenhancer.module.lyrics.source.FileLunabeatCatalogCache
 import dev.amenhancer.module.lyrics.source.AutoLyricsSourceResolver
 import dev.amenhancer.module.lyrics.source.AmllTtmlClient
+import dev.amenhancer.module.lyrics.FileAmLyricsIndexCache
+import java.util.concurrent.ScheduledThreadPoolExecutor
 import dev.amenhancer.module.lyrics.source.AmLyricsClient
 import android.app.Application
 import dev.amenhancer.module.config.EmbeddedConfigurationSession
@@ -60,8 +62,14 @@ internal fun createAutoLyricsRuntime(
         lyricsTransport = lyricTransport,
         cache = FileLunabeatCatalogCache(File(root, "lunabeat")),
     )
-    val amll = AmllTtmlClient(lyricTransport)
-    val amLyrics = AmLyricsClient(lyricTransport)
+    val customSourceBaseUrl = ModuleSettings.normalizeCustomLyricsSourceBaseUrl(configuration().customLyricsSourceBaseUrl).takeIf(String::isNotEmpty)
+    val indexScheduler = ScheduledThreadPoolExecutor(1) { task -> Thread(task, "lyricwave-amlyrics-index").apply { isDaemon = true } }
+    val amLyricsIndexCache = FileAmLyricsIndexCache(
+        directory = File(application.filesDir, "ampp-amlyrics"), transport = indexTransport,
+        indexUrls = { AmLyricsClient(indexTransport, customSourceBaseUrl).urls("index.json") }, executor = indexScheduler,
+    )
+    val amll = AmllTtmlClient(lyricTransport, customSourceBaseUrl)
+    val amLyrics = AmLyricsClient(lyricTransport, customSourceBaseUrl, amLyricsIndexCache)
     val resolver = AutoLyricsSourceResolver.fixed(
         amll = amll,
         amLyrics = amLyrics,
@@ -190,7 +198,7 @@ internal fun createAutoLyricsRuntime(
             refreshExecutor.queue.clear()
             refreshExecutor.execute(task)
         },
-        closeRefresh = { refreshExecutor.shutdownNow() },
+        closeRefresh = { refreshExecutor.shutdownNow(); indexScheduler.shutdownNow() },
         refreshSong = refresh@{ appleMusicId, isCancelled ->
             if (isCancelled()) return@refresh null
             var previous = configuredContent.listLyrics().firstOrNull { it.appleMusicId == appleMusicId }

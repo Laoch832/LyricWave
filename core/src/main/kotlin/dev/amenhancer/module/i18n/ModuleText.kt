@@ -408,6 +408,11 @@ enum class ModuleText(internal val english: String, internal val chinese: String
     PLUGIN_DEX_SIGNATURE_INVALID("Corrupt DEX signature", "DEX 签名损坏"),
     PLUGIN_DEX_CHECKSUM_INVALID("Corrupt DEX checksum", "DEX 校验损坏"),
     PLUGIN_SDK_BUNDLED("Plugins must not bundle SDK classes", "插件不可打包 SDK 类"),
+    CUSTOM_LYRICS_SOURCE_BASE_URL("Custom lyrics source address", "自定义歌词源地址"),
+    CUSTOM_LYRICS_SOURCE_BASE_URL_SUMMARY("Optional AMLL / AM-Lyrics mirror; leave empty for public sources. Restart Apple Music after changes.", "自建 AMLL / AM-Lyrics 镜像，留空使用公共源；更改后需重开 Apple Music。"),
+    CUSTOM_LYRICS_SOURCE_BASE_URL_HINT("https://lyrics.example.com/lyrics", "https://lyrics.example.com/lyrics"),
+    CUSTOM_LYRICS_SOURCE_BASE_URL_INVALID("Enter a complete HTTP or HTTPS address without login details, a query or fragment.", "请输入完整的 HTTP 或 HTTPS 地址，不包含登录信息、查询参数或片段。"),
+    CUSTOM_LYRICS_SOURCE_BASE_URL_NOT_CONFIGURED("Public sources", "公共源"),
     LLM_LYRICS_FALLBACK("AI translation & cache", "AI 歌词翻译与缓存"),
     LLM_LYRICS_FALLBACK_SUMMARY(
         "Model, API Key",
