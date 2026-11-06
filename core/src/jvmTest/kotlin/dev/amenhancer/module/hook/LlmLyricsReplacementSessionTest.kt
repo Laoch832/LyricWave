@@ -242,6 +242,62 @@ class LlmLyricsReplacementSessionTest {
         session.close()
     }
 
+    @Test
+    fun `native lyrics changing during playback discard queued old translations`() {
+        val queued = ManualExecutor()
+        val parsed = mutableListOf<String>()
+        val persisted = mutableListOf<String>()
+        val updated = ORIGINAL_TTML.replace("hello", "goodbye")
+        val session = session(
+            queued = queued,
+            configuration = { config(LlmLyricsThinkingEffort.HIGH) },
+            translate = { request, _ -> request.originalTtml },
+            parse = { parsed += it; Pointer() },
+            onPrepared = { _, ttml -> persisted += ttml },
+        )
+        session.onSongChanged(42L)
+        session.onNativeSelected(42L)
+        assertNull(session.replacementFor(42L, ORIGINAL_TTML))
+        assertNull(session.replacementFor(42L, updated))
+        queued.runAll()
+        assertEquals(listOf(updated), parsed)
+        assertEquals(listOf(updated), persisted)
+        assertTrue(session.replacementFor(42L, updated) is Pointer)
+        session.close()
+    }
+
+    @Test
+    fun `a rejected worker submission can retry on the next native selection`() {
+        val queued = ManualExecutor()
+        var reject = true
+        var translations = 0
+        val pointer = Pointer()
+        val session = LlmLyricsReplacementSession(
+            runtime = LlmLyricsRuntime(
+                configuration = { config(LlmLyricsThinkingEffort.HIGH) },
+                translate = { _, _ -> translations++; CURRENT_TTML },
+                executor = Executor {
+                    if (reject) throw java.util.concurrent.RejectedExecutionException("busy")
+                    queued.execute(it)
+                },
+            ),
+            parseTtml = { pointer }, isAlive = { true }, verifyPtr = { true },
+            readAdamId = { pointer.adamId },
+            bindAdamId = { _, id -> pointer.adamId = id; true },
+            isAllowed = { true }, onReplacementPublished = {},
+        )
+        session.onSongChanged(42L)
+        session.onNativeSelected(42L)
+        assertNull(session.replacementFor(42L, ORIGINAL_TTML))
+        assertTrue(queued.isEmpty())
+        reject = false
+        assertNull(session.replacementFor(42L, ORIGINAL_TTML))
+        queued.runAll()
+        assertSame(pointer, session.replacementFor(42L, ORIGINAL_TTML))
+        assertEquals(1, translations)
+        session.close()
+    }
+
     private fun session(
         queued: ManualExecutor,
         configuration: () -> LlmLyricsConfig?,

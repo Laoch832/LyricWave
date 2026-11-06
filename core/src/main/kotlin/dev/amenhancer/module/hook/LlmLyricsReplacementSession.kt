@@ -118,6 +118,11 @@ class LlmLyricsReplacementSession(
             val stamp = generation
             val request = LlmLyricsRequest(appleMusicId, originalTtml, config, title, artist)
             runCatching { runtime.executor.execute { prepare(request, stamp) } }
+                .onFailure {
+                    // A busy worker has not attempted translation. Let the next host
+                    // selection retry, including when updated lyrics arrived mid-request.
+                    if (matchesLocked(request, stamp)) attempted = false
+                }
             return null
         }
     }
