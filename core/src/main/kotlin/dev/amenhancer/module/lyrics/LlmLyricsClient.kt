@@ -131,6 +131,29 @@ class LlmLyricsClient(
     private val maxResponseBytes: Int = DEFAULT_MAX_RESPONSE_BYTES,
 ) {
 
+    /** Fixed diagnostics only: never include response bodies, prompts or credentials. */
+    data class CallResult(
+        val failureReason: String? = null,
+        val httpStatus: Int? = null,
+        val elapsedMs: Long = 0,
+        val promptTokens: Long? = null,
+        val completionTokens: Long? = null,
+        val totalTokens: Long? = null,
+    )
+
+    private fun tokens(response: String?, name: String): Long? = runCatching {
+        val value = response?.let(::JSONObject)?.optJSONObject("usage")?.opt(name) as? Number
+        value?.toLong()?.takeIf { it >= 0 && value.toDouble() == it.toDouble() }
+    }.getOrNull()
+
+    private fun completed(
+        started: Long, response: String?, reason: String?, status: Int?, listener: (CallResult) -> Unit,
+    ) {
+        runCatching { listener(CallResult(reason, status,
+            TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - started).coerceAtLeast(0),
+            tokens(response, "prompt_tokens"), tokens(response, "completion_tokens"), tokens(response, "total_tokens"))) }
+    }
+
     /**
      * Translates [texts] line by line into [TARGET_LANGUAGE]. Returns one
      * translated string per input line, or null when the configuration is
@@ -143,19 +166,30 @@ class LlmLyricsClient(
         title: String? = null,
         artist: String? = null,
         sourceLanguage: String? = null,
+        onStarted: () -> Unit = {},
+        onCompleted: (CallResult) -> Unit = {},
         isCancelled: () -> Boolean = { false },
     ): Map<String, LlmLyricsLine>? {
         if (lines.isEmpty()) return emptyMap()
         val endpoint = config.endpoint ?: return null
         val model = config.normalizedModel
         if (model.isEmpty()) return null
-        if (isCancelled()) return null
+        if (runCatching(isCancelled).getOrDefault(true)) return null
         if (!isWithinInputBounds(lines)) return null
         val body = requestBody(config, lines, title, artist, sourceLanguage) ?: return null
-        val response = post(endpoint, config.apiKey, body, isCancelled) ?: return null
-        if (isCancelled()) return null
-        val content = messageContent(response) ?: return null
-        return parseTranslation(content, lines)
+        val started = System.nanoTime()
+        runCatching(onStarted)
+        var reason: String? = null
+        var status: Int? = null
+        val response = post(endpoint, config.apiKey, body, isCancelled,
+            onStatus = { status = it }, onFailure = { failure, code -> reason = failure; if (code != null) status = code })
+        val result = if (response != null && !runCatching(isCancelled).getOrDefault(true)) {
+            messageContent(response)?.let { parseTranslation(it, lines) }
+        } else null
+        val failure = if (runCatching(isCancelled).getOrDefault(true)) "cancelled" else if (result == null) reason ?: "invalid_response" else null
+        completed(started, response, failure, status, onCompleted)
+        return result
+
     }
 
     /** Only fixed reason codes/statuses may cross into the settings UI. */
@@ -170,12 +204,14 @@ class LlmLyricsClient(
      */
     fun testConnection(
         config: LlmLyricsConfig,
+        onStarted: () -> Unit = {},
+        onCompleted: (CallResult) -> Unit = {},
         isCancelled: () -> Boolean = { false },
     ): ConnectionResult {
         val endpoint = config.endpoint ?: return ConnectionResult("invalid_endpoint")
         val model = config.normalizedModel
         if (model.isEmpty()) return ConnectionResult("missing_model")
-        if (isCancelled()) return ConnectionResult("cancelled")
+        if (runCatching(isCancelled).getOrDefault(true)) return ConnectionResult("cancelled")
         val body = runCatching {
             encodeRequest(
                 config,
@@ -184,13 +220,22 @@ class LlmLyricsClient(
                     .put(JSONObject().put("role", "user").put("content", "Reply with OK only.")),
             )
         }.getOrNull() ?: return ConnectionResult("request_encoding_or_limit")
+        val started = System.nanoTime()
+        runCatching(onStarted)
         var failure = ConnectionResult("transport")
-        val response = post(endpoint, config.apiKey, body, isCancelled) { reason, status ->
-            failure = ConnectionResult(reason, status)
-        } ?: return failure
-        if (isCancelled()) return ConnectionResult("cancelled")
-        if (messageContent(response).isNullOrBlank()) return ConnectionResult("invalid_response")
-        return ConnectionResult()
+        var status: Int? = null
+        val response = post(endpoint, config.apiKey, body, isCancelled, onStatus = { status = it }) { reason, code ->
+            failure = ConnectionResult(reason, code)
+        }
+        val result = when {
+            runCatching(isCancelled).getOrDefault(true) -> ConnectionResult("cancelled", status)
+            response == null -> failure
+            messageContent(response).isNullOrBlank() -> ConnectionResult("invalid_response", status)
+            else -> ConnectionResult()
+        }
+        completed(started, response, result.failureReason, status ?: result.httpStatus, onCompleted)
+        return result
+
     }
 
     private fun messageContent(response: String): String? = runCatching {
@@ -209,6 +254,7 @@ class LlmLyricsClient(
         apiKey: String,
         body: ByteArray,
         isCancelled: () -> Boolean,
+        onStatus: (Int) -> Unit = {},
         onFailure: (String, Int?) -> Unit = { _, _ -> },
     ): String? {
         val connection = runCatching {
@@ -225,7 +271,7 @@ class LlmLyricsClient(
                 try {
                     var watching = true
                     while (watching && !finished.await(WATCHDOG_POLL_MS, TimeUnit.MILLISECONDS)) {
-                        val cancelled = runCatching(isCancelled).getOrDefault(false)
+                        val cancelled = runCatching(isCancelled).getOrDefault(true)
                         if (cancelled || System.nanoTime() >= deadlineNanos) {
                             watching = false
                             aborted.set(true)
@@ -240,8 +286,8 @@ class LlmLyricsClient(
         ).apply { isDaemon = true }
         watchdog.start()
         try {
-            val result = runCatching { exchange(connection, apiKey, body, onFailure) }
-            val cancelled = runCatching(isCancelled).getOrDefault(false)
+            val result = runCatching { exchange(connection, apiKey, body, onFailure, onStatus) }
+            val cancelled = runCatching(isCancelled).getOrDefault(true)
             if (cancelled || aborted.get() || System.nanoTime() >= deadlineNanos) {
                 onFailure(if (cancelled) "cancelled" else "timeout", null)
                 return null
@@ -270,6 +316,7 @@ class LlmLyricsClient(
         apiKey: String,
         body: ByteArray,
         onFailure: (String, Int?) -> Unit,
+        onStatus: (Int) -> Unit,
     ): String? {
         val key = apiKey.trim()
         connection.requestMethod = "POST"
@@ -285,6 +332,7 @@ class LlmLyricsClient(
         connection.setFixedLengthStreamingMode(body.size)
         connection.outputStream.use { output -> output.write(body) }
         val status = connection.responseCode
+        onStatus(status)
         if (status !in 200..299) {
             onFailure("http_status", status)
             return null

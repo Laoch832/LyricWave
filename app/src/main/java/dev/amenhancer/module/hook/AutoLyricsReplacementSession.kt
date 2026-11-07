@@ -20,6 +20,7 @@ import dev.amenhancer.module.lyrics.CustomLyricsUpdateResult
 import dev.amenhancer.module.lyrics.CustomLyricsUpdateSources
 import dev.amenhancer.module.model.CustomLyricsSources
 import dev.amenhancer.module.model.ModuleSettings
+import dev.amenhancer.module.lyrics.FileLlmLyricsActivityStore
 import dev.amenhancer.module.lyrics.FileLlmLyricsCache
 import dev.amenhancer.module.lyrics.LlmLyricsConfig
 import java.io.File
@@ -160,12 +161,13 @@ internal fun createAutoLyricsRuntime(
         { task -> Thread(task, "ampp-llm-lyrics").apply { isDaemon = true } },
         ThreadPoolExecutor.AbortPolicy(),
     )
-    val llmCache = FileLlmLyricsCache(File(application.filesDir, "ampp-llm-lyrics"))
+    val llmCache = FileLlmLyricsCache(File(application.filesDir, FileLlmLyricsCache.DIRECTORY))
     val llm = createCachedLlmLyricsRuntime(
         cache = llmCache,
+        activity = FileLlmLyricsActivityStore(File(application.filesDir, FileLlmLyricsActivityStore.DIRECTORY)),
         configuration = {
             configuration().let { settings ->
-                if (settings.customLyricsEnabled && settings.automaticLyricsEnabled && settings.llmLyricsEnabled) {
+                if (settings.customLyricsEnabled && settings.llmLyricsEnabled) {
                     LlmLyricsConfig.fromSettings(settings)
                 } else null
             }

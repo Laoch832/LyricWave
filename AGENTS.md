@@ -17,9 +17,9 @@
 
 - For AI lyric translation and caching changes, run `./gradlew :core:jvmTest`
   and `python scripts/verify-architecture.py`.
-- Cache reuse and update detection must compare the current native source TTML;
-  an older translation must not override changed vocals, timings or a native
-  translation that has become available.
+- Cache reuse and update detection must compare the currently selected source TTML (native, online or imported);
+  an older translation must not override changed vocals, timings or an existing
+  translation in the selected source.
 
 # Cloud builds and releases
 
@@ -33,3 +33,6 @@
 - Public project name: LyricWave; Chinese name: 澜音. Keep user-facing copy and new artifacts consistent.
 - The second README section contains upstream acknowledgments; preserve `docs/ACKNOWLEDGMENTS.md`, original copyright notices and license texts.
 - Keep `dev.amenhancer.module`, plugin API namespaces, existing storage keys, signing certificate and `AMPP_*` secret names compatible with installed versions.
+
+- For AI activity UI changes, verify actual settings buttons against a local fake API with `AiLyricsActivityUiTest`, including cache hits, displayed counters and page detachment.
+- Never infer missing API usage or persist API keys, request/response bodies or lyrics in the activity journal.

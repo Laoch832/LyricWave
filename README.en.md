@@ -18,7 +18,7 @@ The original author's support link and the credits for other projects are collec
 
 ## Features
 
-- AI translation of eligible native foreign-language lyrics into Simplified Chinese through your own OpenAI-compatible endpoint.
+- AI translation of eligible selected foreign-language lyrics into Simplified Chinese through your own OpenAI-compatible endpoint.
 - Automatic persistent translation caching and source TTML SHA-256 checks, including lyric and timing changes.
 - Custom TTML import, editing, online fetching, search, and ZIP backup and restore.
 - Custom fonts, bidirectional lyric blur, CJK effects, and a tablet dual-pane player.
@@ -27,9 +27,11 @@ The original author's support link and the credits for other projects are collec
 
 ### Translation behavior
 
-Enable custom lyrics, automatic completion, and AI translation, then configure your endpoint and model. Existing translations, Chinese lyrics, and lyrics without line or word timing are preserved.
+Enable custom lyrics and AI translation, then configure your endpoint and model. Online completion is independent; selected native, online, and imported lyrics can be translated. Existing translations, Chinese lyrics, and lyrics without line or word timing are preserved.
 
 The cache retains the 100 most recently used songs. It is independent of manually imported lyrics and does not store API keys. Endpoint, model, or effective thinking changes invalidate translations; rotating only the API key does not. Updates are checked against the native lyrics currently supplied by Apple Music, without separate server polling. Failed or cancelled requests keep the original lyrics and can retry on the next visit.
+
+The **API requests & translation cache** page supports explicit translation, cached subtitle previews, persistent real request records, HTTP outcomes, and provider-reported usage. Cache hits do not increase API request counts. See the [AI translation guide](docs/ai-lyrics.md).
 
 ## Download and installation
 

@@ -11,7 +11,7 @@ internal fun assembleAppleMusicTarget(
     currentSong: CurrentSongIdentityCache = CurrentSongIdentityCache(),
 ): TargetAdaptation {
     val settings = config.settings()
-    val automatic = if (settings.customLyricsEnabled && settings.automaticLyricsEnabled) {
+    val automatic = if (settings.customLyricsEnabled && (settings.automaticLyricsEnabled || settings.llmLyricsEnabled)) {
         val suppressed = runCatching { config.customLyricsManifest().entries
             .filterNot { it.enabled }.mapTo(mutableSetOf(), CustomLyricsEntry::appleMusicId)
         }.getOrDefault(emptySet())

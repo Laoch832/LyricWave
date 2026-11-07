@@ -299,7 +299,8 @@ internal fun EmbeddedSettingsHost.showSettingsDialog(activity: Activity) {
             val customLyricsPage = nextPage == EmbeddedSettingsPage.CUSTOM_LYRICS
             val automaticLyricsPage = nextPage == EmbeddedSettingsPage.AUTOMATIC_LYRICS
             val llmLyricsPage = nextPage == EmbeddedSettingsPage.LLM_LYRICS
-            val lyricsPage = customLyricsPage || automaticLyricsPage || llmLyricsPage
+            val aiActivityPage = nextPage == EmbeddedSettingsPage.AI_LYRICS_ACTIVITY
+            val lyricsPage = customLyricsPage || automaticLyricsPage || llmLyricsPage || aiActivityPage
             val bottomInset = dp(activity, when {
                 nextPage == EmbeddedSettingsPage.MAIN -> 0
                 lyricsPage -> 8
@@ -389,6 +390,7 @@ internal fun EmbeddedSettingsHost.showSettingsDialog(activity: Activity) {
                     EmbeddedSettingsPage.ADVANCED -> localizedText(ModuleText.ADVANCED_SETTINGS)
                     EmbeddedSettingsPage.PLUGINS -> localizedText(ModuleText.PLUGINS)
                     EmbeddedSettingsPage.LLM_LYRICS -> localizedText(ModuleText.LLM_LYRICS_FALLBACK)
+                    EmbeddedSettingsPage.AI_LYRICS_ACTIVITY -> localizedText(ModuleText.AI_ACTIVITY_TITLE)
                     EmbeddedSettingsPage.BOTTOM_BAR_ANIMATION -> localizedText(ModuleText.BOTTOM_BAR_ANIMATION_SETTINGS)
                 }
                 backButton.visibility = if (childPage) View.VISIBLE else View.GONE
@@ -458,12 +460,15 @@ internal fun EmbeddedSettingsHost.showSettingsDialog(activity: Activity) {
                     currentSettings = { draft.settings },
                     onSettingsChanged = ::updateDraft,
                 )
+            } else if (aiActivityPage) {
+                renderEmbeddedAiLyricsActivityPage(activity, content, draft.settings)
             } else if (llmLyricsPage) {
                 renderEmbeddedLlmLyricsPage(
                     activity = activity,
                     parent = content,
                     settings = draft.settings,
                     onSettingsChanged = ::updateDraft,
+                    onOpenActivity = { renderPage(EmbeddedSettingsPage.AI_LYRICS_ACTIVITY) },
                 )
             } else if (nextPage == EmbeddedSettingsPage.BOTTOM_BAR_ANIMATION) {
                 renderEmbeddedAnimationSettingsPage(
@@ -569,6 +574,7 @@ internal fun EmbeddedSettingsHost.showSettingsDialog(activity: Activity) {
         fun navigateBack() {
             val parentPage = when (page) {
                 EmbeddedSettingsPage.AUTOMATIC_LYRICS -> EmbeddedSettingsPage.CUSTOM_LYRICS
+                EmbeddedSettingsPage.AI_LYRICS_ACTIVITY -> EmbeddedSettingsPage.LLM_LYRICS
                 EmbeddedSettingsPage.LLM_LYRICS -> EmbeddedSettingsPage.CUSTOM_LYRICS
                 EmbeddedSettingsPage.BOTTOM_BAR_ANIMATION -> EmbeddedSettingsPage.INTERFACE
                 EmbeddedSettingsPage.MAIN -> {
@@ -878,6 +884,10 @@ private fun EmbeddedSettingsHost.showEmbeddedPageDetails(activity: Activity, pag
             ModuleText.MUSIC_DPI to ModuleText.MUSIC_DPI_NOTICE,
         )
         EmbeddedSettingsPage.PLUGINS -> listOf(ModuleText.PLUGINS to ModuleText.PLUGIN_RESTART_NOTICE)
+        EmbeddedSettingsPage.AI_LYRICS_ACTIVITY -> listOf(
+            ModuleText.AI_ACTIVITY_TITLE to ModuleText.AI_LOG_LOCAL_NOTICE,
+            ModuleText.AI_CACHE_TITLE to ModuleText.AI_CACHE_RULE,
+        )
         EmbeddedSettingsPage.LLM_LYRICS -> listOf(
             ModuleText.LLM_LYRICS_ENABLED to ModuleText.LLM_LYRICS_ENABLED_SUMMARY,
             ModuleText.LLM_LYRICS_BASE_URL to ModuleText.LLM_LYRICS_BASE_URL_SUMMARY,
@@ -951,6 +961,7 @@ internal fun EmbeddedSettingsHost.renderEmbeddedCustomLyricsPage(
             chevronTint = EmbeddedSettingsPalette.Light.accent,
             onClick = onOpenLlmLyrics,
         ))
+        addAiLyricsSummary(activity, parent, onOpenLlmLyrics)
         parent.addView(embeddedSpacer(activity, if (isEmbeddedPhone(activity)) 10 else 14))
 
         val lyricsContent = LinearLayout(activity).apply {
@@ -1458,8 +1469,8 @@ private fun EmbeddedSettingsHost.renderEmbeddedAutomaticLyricsPage(
 private fun EmbeddedSettingsHost.llmThinkingFormatLabel(format: LlmLyricsThinkingFormat): String =
     when (format) {
         LlmLyricsThinkingFormat.NONE -> localizedText(ModuleText.LLM_LYRICS_THINKING_FORMAT_NONE)
-        LlmLyricsThinkingFormat.THINKING_TYPE -> "thinking.type"
-        LlmLyricsThinkingFormat.REASONING_EFFORT -> "reasoning_effort"
+        LlmLyricsThinkingFormat.THINKING_TYPE -> localizedText(ModuleText.LLM_LYRICS_THINKING_FORMAT_TYPE)
+        LlmLyricsThinkingFormat.REASONING_EFFORT -> localizedText(ModuleText.LLM_LYRICS_THINKING_FORMAT_EFFORT)
     }
 
 
@@ -1496,8 +1507,12 @@ private fun EmbeddedSettingsHost.renderEmbeddedLlmLyricsPage(
     parent: LinearLayout,
     settings: ModuleSettings,
     onSettingsChanged: (ModuleSettings) -> Unit,
+    onOpenActivity: () -> Unit,
 ) {
-    val llmFallbackActive = settings.customLyricsEnabled && settings.automaticLyricsEnabled
+    addAiLyricsSummary(activity, parent, onOpenActivity)
+    parent.addView(embeddedNavigationRow(activity, localizedText(ModuleText.AI_ACTIVITY_TITLE),
+        localizedText(ModuleText.SHORT_LLM_LYRICS_SUMMARY), onClick = onOpenActivity))
+    val llmFallbackActive = settings.customLyricsEnabled
     val settingsGroup = embeddedCard(activity, null) {
         setPadding(dp(activity, 8), dp(activity, 8), dp(activity, 8), dp(activity, 8))
     }
@@ -1817,8 +1832,13 @@ private fun EmbeddedSettingsHost.addLlmConnectionTestButton(
         button.text = localizedText(ModuleText.LLM_LYRICS_TEST_RUNNING)
         val buttonReference = WeakReference(button)
         Thread({
+            val journal = aiActivityStore()
+            var callId: String? = null
             val result = runCatching {
-                LlmLyricsClient().testConnection(config) { cancelled.get() }
+                LlmLyricsClient().testConnection(config,
+                    onStarted = { callId = journal.begin(dev.amenhancer.module.lyrics.LlmActivityKind.CONNECTION_TEST, config) },
+                    onCompleted = { journal.complete(callId, it) },
+                    isCancelled = { cancelled.get() })
             }.getOrElse { LlmLyricsClient.ConnectionResult("transport") }
             main.post {
                 running.set(false)

@@ -29,6 +29,7 @@ internal enum class EmbeddedSettingsPage {
     ADVANCED,
     PLUGINS,
     LLM_LYRICS,
+    AI_LYRICS_ACTIVITY,
     BOTTOM_BAR_ANIMATION,
 }
 

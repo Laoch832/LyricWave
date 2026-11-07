@@ -3,6 +3,10 @@ package dev.amenhancer.module.lyrics
 import dev.amenhancer.module.model.LlmLyricsThinkingEffort
 import dev.amenhancer.module.model.LlmLyricsThinkingFormat
 import java.io.File
+import java.util.concurrent.ConcurrentHashMap
+import java.util.concurrent.atomic.AtomicLong
+import java.util.concurrent.locks.ReentrantLock
+import java.util.concurrent.TimeUnit
 import java.io.FileOutputStream
 import java.nio.file.AtomicMoveNotSupportedException
 import java.nio.file.Files
@@ -13,7 +17,7 @@ import org.json.JSONObject
 /**
  * Persistent LRU cache for LLM-translated lyrics, kept in its own directory and
  * deliberately independent from the user-managed custom-lyrics index: entries
- * are never published, listed or editable.
+ * are never published into the custom-lyrics index; the AI page lists them separately.
  *
  * One file per song holds exactly one translated document. An entry is reused
  * only while the song identity, the original lyrics, the normalized endpoint,
@@ -28,22 +32,84 @@ class FileLlmLyricsCache(
     private val maxEntries: Int = MAX_ENTRIES,
 ) {
     private val indexFile = File(directory, INDEX_FILE_NAME)
-    private val lock = Any()
+    private val lock = locks.getOrPut(directory.canonicalPath) { Any() }
+    private val epoch = epochs.getOrPut(directory.canonicalPath) { AtomicLong() }
+    fun revision(): Long = epoch.get()
     private val capacity = maxEntries.coerceIn(1, MAX_ENTRIES)
 
-    /** Returns the cached translation for this exact identity, or null. */
-    fun read(appleMusicId: Long, originalTtml: String, config: LlmLyricsConfig): String? {
-        val identity = identityOf(appleMusicId, originalTtml, config) ?: return null
+    data class CachedSong(val appleMusicId: Long, val title: String?, val artist: String?,
+                          val model: String, val savedAt: Long, val bytes: Long)
+    enum class LookupState { HIT, MISS, SOURCE_CHANGED, SETTINGS_CHANGED, CORRUPT }
+    data class Lookup(val state: LookupState, val ttml: String? = null)
+
+    /** Deduplicate automatic and manual requests without blocking cache inspection or other songs. */
+    fun <T> withTranslation(appleMusicId: Long, isCancelled: () -> Boolean, block: () -> T): T? {
+        val key = "${directory.canonicalPath}/$appleMusicId"
+        val gate = synchronized(translationGates) {
+            translationGates.getOrPut(key) { TranslationGate() }.also { it.users++ }
+        }
+        var acquired = false
+        try {
+            while (!isCancelled()) {
+                if (gate.lock.tryLock(50, TimeUnit.MILLISECONDS)) { acquired = true; break }
+            }
+            if (!acquired || isCancelled()) return null
+            return block()
+        } catch (_: InterruptedException) {
+            Thread.currentThread().interrupt()
+            return null
+        } finally {
+            if (acquired) gate.lock.unlock()
+            synchronized(translationGates) {
+                gate.users--
+                if (gate.users == 0) translationGates.remove(key)
+            }
+        }
+    }
+
+    /** Listing never touches LRU order and never exposes credentials or endpoint paths. */
+    fun songs(): List<CachedSong> = synchronized(lock) {
+        entryFiles().mapNotNull { (id, file) ->
+            val entry = readEntry(file) ?: return@mapNotNull null
+            val raw = runCatching { JSONObject(file.readText(Charsets.UTF_8)) }.getOrNull() ?: return@mapNotNull null
+            fun text(name: String) = raw.optString(name).takeIf { it.isNotBlank() && it != "null" }?.take(180)
+            CachedSong(id, text("title"), text("artist"), entry.model,
+                raw.optLong("savedAt", file.lastModified()), file.length())
+        }.sortedByDescending { it.savedAt }
+    }
+
+    fun preview(appleMusicId: Long): String? = synchronized(lock) {
+        entryFile(appleMusicId)?.let(::readEntry)?.ttml?.let(LlmLyricsDocument::translationPreview)
+    }
+
+    fun delete(appleMusicId: Long): Boolean = synchronized(lock) {
+        val file = entryFile(appleMusicId) ?: return@synchronized false
+        if (file.exists() && !file.delete()) return@synchronized false
+        reorder(appleMusicId, dropped = true)
+        epoch.incrementAndGet()
+        true
+    }
+
+    fun read(appleMusicId: Long, originalTtml: String, config: LlmLyricsConfig): String? =
+        lookup(appleMusicId, originalTtml, config).ttml
+
+    /** Compare the exact source on every lookup, including after process restart. */
+    fun lookup(appleMusicId: Long, originalTtml: String, config: LlmLyricsConfig): Lookup {
+        val identity = identityOf(appleMusicId, originalTtml, config) ?: return Lookup(LookupState.MISS)
         return synchronized(lock) {
-            val file = entryFile(appleMusicId) ?: return@synchronized null
-            val entry = readEntry(file) ?: return@synchronized null
+            val file = entryFile(appleMusicId) ?: return@synchronized Lookup(LookupState.MISS)
+            if (!file.exists()) return@synchronized Lookup(LookupState.MISS)
+            val entry = readEntry(file) ?: return@synchronized Lookup(LookupState.CORRUPT)
             if (!entry.matches(identity)) {
+                val state = if (entry.originalSha256.equals(identity.originalSha256, ignoreCase = true))
+                    LookupState.SETTINGS_CHANGED else LookupState.SOURCE_CHANGED
                 runCatching { file.delete() }
                 reorder(appleMusicId, dropped = true)
-                return@synchronized null
+                epoch.incrementAndGet()
+                return@synchronized Lookup(state)
             }
             reorder(appleMusicId, dropped = false)
-            entry.ttml
+            Lookup(LookupState.HIT, entry.ttml)
         }
     }
 
@@ -53,10 +119,12 @@ class FileLlmLyricsCache(
         originalTtml: String,
         config: LlmLyricsConfig,
         translatedTtml: String,
+        title: String? = null,
+        artist: String? = null,
     ): Boolean {
         val identity = identityOf(appleMusicId, originalTtml, config) ?: return false
         if (!isAcceptableTranslation(translatedTtml)) return false
-        val bytes = runCatching { encodeEntry(identity, translatedTtml) }.getOrNull() ?: return false
+        val bytes = runCatching { encodeEntry(identity, translatedTtml, title, artist) }.getOrNull() ?: return false
         if (bytes.size.toLong() > MAX_ENTRY_BYTES) return false
         return synchronized(lock) {
             runCatching {
@@ -79,6 +147,7 @@ class FileLlmLyricsCache(
                 atomicWrite(file, bytes)
                 writeIndex(keep)
                 pruneUnexpected(keep.toSet())
+                epoch.incrementAndGet()
                 true
             }.getOrDefault(false)
         }
@@ -108,8 +177,11 @@ class FileLlmLyricsCache(
         )
     }
 
-    private fun encodeEntry(identity: EntryIdentity, translatedTtml: String): ByteArray = JSONObject()
+    private fun encodeEntry(identity: EntryIdentity, translatedTtml: String, title: String?, artist: String?): ByteArray = JSONObject()
         .put("version", ENTRY_VERSION)
+        .put("title", title?.take(180))
+        .put("artist", artist?.take(180))
+        .put("savedAt", System.currentTimeMillis())
         .put("targetLanguage", identity.targetLanguage)
         .put("endpoint", identity.endpoint)
         .put("model", identity.model)
@@ -309,8 +381,14 @@ class FileLlmLyricsCache(
                 originalSha256.equals(identity.originalSha256, ignoreCase = true)
     }
 
-    private companion object {
-        const val ENTRY_PREFIX = "llm_"
+    private class TranslationGate(val lock: ReentrantLock = ReentrantLock(), var users: Int = 0)
+
+    companion object {
+        const val DIRECTORY = "ampp-llm-lyrics"
+        private val locks = ConcurrentHashMap<String, Any>()
+        private val epochs = ConcurrentHashMap<String, AtomicLong>()
+        private val translationGates = mutableMapOf<String, TranslationGate>()
+        private const val ENTRY_PREFIX = "llm_"
         const val ENTRY_SUFFIX = ".json"
         const val INDEX_FILE_NAME = "index.json"
         // Old clients must reject entries whose identity includes a thinking format.

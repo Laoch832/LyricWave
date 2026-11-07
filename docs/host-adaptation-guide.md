@@ -304,7 +304,7 @@ AMLL 转换器及 `scripts/amll_to_apple_ttml.py` 的译文/音译和声节点�
 
 <a id="llm-lyrics-fallback"></a>
 
-### 5.3 LLM 原生歌词翻译
+### 5.3 AI 选中歌词翻译与缓存
 
 **生效与接缝。** LLM 复用歌词替换、自动补全与结果提交，不另建宿主成员映射。观察精确 `TtmlSongInfoFromTtml` 的真实调用，以原生结果指针弱身份关联有界原文快照；`OpaqueTtmlParser` 标记并排除模块自己的解析，防止生成歌词回流为原生输入。当前歌曲与原文的对应关系须可验证，不能使用“最近的 TTML”或视图文字补猜。
 
@@ -315,10 +315,13 @@ AMLL 转换器及 `scripts/amll_to_apple_ttml.py` 的译文/音译和声节点�
 | [LlmLyricsTtml.kt](../core/src/main/kotlin/dev/amenhancer/module/lyrics/LlmLyricsTtml.kt) | 时间轴/语言/译文资格、正文抽取、输出副本补 key 与 Apple 译文轨写入 |
 | [LlmLyricsClient.kt](../core/src/main/kotlin/dev/amenhancer/module/lyrics/LlmLyricsClient.kt) | 提示词、共享请求编码与传输、严格响应校验、期限与取消 |
 | [LlmLyricsCache.kt](../core/src/main/kotlin/dev/amenhancer/module/lyrics/LlmLyricsCache.kt) | 独立文件缓存与最近使用淘汰 |
-| [LlmLyricsReplacementSession.kt](../core/src/main/kotlin/dev/amenhancer/module/hook/LlmLyricsReplacementSession.kt) | 播放代次、原生被采用的门禁、去重与原生指针准备 |
+| [LlmLyricsReplacementSession.kt](../core/src/main/kotlin/dev/amenhancer/module/hook/LlmLyricsReplacementSession.kt) | 播放代次、选中来源门禁、去重与原生指针准备 |
+| [LlmLyricsActivityStore.kt](../core/src/main/kotlin/dev/amenhancer/module/lyrics/LlmLyricsActivityStore.kt) | 本地调用与缓存事件、真实请求/用量统计、原子持久化与有界记录 |
 | `app` / `host-applemusic` | 设置/私有存储/后台装配，以及原文观察/模块解析排除/共用结果提交，各守既有边界 |
 
-手动/禁用状态及来源选择先于 LLM 缓存；只有最终采用 AM 原生时才允许补翻译，每次再播放重新判断。所需的第三方查询尚未完成时不开始翻译；原生不达标时须等全部第三方未命中后回退原生，再判断翻译资格。达标原生之后的来源不参与本次查询；采用第三方或手动结果时撤销在途及就绪译文。`onNativeSelected` 只由选源结果授予资格，输入仍须来自当前原生指针关联的原文，不以模块生成的 TTML 代替。
+来源选择先于 AI：手动与在线文档通过 `OpaqueTtmlParser.documentOf` 取得自身原文；原生文档通过精确指针观察取得原文。`selectedLlmLyricsSource` 保持来源优先级，不把已含译文的手动来源替换为另一份原生文档。必要的第三方查询未完成时不抢先翻译临时原生结果；`onSourceSelected` 授予当前来源资格，源文档或配置变化撤销过期工作。
+
+AI 不再依赖在线补全开关，但仍受歌词替换与 AI 开关控制。验证后的译文完成即原子落盘，与播放器指针生命周期分开；原生解析失败保留缓存并记录独立诊断。自动与手动请求通过可取消等待的歌曲锁去重。显式操作通过 `LlmLyricsCacheUpdates` 通知当前歌曲刷新，注册关闭时移除监听。
 
 输入须有可用逐行或逐字时间轴；纯文本、无时间轴、空歌词不翻译。根 `xml:lang` 的中文、简繁体/地区标签与中文别名整首跳过；逐字文档缺根语言时不调用 LLM，自动查源仍按所选策略判断。逐行文档保守判断文本，含汉字的日文不能直接判中文。
 
@@ -346,11 +349,11 @@ AMLL 转换器及 `scripts/amll_to_apple_ttml.py` 的译文/音译和声节点�
 
 切换格式保留已保存的开关和强度。请求快照与缓存按有效值归一化：未使用的开关、默认或当前格式不支持的档位不进入请求。接口拒绝时按失败处理，不自动改参数重试。连接成功只说明请求可用，不能证明服务采纳了强度。
 
-缓存为宿主私有 `files/ampp-llm-lyrics`，最多 100 首，命中更新 LRU，每首只保留一项。身份包括原文、规范化接口、模型、思考格式、有效开关与强度、提示词版本。新写格式 3；旧格式 1/2 按 `thinking.type` 读取，其中格式 1 的强度为默认。格式 2 缺失或未知强度、格式 3 缺失或未知思考格式或强度均拒绝。旧版拒绝格式 3，降级不会把其他格式的译文当成原格式复用。仅成功并被原生解析接受的结果可持久化，密钥不写缓存。不调用 `AutoLyricsPublisher`，不生成自定义条目，不参与自定义歌词备份或在线更新。
+缓存为宿主私有 `files/ampp-llm-lyrics`，最多 100 首，命中更新 LRU，每首只保留一项。身份包括原文、规范化接口、模型、思考格式、有效开关与强度、提示词版本。新写格式 3；旧格式 1/2 按 `thinking.type` 读取，其中格式 1 的强度为默认。格式 2 缺失或未知强度、格式 3 缺失或未知思考格式或强度均拒绝。旧版拒绝格式 3，降级不会把其他格式的译文当成原格式复用。翻译完成并通过 TTML 校验即持久化；原生解析或提交失败单独记录，不丢弃有效译文。密钥不写缓存。不调用 `AutoLyricsPublisher`，不生成自定义条目，不参与自定义歌词备份或在线更新。
 
 请求与回复协议、声部分组或写回约定变化影响已有译文时，提升 `LlmLyricsClient.PROMPT_VERSION`，使旧项在下一次合格查询时失效。单纯调整翻译风格时可保留版本并继续复用已有缓存。缓存身份或读取兼容规则变化时单独维护缓存格式，不增加第二缓存目录，也不批量改写自定义歌词。
 
-网络/XML 在后台，单播放失败不循环重试。切歌、原文/配置变化、高优先级结果或关闭撤销旧任务，迟到完成仍通过共用通道校验。正常资格跳过保持安静，不保留逐阶段诊断集合、耗时统计或原因回调；原生 TTML 观察属于功能输入，不能随临时日志删除。连通错误通过[设置页](#settings-data-plugins)的手动测试展示。
+网络/XML 在后台，单播放失败不循环重试。切歌、原文/配置变化、高优先级结果或关闭撤销旧任务，迟到完成仍通过共用通道校验。正常资格跳过不弹窗；本地活动记录保留固定原因、实际 API 状态、耗时与接口返回的 usage，不记录密钥或请求回复正文。缓存列表与调用统计通过 AI 二级设置进入，详见 [AI 歌词说明](ai-lyrics.md)。原生 TTML 观察属于功能输入，不能随临时日志删除。
 
 **变更触发。** 新构建复核原文 parser、指针身份和结果通道；原生不再经过可观察入口时先停用兜底，再在宿主层建立有证据的输入。时间轴/语言/轨道变化在通用 TTML 层适配，版本名、反射、Hook 不进入客户端或缓存。
 

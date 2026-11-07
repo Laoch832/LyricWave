@@ -112,6 +112,16 @@ public class LlmLyricsDocument private constructor(
 
     public companion object {
 
+        /** Bounded, decoded subtitle preview for the local cache inspector. No XML is displayed. */
+        public fun translationPreview(ttml: String): String? {
+            if (!TtmlInputPolicy.isAcceptable(ttml)) return null
+            val track = TtmlScanner.element(ttml, "translation", 0) ?: return null
+            val body = ttml.substring(track.contentStart, track.contentEnd)
+            return Regex("<text\\b[^>]*>(.*?)</text>", setOf(RegexOption.DOT_MATCHES_ALL, RegexOption.IGNORE_CASE))
+                .findAll(body).take(8).map { decodeEntities(it.groupValues[1].replace(Regex("<[^>]+>"), "")).trim() }
+                .filter(String::isNotEmpty).joinToString("\n").take(1600).takeIf(String::isNotEmpty)
+        }
+
         /**
          * Inspects [ttml] once and returns the translation pass it allows, or
          * `null` when the host must keep what it already has: Chinese lyrics,

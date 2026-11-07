@@ -86,7 +86,7 @@ class CustomLyricsItemUpdateStructuralRegressionTest {
         assertEquals(
             // Configured lyrics, automatic fallback, cache refresh, LLM,
             // native-ID submission repair and automatic lookup misses each publish.
-            6,
+            7,
             Regex("resultBridge\\.onReplacementPublished").findAll(target).count(),
         )
         assertTrue(
@@ -107,7 +107,7 @@ class CustomLyricsItemUpdateStructuralRegressionTest {
         assertTrue(target.contains("automaticLyricsLookupSources(settings, native != null, metadata)"))
         assertTrue(target.contains("autoSession?.configureSources(id, sources)"))
         assertTrue(target.contains("if (sources.isNotEmpty()) autoSession?.replacementFor(id) else null"))
-        assertTrue(target.contains("parser.forSubmission(manual ?: automatic ?: translated ?: native, id, nativeId)"))
+        assertTrue(target.contains("parser.forSubmission(translated ?: manual ?: automatic ?: native, id, nativeId)"))
         assertTrue(
             target.indexOf("val selectReplacement:") <
                 target.indexOf("LyricsResultSubmissionBridge.create("),
