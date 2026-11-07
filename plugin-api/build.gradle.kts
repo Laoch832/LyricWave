@@ -7,6 +7,6 @@ android {
 }
 tasks.register<Copy>("exportSdk") {
     dependsOn("bundleReleaseAar")
-    from(zipTree(layout.buildDirectory.file("outputs/aar/plugin-api-release.aar"))) { include("classes.jar"); rename("classes.jar", "ampp-plugin-api-v1.jar") }
+    from(zipTree(layout.buildDirectory.file("outputs/aar/plugin-api-release.aar"))) { include("classes.jar"); rename("classes.jar", "lyricwave-plugin-api-v1.jar") }
     into(layout.buildDirectory.dir("sdk"))
 }

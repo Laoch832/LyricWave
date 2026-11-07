@@ -1,16 +1,16 @@
-# AM++ 插件开发教程
+# LyricWave 插件开发教程
 
 适用版本：插件 SDK v1，ZIP 格式 v1。本文面向独立插件作者，按“建立工程 → 编写功能 → 打包 → 导入 → 调试 → 更新适配”的顺序说明。
 
-你不需要 fork AM++ 来发布插件。插件使用 SDK 编译，发布一个 ZIP；用户进入 Apple Music 内的 AM++ 设置导入、启用并重启。AM++ 主项目和插件分别更新。
+你不需要 fork LyricWave 来发布插件。插件使用 SDK 编译，发布一个 ZIP；用户进入 Apple Music 内的 LyricWave 设置导入、启用并重启。LyricWave 主项目和插件分别更新。
 
 ## 1. 先明确你负责什么
 
-| AM++ 负责 | 插件作者负责 |
+| LyricWave 负责 | 插件作者负责 |
 |---|---|
 | SDK、ZIP 导入和代码加载 | 插件功能、依赖和界面 |
 | 启用状态、生命周期和管理入口 | Apple Music 内部目标定位及版本适配 |
-| 统一注册记录与冲突提示 | 与 AM++、其他插件之间的行为兼容 |
+| 统一注册记录与冲突提示 | 与 LyricWave、其他插件之间的行为兼容 |
 | 插件专属配置/缓存目录 | 数据格式、数据迁移、线程及实际对象清理 |
 
 首版支持方法/构造器 Hook、观察回调、普通素材和用标准 Android View 创建的设置页。插件可以实现主项目原本没有的功能。
@@ -24,40 +24,40 @@
 ### 2.1 环境
 
 - JDK 17 或以上。
-- 示例使用 Gradle 9.7.1；可以复制 AM++ 的 Gradle Wrapper。
+- 示例使用 Gradle 9.7.1；可以复制 LyricWave 的 Gradle Wrapper。
 - 示例使用 Android SDK Platform 37 和 Build Tools 37.0.0。
-- 编译用的 `ampp-plugin-api-v1.jar`。
+- 编译用的 `lyricwave-plugin-api-v1.jar`。
 
 编译用 SDK 37 与最低运行 API 26 是不同概念。调用较新的 Android API 时，由作者提高 `minAndroidApi` 或判断运行时系统版本。
 
 ### 2.2 获取 SDK
 
-已拿到 SDK JAR 的作者可以直接进入下一步。如果只有 AM++ 源码，在项目根目录执行：
+已拿到 SDK JAR 的作者可以直接进入下一步。如果只有 LyricWave 源码，在项目根目录执行：
 
 ```powershell
 .\gradlew.bat :plugin-api:exportSdk
 ```
 
-输出：`plugin-api/build/sdk/ampp-plugin-api-v1.jar`。这是编译接口，不需要用户单独导入或安装。
+输出：`plugin-api/build/sdk/lyricwave-plugin-api-v1.jar`。这是编译接口，不需要用户单独导入或安装。
 
 ### 2.3 复制示例
 
-复制源码中的 `examples/basic-plugin/` 到你自己的目录，例如 `C:\Dev\MyAmppPlugin`。保持它是一个独立工程，不在 AM++ 的 settings.gradle.kts 中 include 它。
+复制源码中的 `examples/basic-plugin/` 到你自己的目录，例如 `C:\Dev\MyLyricWavePlugin`。保持它是一个独立工程，不在 LyricWave 的 settings.gradle.kts 中 include 它。
 
 ```text
-MyAmppPlugin/
+MyLyricWavePlugin/
 ├── settings.gradle.kts
 ├── build.gradle.kts
 ├── plugin.json
 ├── lib/
-│   └── ampp-plugin-api-v1.jar
+│   └── lyricwave-plugin-api-v1.jar
 ├── assets/
 │   └── welcome.txt
 └── src/main/java/example/
     └── BasicPlugin.java
 ```
 
-把 SDK 放到 `lib/`。若没有安装全局 Gradle，再从 AM++ 源码复制 `gradlew`、`gradlew.bat` 和整个 `gradle/wrapper/` 目录到独立工程；其中应包含 wrapper JAR 和 properties。
+把 SDK 放到 `lib/`。若没有安装全局 Gradle，再从 LyricWave 源码复制 `gradlew`、`gradlew.bat` 和整个 `gradle/wrapper/` 目录到独立工程；其中应包含 wrapper JAR 和 properties。
 
 示例中的依赖声明是：
 
@@ -65,7 +65,7 @@ MyAmppPlugin/
 dependencies { compileOnly(files(sdk.get(), androidJar)) }
 ```
 
-SDK 必须用 compileOnly。不要把 SDK、AM++ 自身或 Apple Music 的类复制到插件包；这些类型由运行环境提供。
+SDK 必须用 compileOnly。不要把 SDK、LyricWave 自身或 Apple Music 的类复制到插件包；这些类型由运行环境提供。
 
 ## 3. 填写插件说明
 
@@ -171,7 +171,7 @@ public final class BasicPlugin extends AmppPlugin {
 | onClose cleanup | 关闭作用域的线程；需要 UI 操作时自行切主线程 |
 | onStop | 主线程，尽力调用一次；宿主被直接杀死时不保证调用 |
 
-插件在 AM++ 原有初始化结束后启动，不能依赖捕获已经发生的 Application.onCreate 或早期资源初始化事件。
+插件在 LyricWave 原有初始化结束后启动，不能依赖捕获已经发生的 Application.onCreate 或早期资源初始化事件。
 
 ## 5. 定位目标与注册 Hook
 
@@ -259,7 +259,7 @@ private java.lang.reflect.Method resolveNoArgMethod(
 
 网络失败、没有搜索结果等正常业务结果由作者处理，通常记录日志并保留原有功能。把异常抛出 SDK Hook 回调会让运行时停止整个插件，并非只跳过这一次操作。
 
-未来 Apple Music 更新时，作者更新自己的 host 适配器和插件版本。AM++ 仍需完成自身适配和精确版本支持登记；插件不能绕过主项目的版本门禁。插件加载机制没有 Apple Music 私有目标表，通常不需要随每个 AM 版本改动。
+未来 Apple Music 更新时，作者更新自己的 host 适配器和插件版本。LyricWave 仍需完成自身适配和精确版本支持登记；插件不能绕过主项目的版本门禁。插件加载机制没有 Apple Music 私有目标表，通常不需要随每个 AM 版本改动。
 
 ## 7. 设置、存储、素材和后台任务
 
@@ -276,7 +276,7 @@ java.io.File data = runtime.getDataDirectory();
 java.io.File cache = runtime.getCacheDirectory();
 ```
 
-data 保存用户配置及需要跨更新保留的数据；cache 保存可以重新生成的内容。同 ID 更新保留这些目录，删除插件并重启后会清理。作者维护自己的数据格式和迁移，不修改 AM++ 配置 schema 或依赖主项目私有文件路径。
+data 保存用户配置及需要跨更新保留的数据；cache 保存可以重新生成的内容。同 ID 更新保留这些目录，删除插件并重启后会清理。作者维护自己的数据格式和迁移，不修改 LyricWave 配置 schema 或依赖主项目私有文件路径。
 
 不要默认使用 Application.getSharedPreferences 的宿主全局命名空间。优先在 data 下管理自己的文件；文件/网络/解析等耗时任务放在后台。
 
@@ -323,7 +323,7 @@ dev.amenhancer.plugin.api.PluginRegistration claim =
 
 key 只有参与者一致声明时才有比较意义。它不自动寻找播放器菜单，也不扫描或回滚视图修改。尽量使用 SDK 注册 Hook；绕过入口的操作无法完整纳入冲突记录。
 
-歌词增强插件作者还需要自己约定什么时候保留 AM++ 的歌词、什么时候主动替换，确保异步返回属于当前歌曲、切源不会被旧请求覆盖、多个刷新路径不会反复覆盖。没有 Hook 重叠也可能存在这类语义冲突；v1 不会自动协调来源优先级。
+歌词增强插件作者还需要自己约定什么时候保留 LyricWave 的歌词、什么时候主动替换，确保异步返回属于当前歌曲、切源不会被旧请求覆盖、多个刷新路径不会反复覆盖。没有 Hook 重叠也可能存在这类语义冲突；v1 不会自动协调来源优先级。
 
 ## 9. 打包与外部依赖
 
@@ -353,8 +353,8 @@ doFirst {
 
 ## 10. 导入与调试
 
-1. 使用包含插件系统的 AM++，以及主项目已经支持的 Apple Music 版本。
-2. 打开 Apple Music → 设置 → AM++ 模块设置 → 插件 → 导入 ZIP。
+1. 使用包含插件系统的 LyricWave，以及主项目已经支持的 Apple Music 版本。
+2. 打开 Apple Music → 设置 → 澜音模块设置 → 插件 → 导入 ZIP。
 3. 确认插件名称、作者和版本；新导入插件默认关闭。
 4. 开启“下次启动启用”，完全停止并重开 Apple Music。
 5. 查看本次运行状态、错误或冲突详情，运行中插件可以打开插件设置。
@@ -380,9 +380,9 @@ adb logcat -s AppleMusicEnhancer
 
 每次发布建议提供：插件 ZIP、版本号、已验证的 Apple Music/Android 范围、功能说明和已知兼容情况。保持 ID 稳定，增加 versionCode，更新 versionName，必要时迁移自己 data 目录里的数据。
 
-启停、替换和删除都在重启后生效。替换保留配置与启用状态；失败导入保留已有版本。删除会清理插件自己的配置和缓存，不进入 AM++ 的歌词备份。
+启停、替换和删除都在重启后生效。替换保留配置与启用状态；失败导入保留已有版本。删除会清理插件自己的配置和缓存，不进入 LyricWave 的歌词备份。
 
-发布前实际验证：独立构建、首次导入、启用重启、目标回调、设置打开/关闭、更新保留配置、停用、删除，以及与 AM++ 原有功能和常用插件的组合。歌词/网络插件另外检查快速切歌、请求失败和过期结果。
+发布前实际验证：独立构建、首次导入、启用重启、目标回调、设置打开/关闭、更新保留配置、停用、删除，以及与 LyricWave 原有功能和常用插件的组合。歌词/网络插件另外检查快速切歌、请求失败和过期结果。
 
 构建与导入检查不能替代 LSPosed、嵌入版以及 Android 14+ 的实际加载/Hook/页面验收。作者需要记录自己的功能、宿主和设备范围，不能从 SDK 或样例的结果推断插件功能通过。
 

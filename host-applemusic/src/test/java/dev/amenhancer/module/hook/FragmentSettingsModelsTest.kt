@@ -1,5 +1,6 @@
 package dev.amenhancer.module.hook
 
+import dev.amenhancer.module.i18n.ModuleText
 import java.lang.reflect.Proxy
 import java.util.Collections
 import org.junit.Assert.*
@@ -14,7 +15,7 @@ class FragmentSettingsModelsTest {
         val category = models.createCategory { opened++ } as SettingsHostCategory
         val row = category.c.single() as SettingsHostAction
         assertEquals("", category.a)
-        assertEquals("AM++", row.b)
+        assertEquals(ModuleText.MODULE_NAME.text(), row.b)
         assertTrue(row.d)
         assertNull(row.c)
         assertNull(row.e)
@@ -37,7 +38,7 @@ class FragmentSettingsModelsTest {
         val own = models.createCategory {} as SettingsHostCategory
         val staleOwn = models.createCategory {} as SettingsHostCategory
         val hostCallback = object : SettingsHostFunction0 { override fun invoke(): Any = SettingsHostUnit.a }
-        val sameTitle = SettingsHostCategory("", listOf(SettingsHostAction("AM++", null, true, null, null, hostCallback, 0x17a)), null, 0x3b)
+        val sameTitle = SettingsHostCategory("", listOf(SettingsHostAction(ModuleText.MODULE_NAME.text(), null, true, null, null, hostCallback, 0x17a)), null, 0x3b)
         val host = Any()
         val original = Collections.unmodifiableList(listOf(staleOwn, host, sameTitle, staleOwn))
         val result = models.prependUnique(original, own) as List<*>

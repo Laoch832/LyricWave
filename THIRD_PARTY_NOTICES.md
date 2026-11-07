@@ -1,4 +1,8 @@
-# Third-Party Notices
+# Third-Party Notices — LyricWave
+
+LyricWave (澜音), maintained by Laoch832, is derived from AM++ by Zennmn (Zen).
+The AM++ references below document inherited upstream work and its original provenance.
+Original copyright notices and license texts are retained. See [Acknowledgments](docs/ACKNOWLEDGMENTS.md).
 
 ## YouLyPlus LLM lyrics translation
 

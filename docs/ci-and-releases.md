@@ -1,10 +1,10 @@
 # 云端构建与发布
 
-开发仓库：[Laoch832/AM-plus-plus-custom](https://github.com/Laoch832/AM-plus-plus-custom)。
+开发仓库：[Laoch832/LyricWave](https://github.com/Laoch832/LyricWave)。
 
-- [工作流与构建记录](https://github.com/Laoch832/AM-plus-plus-custom/actions/workflows/build.yml)
-- [已发布安装包](https://github.com/Laoch832/AM-plus-plus-custom/releases)
-- [签名与发布配置](https://github.com/Laoch832/AM-plus-plus-custom/settings/secrets/actions)
+- [工作流与构建记录](https://github.com/Laoch832/LyricWave/actions/workflows/build.yml)
+- [已发布安装包](https://github.com/Laoch832/LyricWave/releases)
+- [签名与发布配置](https://github.com/Laoch832/LyricWave/settings/secrets/actions)
 
 ## 每次提交会做什么
 
@@ -16,16 +16,16 @@
 4. 对本仓库由 Laoch832 发起的 `main` 或版本标签构建，使用固定密钥签名，核对源码提交、应用 ID、版本号、APK 校验和及证书指纹。
 5. 上传 APK、SDK、插件样例和测试报告。即使测试失败，也尝试保留诊断报告。
 
-PR 和普通开发分支没有签名步骤，也不会读取发布凭据。Debug APK 使用 `.debug` 应用 ID，主要用于开发验证；日常安装应使用 `AM-plus-plus-signed` 里的 Release APK。
+PR 和普通开发分支没有签名步骤，也不会读取发布凭据。Debug APK 使用 `.debug` 应用 ID，主要用于开发验证；日常安装应使用 `LyricWave-signed` 里的 Release APK。
 
 进入某次成功运行页面，在 **Artifacts** 中下载：
 
 | 附件 | 内容 | 保留时间 |
 | --- | --- | --- |
-| AM-plus-plus-signed | 可安装 APK、SHA256SUMS.txt、SIGNATURE.txt、源码与版本元数据、发布说明 | 30 天 |
-| AM-plus-plus-debug | Debug APK | 14 天 |
-| AM-plus-plus-unsigned | 未签名构建与来源元数据，供同次运行的签名步骤使用 | 14 天 |
-| AM-plus-plus-plugin-sdk-v1 | SDK JAR 与独立插件样例 | 30 天 |
+| LyricWave-signed | 可安装 APK、SHA256SUMS.txt、SIGNATURE.txt、源码与版本元数据、发布说明 | 30 天 |
+| LyricWave-debug | Debug APK | 14 天 |
+| LyricWave-unsigned | 未签名构建与来源元数据，供同次运行的签名步骤使用 | 14 天 |
+| LyricWave-plugin-sdk-v1 | SDK JAR 与独立插件样例 | 30 天 |
 | test-and-lint-reports | 单元测试与 Lint 报告 | 14 天 |
 
 Release 附件不按这些 Artifact 时限自动清理。
@@ -34,7 +34,7 @@ Release 附件不按这些 Artifact 时限自动清理。
 
 先修改 `app/build.gradle.kts` 的 `versionName` 与递增的 `versionCode`，提交到新仓库，再选择一种方式：
 
-- 在 Actions → **CI** → **Run workflow** 中选择 `main`，勾选 `publish`；或
+- 在 Actions → **LyricWave CI** → **Run workflow** 中选择 `main`，勾选 `publish`；或
 - 为该提交推送与应用版本完全一致的标签，例如应用版本 `1.6.8-custom.2` 对应 `v1.6.8-custom.2`。
 
 普通 `main` 提交自动生成签名 Artifact，不会创建 Release。只有手动勾选发布或推送版本标签才会发布；包含 `-custom.*` 等后缀的版本标记为预发布，无后缀版本为正式发布。
@@ -77,3 +77,7 @@ Release 附件不按这些 Artifact 时限自动清理。
 - 失败时先查看具体任务日志及 `test-and-lint-reports`，修复后用新提交重跑。源码检查失败不会启动 Android 构建，测试失败不会签名或发布。
 - `release` 环境限制从 `main` 或 `v*` 版本标签发布；发布脚本进一步核对精确版本和个人账号。
 - 构建通过不能替代 LSPosed、Apple Music 及实体设备上的安装和播放验证。
+
+## 改名后的兼容约定
+
+对外名称为澜音（LyricWave），仓库与新发布附件使用 LyricWave。安装身份 `dev.amenhancer.module`、插件 API 的 Java 命名空间、既有存储路径和 `AMPP_*` 签名配置继续沿用，以便保留设置、翻译缓存、插件兼容性及覆盖升级关系。证书指纹保持不变。历史版本附件和上游来源记录保留当时名称。

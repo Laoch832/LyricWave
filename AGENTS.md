@@ -1,7 +1,7 @@
 # Development repository and publishing identity
 
-- Continue development in `Laoch832/AM-plus-plus-custom`:
-  https://github.com/Laoch832/AM-plus-plus-custom
+- Continue development in `Laoch832/LyricWave`:
+  https://github.com/Laoch832/LyricWave
 - Use this fork as `origin` and `Zennmn/AM-plus-plus` as `upstream`.
   Push ongoing changes to the fork. Keep upstream history so changes can later
   be proposed in a pull request.
@@ -27,3 +27,9 @@
 - Preserve the existing signing key and pinned certificate. Never regenerate it as a build fix.
 - Bump both app version fields for each new release; do not overwrite an existing release.
 - Run Python release-policy tests and workflow lint when changing publishing or signing.
+
+# Project identity
+
+- Public project name: LyricWave; Chinese name: 澜音. Keep user-facing copy and new artifacts consistent.
+- The second README section contains upstream acknowledgments; preserve `docs/ACKNOWLEDGMENTS.md`, original copyright notices and license texts.
+- Keep `dev.amenhancer.module`, plugin API namespaces, existing storage keys, signing certificate and `AMPP_*` secret names compatible with installed versions.

@@ -1,9 +1,13 @@
-# 文档目录
+# 澜音 · LyricWave 文档
+
+由 [Laoch832](https://github.com/Laoch832) 维护。项目入口：[LyricWave](https://github.com/Laoch832/LyricWave)；下载和反馈以本仓库为准。原作者与第三方来源见[致谢](ACKNOWLEDGMENTS.md)。
 
 适配 Apple Music 新构建从[宿主适配手册](host-adaptation-guide.md)开始。先确认[架构与改动位置](host-adaptation-guide.md#architecture)、[版本解析](host-adaptation-guide.md#profile-contracts)和[适配流程](host-adaptation-guide.md#adaptation-workflow)，再按[功能域索引](host-adaptation-guide.md#feature-index)定位接缝。
 
 | 文档 | 用途与内容归属 |
 |---|---|
+| [致谢与项目来源](ACKNOWLEDGMENTS.md) | 原作者、上游贡献、原作者赞赏入口与第三方来源 |
+| [云端构建与发布](ci-and-releases.md) | 自动测试、安装包下载、固定签名、个人账号发布与故障定位 |
 | [宿主适配手册](host-adaptation-guide.md) | 当前架构、页面族、宿主接缝、通用维护规则与变更触发；区分新构建接入和共享策略修改 |
 | [宿主适配清单](host-adaptation-checklist.md) | 每个构建的证据、适用性、安装/降级判定及交付模板；复制到任务记录填写 |
 | [功能保全矩阵](feature-preservation.md) | 用户可见行为、适用边界和人工场景的集中依据，含[结果记录模板](feature-preservation.md#acceptance-record) |

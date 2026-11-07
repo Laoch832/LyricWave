@@ -298,7 +298,7 @@ internal object ConstraintLayoutPane {
         installPlayerColumnLayout(playerRoot, playerHost)
         val lyricsHost = FrameLayout(root.context).apply {
             id = View.generateViewId()
-            contentDescription = "AM++ lyrics pane"
+            contentDescription = "LyricWave lyrics pane"
         }
         playerRoot.addView(
             lyricsHost,

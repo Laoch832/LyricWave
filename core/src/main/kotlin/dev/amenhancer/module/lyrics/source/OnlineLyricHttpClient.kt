@@ -87,6 +87,6 @@ class HttpLyricTransport(
         const val DEFAULT_CONNECT_TIMEOUT_MS = 10_000
         const val DEFAULT_READ_TIMEOUT_MS = 15_000
         const val DEFAULT_MAX_RESPONSE_BYTES = 1 shl 20
-        private const val USER_AGENT = "AMPlusPlus/1.2.1"
+        private const val USER_AGENT = "LyricWave/1.0"
     }
 }

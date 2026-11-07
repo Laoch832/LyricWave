@@ -1,4 +1,4 @@
-# Repository checks and build helpers
+# LyricWave checks and build helpers
 
 This directory contains host profile checks, build helpers and optional device regressions.
 Use the [host adaptation guide](../docs/host-adaptation-guide.md) for the per-build workflow.

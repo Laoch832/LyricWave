@@ -1,3 +1,4 @@
 <resources>
-    <string name="xposed_description">Apple Music 增强模块：平板双栏、双向歌词模糊、自定义歌词与歌词字体、歌曲名修正、手机液态玻璃底栏</string>
+    <string name="app_name">澜音</string>
+    <string name="xposed_description">澜音：Apple Music 增强，支持 AI 歌词翻译、自动缓存与更新校验、歌词定制、平板双栏和液态玻璃</string>
 </resources>

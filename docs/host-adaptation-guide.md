@@ -1,6 +1,6 @@
-# Apple Music 宿主适配手册
+# LyricWave — Apple Music 宿主适配手册
 
-本手册供维护者为具体 Apple Music 构建建立和维护 AM++ 接入。适配身份取实际宿主 `packageName` 与 `TargetBuild` 的 `versionName`、`versionCode`；正式版、beta 和同名不同构建分别处理。
+本手册供维护者为具体 Apple Music 构建建立和维护 LyricWave 接入。适配身份取实际宿主 `packageName` 与 `TargetBuild` 的 `versionName`、`versionCode`；正式版、beta 和同名不同构建分别处理。
 
 | 要解决的问题 | 阅读位置 |
 |---|---|

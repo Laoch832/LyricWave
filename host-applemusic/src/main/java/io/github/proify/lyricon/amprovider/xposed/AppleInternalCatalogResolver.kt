@@ -41,7 +41,7 @@ internal class AppleInternalCatalogResolver(
     internal val catalogBackgroundExecutor: Executor = Executors.newFixedThreadPool(
         2,
     ) { task ->
-        Thread(task, "AM++ Catalog CPU").apply { isDaemon = true }
+        Thread(task, "LyricWave Catalog CPU").apply { isDaemon = true }
     }
     internal val catalogResponseDispatcher = AppleCatalogResponseWorkDispatcher(
         mainExecutor = Executor { runnable ->

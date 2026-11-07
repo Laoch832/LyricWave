@@ -3,7 +3,7 @@ package dev.amenhancer.module.i18n
 import java.util.Locale
 
 /**
- * Text owned by AM++, independent of the host's Android resource table.
+ * Text owned by LyricWave, independent of the host's Android resource table.
  * The injected settings also work when the module APK is embedded and is not
  * installed as a package. English is the fallback; zh locales use Chinese.
  */
@@ -112,10 +112,11 @@ enum class ModuleText(internal val english: String, internal val chinese: String
     ONLINE_IMPORT_UNAVAILABLE("Online import is unavailable", "在线导入不可用"),
     LYRICS_UPDATE_UNAVAILABLE("Lyrics updates are unavailable", "歌词更新不可用"),
     NO_FILE_SELECTED("No file selected", "未选择文件"),
-    OPEN_SETTINGS("Open AM++ settings", "打开 AM++ 设置"),
-    OPEN_MODULE_SETTINGS("Open AM++ module settings", "打开 AM++ 模块设置"),
-    MODULE_SETTINGS("AM++ module settings", "AM++ 模块设置"),
-    MODULE_SETTINGS_SUMMARY("Fonts, lyrics and module features", "字体、歌词与模块功能"),
+    MODULE_NAME("LyricWave", "澜音"),
+    OPEN_SETTINGS("Open LyricWave settings", "打开澜音设置"),
+    OPEN_MODULE_SETTINGS("Open LyricWave module settings", "打开澜音模块设置"),
+    MODULE_SETTINGS("LyricWave module settings", "澜音模块设置"),
+    MODULE_SETTINGS_SUMMARY("AI translations, lyrics and player features", "AI 翻译、歌词与播放器功能"),
     CHECKING_LYRICS("Checking lyrics…", "正在检查歌词…"),
     LYRICS_UPDATE("Lyrics update", "歌词更新"),
     LYRICS_UPDATE_PROGRESS("Checking lyrics %1\$s/%2\$s…\nUpdated %3\$s · Unchanged %4\$s · Skipped %5\$s · Failed %6\$s", "正在检查 %1\$s/%2\$s 条歌词…\n更新 %3\$s · 无变化 %4\$s · 跳过 %5\$s · 失败 %6\$s"),
@@ -131,12 +132,12 @@ enum class ModuleText(internal val english: String, internal val chinese: String
     OVERWRITE("Overwrite", "覆盖"),
     PROCESSING("Processing…", "处理中…"),
     OPERATION_FAILED("Operation failed", "操作失败"),
-    SETTINGS_READ_FAILED("Cannot read AM++ settings", "无法读取 AM++ 设置"),
+    SETTINGS_READ_FAILED("Cannot read LyricWave settings", "无法读取澜音设置"),
     BACK("Back", "返回"),
-    SAVE_SETTINGS("Save AM++ settings", "保存 AM++ 设置"),
-    CLOSE_SETTINGS("Close AM++ settings", "关闭 AM++ 设置"),
+    SAVE_SETTINGS("Save LyricWave settings", "保存澜音设置"),
+    CLOSE_SETTINGS("Close LyricWave settings", "关闭澜音设置"),
     SETTINGS_SAVED("Saved. Reopen Apple Music for settings that require a restart.", "已保存；需要重启的设置请重开 Apple Music。"),
-    SETTINGS_SAVE_FAILED("Cannot save AM++ settings", "保存 AM++ 设置失败"),
+    SETTINGS_SAVE_FAILED("Cannot save LyricWave settings", "保存澜音设置失败"),
     CUSTOM_LYRICS("Custom lyrics", "自定义歌词"),
     FEATURES("Features", "功能"),
     CATEGORY_LYRICS_MANAGEMENT("Lyrics management", "歌词管理"),
@@ -271,7 +272,7 @@ enum class ModuleText(internal val english: String, internal val chinese: String
     CHOOSE_FONT("Choose font", "选择字体"),
     RESTORE_FONT("Restore original font", "恢复原字体"),
     LSPOSED_HELP("LSPosed setup", "LSPosed 配置提示"),
-    LSPOSED_HELP_SCOPE("Enable AM++ in LSPosed and select only Apple Music (com.apple.android.music) in its scope.", "在 LSPosed 中启用 AM++，作用域仅选择 Apple Music（com.apple.android.music）。"),
+    LSPOSED_HELP_SCOPE("Enable LyricWave in LSPosed and select only Apple Music (com.apple.android.music) in its scope.", "在 LSPosed 中启用澜音，作用域仅选择 Apple Music（com.apple.android.music）。"),
     LSPOSED_HELP_RESTART("After changing settings, force-stop and reopen Apple Music.", "修改设置后，请先强制停止，再重新打开 Apple Music。"),
     GOT_IT("Got it", "知道了"),
     LYRIC_BLUR_OFFSET("Lyric blur radius offset", "歌词模糊半径偏移"),
@@ -369,7 +370,7 @@ enum class ModuleText(internal val english: String, internal val chinese: String
     UPDATED_INDEX_INVALID("Updated lyrics index is invalid", "更新后的歌词索引无效"),
     LUNABEAT_LYRICS_NAME("Lunabeat custom lyrics", "Lunabeat 自定义歌词"),
     GITHUB_LYRICS_NAME("AM-Lyrics custom lyrics", "AM-Lyrics 自定义歌词"),
-    BUILTIN_EXCLUSIVE_CONFLICT("An exclusive target is occupied by an AM++ built-in registration", "独占目标被 AM++ 内置注册占用"),
+    BUILTIN_EXCLUSIVE_CONFLICT("An exclusive target is occupied by a LyricWave built-in registration", "独占目标被澜音内置注册占用"),
     EXCLUSIVE_CONFLICT("Exclusive targets overlap", "独占目标重叠"),
     SHARED_TARGET_WARNING("Multiple registrations may modify the same target, including unknown built-in registrations", "多个注册可能修改同一目标；内置未知注册也计入提示"),
     PLUGIN_ENTRY_INVALID("Invalid entry point or duplicate SDK", "无效入口或重复 SDK"),

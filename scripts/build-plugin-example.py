@@ -58,8 +58,8 @@ def main():
         return
     wrapper = ROOT / ('gradlew.bat' if os.name == 'nt' else 'gradlew')
     subprocess.run([str(wrapper), ':plugin-api:exportSdk', '--no-daemon'], cwd=ROOT, check=True)
-    sdk = ROOT / 'plugin-api/build/sdk/ampp-plugin-api-v1.jar'
-    with tempfile.TemporaryDirectory(prefix='ampp-independent-plugin-') as folder:
+    sdk = ROOT / 'plugin-api/build/sdk/lyricwave-plugin-api-v1.jar'
+    with tempfile.TemporaryDirectory(prefix='lyricwave-independent-plugin-') as folder:
         target = Path(folder) / 'basic-plugin'
         shutil.copytree(ROOT / 'examples/basic-plugin', target, ignore=shutil.ignore_patterns('build', '.gradle'))
         (target / 'lib').mkdir()

@@ -1,4 +1,4 @@
-# 功能保全与验收矩阵
+# LyricWave — 功能保全与验收矩阵
 
 本矩阵是人工场景的唯一来源和用户可见行为依据。适配流程、实现规则与降级门禁见 [宿主适配手册](host-adaptation-guide.md)，逐项证据、判据与状态见 [适配清单](host-adaptation-checklist.md)。
 

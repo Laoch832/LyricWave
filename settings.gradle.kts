@@ -14,7 +14,7 @@ dependencyResolutionManagement {
     }
 }
 
-rootProject.name = "AMPlusPlus"
+rootProject.name = "LyricWave"
 include(":app")
 include(":backdrop", ":glass")
 include(":core", ":host-api", ":hook-runtime", ":host-applemusic")

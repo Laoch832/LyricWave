@@ -111,7 +111,7 @@ internal fun EmbeddedSettingsHost.showSettingsDialog(activity: Activity) {
         }
         val moduleIcon = ImageView(activity).apply {
             setEmbeddedImageDrawable(activity, EmbeddedAmppBrandDrawable(cornerRadiusPx = dp(activity, 12).toFloat()))
-            contentDescription = "AM++"
+            contentDescription = localizedText(ModuleText.MODULE_NAME)
             scaleType = ImageView.ScaleType.CENTER_INSIDE
             setPadding(0, 0, 0, 0)
         }
@@ -380,7 +380,7 @@ internal fun EmbeddedSettingsHost.showSettingsDialog(activity: Activity) {
                 ))
                 val childPage = page != EmbeddedSettingsPage.MAIN
                 pageTitle.text = when (page) {
-                    EmbeddedSettingsPage.MAIN -> "AM++"
+                    EmbeddedSettingsPage.MAIN -> localizedText(ModuleText.MODULE_NAME)
                     EmbeddedSettingsPage.CUSTOM_LYRICS -> localizedText(ModuleText.CATEGORY_LYRICS_MANAGEMENT)
                     EmbeddedSettingsPage.AUTOMATIC_LYRICS -> localizedText(ModuleText.AUTO_LYRICS)
                     EmbeddedSettingsPage.LYRICS_EFFECTS -> localizedText(ModuleText.CATEGORY_LYRICS_EFFECTS)

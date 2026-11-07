@@ -1,5 +1,6 @@
 package dev.amenhancer.module.hook
 
+import dev.amenhancer.module.i18n.ModuleText
 import java.lang.reflect.Constructor
 import java.lang.reflect.Field
 import java.lang.reflect.InvocationHandler
@@ -129,7 +130,7 @@ internal class FragmentSettingsModels private constructor(
     fun createCategory(onOpen: () -> Unit): Any {
         val callback = Proxy.newProxyInstance(loader, arrayOf(callbackClass), EntryCallback(unit, onOpen))
         // This is the same optimized constructor and default mask as native navigation rows.
-        val action = actionConstructor.newInstance("AM++", null, false, null, null, callback, 0x17a)
+        val action = actionConstructor.newInstance(ModuleText.MODULE_NAME.text(), null, false, null, null, callback, 0x17a)
         return categoryConstructor.newInstance(null, listOf(action), null, 0x3b)
     }
 

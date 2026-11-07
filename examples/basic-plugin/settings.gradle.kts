@@ -1,1 +1,1 @@
-rootProject.name = "ampp-basic-plugin"
+rootProject.name = "lyricwave-basic-plugin"

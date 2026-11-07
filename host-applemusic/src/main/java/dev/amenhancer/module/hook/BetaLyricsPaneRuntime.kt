@@ -121,7 +121,7 @@ internal class BetaLyricsPaneRuntime(private val lyricsClass: Class<*>,
                     native.attachMethod -> { (args?.firstOrNull() as? View)?.let(::applyRow); null }
                     "equals" -> proxy === args?.firstOrNull()
                     "hashCode" -> System.identityHashCode(proxy)
-                    "toString" -> "AM++FragmentLyricRows"
+                    "toString" -> "LyricWaveFragmentLyricRows"
                     else -> null
                 }
             }

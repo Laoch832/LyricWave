@@ -9,14 +9,14 @@ import org.junit.Test
 class ModuleTextTest {
     @Test fun `Chinese locales retain the Chinese interface`() {
         for (tag in listOf("zh-CN", "zh-SG", "zh-TW", "zh-HK", "zh-Hans", "zh-Hant")) {
-            assertEquals("AM++ 模块设置", ModuleText.MODULE_SETTINGS.text(locale = Locale.forLanguageTag(tag)))
+            assertEquals("澜音模块设置", ModuleText.MODULE_SETTINGS.text(locale = Locale.forLanguageTag(tag)))
         }
     }
 
     @Test fun `unsupported languages fall back to English`() {
         for (locale in listOf(Locale.ENGLISH, Locale.US, Locale.UK, Locale.FRENCH, Locale.JAPANESE,
             Locale.forLanguageTag("ar"), Locale.ROOT)) {
-            assertEquals("AM++ module settings", ModuleText.MODULE_SETTINGS.text(locale = locale))
+            assertEquals("LyricWave module settings", ModuleText.MODULE_SETTINGS.text(locale = locale))
             assertEquals("Plugins", ModuleText.PLUGINS.text(locale = locale))
         }
     }

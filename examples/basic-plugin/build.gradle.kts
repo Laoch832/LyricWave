@@ -1,5 +1,5 @@
 plugins { java }
-val sdk = providers.gradleProperty("amppSdk").orElse("lib/ampp-plugin-api-v1.jar")
+val sdk = providers.gradleProperty("lyricwaveSdk").orElse(providers.gradleProperty("amppSdk")).orElse("lib/lyricwave-plugin-api-v1.jar")
 val androidSdk = providers.gradleProperty("androidSdk").orElse(providers.environmentVariable("ANDROID_HOME"))
 val androidJar = listOf("android-37.0", "android-37").map { file("${androidSdk.get()}/platforms/$it/android.jar") }
     .firstOrNull { it.isFile } ?: error("Install Android platform 37")

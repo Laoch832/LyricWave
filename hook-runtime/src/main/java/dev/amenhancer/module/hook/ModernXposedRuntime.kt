@@ -73,7 +73,7 @@ object ModernXposedRuntime {
             param.result
         }
         if (recordBuiltin) {
-            val record = HookRegistrations.register("AM++: ${callback.javaClass.name}", true, target = executable,
+            val record = HookRegistrations.register("LyricWave: ${callback.javaClass.name}", true, target = executable,
                 retained = { scope == null || !scope.isClosed })
             scope?.onClose { record.close() }
         }

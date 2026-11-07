@@ -1,4 +1,4 @@
 <resources>
-    <string name="app_name" translatable="false">AM++</string>
-    <string name="xposed_description">Apple Music enhancements: tablet dual-pane player, bidirectional lyric blur, custom lyrics and fonts, song title correction, and Liquid Glass navigation</string>
+    <string name="app_name">LyricWave</string>
+    <string name="xposed_description">LyricWave: Apple Music enhancements with AI lyric translation, persistent caching, source updates, custom lyrics, tablet playback and Liquid Glass</string>
 </resources>

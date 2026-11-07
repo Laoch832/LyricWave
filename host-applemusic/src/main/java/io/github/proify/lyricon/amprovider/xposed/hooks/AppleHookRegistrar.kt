@@ -124,7 +124,7 @@ internal class AppleHookRegistrar(
         }
         group?.recordHook()
         AppleMusicDexKitWatchdog.hookInstalled(executable)
-        val record = dev.amenhancer.module.hook.HookRegistrations.register("AM++ HLE: $moduleId", true,
+        val record = dev.amenhancer.module.hook.HookRegistrations.register("LyricWave HLE: $moduleId", true,
             target = executable, retained = { group == null || !group.scope.isClosed })
         group?.scope?.onClose(record::close)
     }

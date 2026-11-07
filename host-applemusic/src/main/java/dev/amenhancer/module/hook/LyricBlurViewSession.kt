@@ -262,7 +262,7 @@ internal class LyricBlurViewSession(
                 contract.method("childDetach").name -> { (args?.firstOrNull() as? View)?.let(::detached); null }
                 "equals" -> proxy === args?.firstOrNull()
                 "hashCode" -> System.identityHashCode(proxy)
-                "toString" -> "AM++LyricBlurRows"
+                "toString" -> "LyricWaveLyricBlurRows"
                 else -> null
             }
         }

@@ -1,6 +1,6 @@
 # Localization
 
-AM++ settings use the current Apple Music activity's primary configuration locale. Chinese (`zh`) locales use the existing Simplified Chinese text; English and other languages use English. Reopening the settings reads the locale again, including Android's per-app language setting. This does not change the language of catalog requests, song titles, lyrics, or user-entered names.
+LyricWave settings use the current Apple Music activity's primary configuration locale. Chinese (`zh`) locales use the existing Simplified Chinese text; English and other languages use English. Reopening the settings reads the locale again, including Android's per-app language setting. This does not change the language of catalog requests, song titles, lyrics, or user-entered names.
 
 `core/src/main/kotlin/dev/amenhancer/module/i18n/ModuleText.kt` is the shared text catalog for settings, lyrics operations, and plugin management. It is JVM-only and travels with the module's code. Injected views cannot resolve module resource IDs through Apple Music's resource table, and embedded installs may not have a separately installed module package. The catalog therefore needs neither a module package context nor merged Android resources.
 
@@ -15,4 +15,4 @@ To add or update text:
 
 `ModuleTextTest` checks English fallback, Chinese locales, repeated locale selection, user data preservation, and matching format arguments for every catalog entry. Existing operation tests compare localized diagnostics instead of assuming a particular machine language.
 
-No new language preference is stored by AM++, and plugins remain responsible for translating their own names, descriptions and settings pages.
+No new language preference is stored by LyricWave, and plugins remain responsible for translating their own names, descriptions and settings pages.

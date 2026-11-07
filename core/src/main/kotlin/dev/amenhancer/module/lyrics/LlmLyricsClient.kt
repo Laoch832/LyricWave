@@ -486,7 +486,7 @@ $input"""
         const val MAX_REQUEST_BYTES = 512 * 1024
 
         /** Mirrors the user agent used by the existing lyric transport. */
-        private const val USER_AGENT = "AMPlusPlus/1.2.1"
+        private const val USER_AGENT = "LyricWave/1.0"
         private const val WATCHDOG_THREAD_NAME = "llmLyricsWatchdog"
         private const val WATCHDOG_POLL_MS = 250L
         private const val WATCHDOG_JOIN_MS = 1_000L

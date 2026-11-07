@@ -19,7 +19,7 @@ class ReleasePolicyTest(unittest.TestCase):
     def metadata(self):
         return dict(commit=self.commit, versionName='1.6.8-custom.1', versionCode=119,
                     applicationId=RELEASE.APP_ID,
-                    unsignedApk='AM-plus-plus-1.6.8-custom.1-unsigned.apk')
+                    unsignedApk='LyricWave-1.6.8-custom.1-unsigned.apk')
 
     def test_valid_source_revision(self):
         self.assertEqual(('1.6.8-custom.1', 119),

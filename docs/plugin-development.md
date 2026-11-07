@@ -1,8 +1,8 @@
-# AM++ 插件 SDK v1
+# LyricWave 插件 SDK v1
 
 首次开发请先阅读 [插件作者教程](plugin-author-guide.md)，本文作为 SDK 与包格式参考。
 
-插件是作者独立构建、用户在 AM++ 设置中导入的 ZIP。作者维护功能逻辑、Apple Music 目标定位及版本适配；AM++ 维护稳定 SDK、加载器与管理入口。插件与宿主同进程执行，不是隔离沙箱。
+插件是作者独立构建、用户在 LyricWave 设置中导入的 ZIP。作者维护功能逻辑、Apple Music 目标定位及版本适配；LyricWave 维护稳定 SDK、加载器与管理入口。插件与宿主同进程执行，不是隔离沙箱。
 
 ## 模块边界
 
@@ -18,7 +18,7 @@ JDK 17+、项目 Gradle Wrapper、Android SDK/Build Tools 37。导出 SDK：
 ./gradlew :plugin-api:exportSdk
 ```
 
-产物是 `plugin-api/build/sdk/ampp-plugin-api-v1.jar`，供插件 compileOnly 使用，不允许打包 SDK 自身。
+产物是 `plugin-api/build/sdk/lyricwave-plugin-api-v1.jar`，供插件 compileOnly 使用，不允许打包 SDK 自身。
 
 验证独立开发路径：
 

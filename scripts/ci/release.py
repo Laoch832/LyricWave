@@ -12,7 +12,7 @@ import subprocess
 import tempfile
 
 ROOT = Path(__file__).resolve().parents[2]
-REPOSITORY = "Laoch832/AM-plus-plus-custom"
+REPOSITORY = "Laoch832/LyricWave"
 OWNER = "Laoch832"
 OWNER_ID = 173591322
 APP_ID = "dev.amenhancer.module"
@@ -43,7 +43,7 @@ def validate_metadata(data, expected_commit, source):
     if (data.get("commit"), data.get("versionName"), data.get("versionCode"),
             data.get("applicationId")) != (expected_commit, name, code, APP_ID):
         raise ValueError("Build metadata does not match this source revision")
-    expected_name = f"AM-plus-plus-{name}-unsigned.apk"
+    expected_name = f"LyricWave-{name}-unsigned.apk"
     if data.get("unsignedApk") != expected_name:
         raise ValueError("Unexpected unsigned APK filename")
     return name, code
@@ -114,7 +114,7 @@ def prepare(folder):
     source, commit = context()
     name, code = version(source)
     folder.mkdir(parents=True, exist_ok=True)
-    apk = folder / f"AM-plus-plus-{name}-unsigned.apk"
+    apk = folder / f"LyricWave-{name}-unsigned.apk"
     shutil.copy2(ROOT / "app/build/outputs/apk/release/app-release-unsigned.apk", apk)
     data = dict(commit=commit, versionName=name, versionCode=code, applicationId=APP_ID,
                 unsignedApk=apk.name, unsignedSha256=sha256(apk))
@@ -140,7 +140,7 @@ def sign(folder, output):
         if value not in badging.splitlines()[0]:
             raise ValueError("APK package/version differs from the checked source")
     output.mkdir(parents=True, exist_ok=True)
-    apk = output / f"AM-plus-plus-{name}.apk"
+    apk = output / f"LyricWave-{name}.apk"
     with tempfile.TemporaryDirectory(prefix="ampp-sign-", dir=os.environ.get("RUNNER_TEMP")) as temp:
         key = Path(temp) / "release.jks"
         key.write_bytes(base64.b64decode(os.environ["AMPP_RELEASE_KEYSTORE_BASE64"], validate=True))
@@ -161,7 +161,7 @@ def sign(folder, output):
     (output / "build-metadata.json").write_text(json.dumps(data, indent=2) + "\n")
     (output / "SHA256SUMS.txt").write_text(f"{data['apkSha256']}  {apk.name}\n")
     (output / "RELEASE_NOTES.md").write_text(
-        f"AM++ {name}（versionCode {code}）\n\n"
+        f"澜音 LyricWave {name}（versionCode {code}）\n\n"
         f"源码提交：{commit}\n\n"
         f"构建记录：https://github.com/{REPOSITORY}/actions/runs/{os.environ.get('GITHUB_RUN_ID', '')}\n\n"
         "本版本已通过工作流测试、Lint、APK 版本与固定签名校验，未代替真机运行验证。\n\n"
@@ -204,7 +204,7 @@ def publish(folder):
         _, previous_code = version(base64.b64decode(previous_source["content"]).decode())
         if code <= previous_code:
             raise ValueError("versionCode must increase beyond the most recent published version")
-    apk = folder / f"AM-plus-plus-{name}.apk"
+    apk = folder / f"LyricWave-{name}.apk"
     if data.get("apk") != apk.name or sha256(apk) != data.get("apkSha256"):
         raise ValueError("Signed APK checksum mismatch")
     expected = os.environ.get("AMPP_SIGNING_CERT_SHA256", "").lower()
@@ -213,7 +213,7 @@ def publish(folder):
     validate_signature((folder / "SIGNATURE.txt").read_text(), expected)
     args = ["gh", "release", "create", tag, str(apk), str(folder / "SHA256SUMS.txt"),
             str(folder / "SIGNATURE.txt"), str(folder / "build-metadata.json"),
-            "--repo", REPOSITORY, "--target", commit, "--title", f"AM++ {name}",
+            "--repo", REPOSITORY, "--target", commit, "--title", f"澜音 LyricWave {name}",
             "--notes-file", str(folder / "RELEASE_NOTES.md"), "--draft"]
     if "-" in name:
         args.append("--prerelease")

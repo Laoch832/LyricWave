@@ -205,7 +205,7 @@ internal class FragmentSettingsRuntime(
                 original
             })
             scope.activate()
-            TargetCapabilityInstall.Active("Installed native Compose AM++ settings row and MainActivity SAF bridge")
+            TargetCapabilityInstall.Active("Installed native Compose LyricWave settings row and MainActivity SAF bridge")
         }.getOrElse { error ->
             scope.close()
             TargetCapabilityInstall.Degraded(

@@ -1,5 +1,7 @@
 # Source provenance
 
+This source-provenance record is inherited by LyricWave (澜音). References to AM++ below describe upstream work by Zennmn and contributors, not new work claimed by this fork. See [project acknowledgments](../docs/ACKNOWLEDGMENTS.md).
+
 AndroidLiquidGlass / Backdrop 2.0.1, by Kyant.
 
 - Upstream: https://github.com/Kyant0/AndroidLiquidGlass
