@@ -18,6 +18,8 @@ The original author's support link and the credits for other projects are collec
 
 ## Features
 
+HDR lyrics offer a 100%–800% luminance ratio and a maximum-brightness mode. Genuine HDR requires Android 14+ and an HDR display. WeChat Moments sharing preserves a clickable Apple Music link and opens the native link editor; enable both Apple Music and WeChat in LSPosed. See [setup and compatibility](docs/hdr-and-moments.md).
+
 - AI translation of eligible selected foreign-language lyrics into Simplified Chinese through your own OpenAI-compatible endpoint.
 - Automatic persistent translation caching and source TTML SHA-256 checks, including lyric and timing changes.
 - Custom TTML import, editing, online fetching, search, and ZIP backup and restore.
@@ -29,7 +31,7 @@ The original author's support link and the credits for other projects are collec
 
 Enable custom lyrics and AI translation, then configure your endpoint and model. Online completion is independent; selected native, online, and imported lyrics can be translated. Existing translations, Chinese lyrics, and lyrics without line or word timing are preserved.
 
-The cache retains the 100 most recently used songs. It is independent of manually imported lyrics and does not store API keys. Endpoint, model, or effective thinking changes invalidate translations; rotating only the API key does not. Updates are checked against the native lyrics currently supplied by Apple Music, without separate server polling. Failed or cancelled requests keep the original lyrics and can retry on the next visit.
+The cache retains the 100 most recently used songs. It is independent of manually imported lyrics and does not store API keys. Endpoint, model, or effective thinking changes invalidate translations; rotating only the API key does not. Updates are checked against the currently selected source lyrics, without separate server polling. Failed or cancelled requests keep the original lyrics and can retry on the next visit.
 
 The **API requests & translation cache** page supports explicit translation, cached subtitle previews, persistent real request records, HTTP outcomes, and provider-reported usage. Cache hits do not increase API request counts. See the [AI translation guide](docs/ai-lyrics.md).
 
@@ -38,7 +40,7 @@ The **API requests & translation cache** page supports explicit translation, cac
 Requires Android 8.0+, a supported Apple Music build, and LSPosed or a compatible framework supporting libxposed API 102. Exact host builds are listed in [host profiles](host-applemusic/src/main/resources/host-profiles/).
 
 1. Download the APK from [this project's Releases](https://github.com/Laoch832/LyricWave/releases).
-2. Enable the module and select only Apple Music (`com.apple.android.music`) in its scope.
+2. Enable the module and select Apple Music (`com.apple.android.music`) in its scope; additionally select WeChat (`com.tencent.mm`) for Moments link sharing.
 3. Force stop and reopen Apple Music.
 4. Open Apple Music → Settings → **LyricWave module settings**.
 
@@ -72,6 +74,6 @@ On Windows, use `gradlew.bat` and the appropriate fixture path. Without signing 
 
 Report problems in [this fork's Issues](https://github.com/Laoch832/LyricWave/issues), including device, Android and Apple Music versions, and reproduction steps. Never include API keys. Changes are developed and verified here before proposing an upstream PR.
 
-The module declares only `INTERNET` permission, imports files through the system picker, and stores settings, lyrics, and fonts in Apple Music's private directory. It has no separate launcher icon or analytics service.
+The module declares `INTERNET` and a local signature permission for the Moments link bridge, imports files through the system picker, and stores settings, lyrics, and fonts in Apple Music's private directory. It has no separate launcher icon or analytics service.
 
 Licensed under [GNU GPL v3.0](LICENSE). Original copyrights and third-party notices remain available in [Acknowledgments](docs/ACKNOWLEDGMENTS.md) and [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).

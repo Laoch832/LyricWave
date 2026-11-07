@@ -116,7 +116,7 @@ class CurrentSongIdentityStructuralRegressionTest {
         assertTrue(details.contains("data class CurrentSongDetails"))
         assertFalse(target.contains("BroadcastReceiver"))
         assertFalse(target.contains("registerRequestResponder"))
-        assertFalse(manifest.contains("android:protectionLevel=\"signature\""))
         assertFalse(manifest.contains("permission.REQUEST_CURRENT_SONG_ID"))
+        assertTrue(manifest.contains("permission.SHARE_MOMENTS_LINK"))
     }
 }

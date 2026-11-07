@@ -54,6 +54,11 @@ data class ModuleSettings(
      * before springing back, in dp. 0 disables the dip. Read live.
      */
     val phoneLiquidGlassMiniSinkBounceDp: Int = EnhancementDefaults.GLASS_MINI_SINK_BOUNCE_DP,
+    /** HDR gainmap lyrics; system thermal and display limits always apply. */
+    val lyricsHdrEnabled: Boolean = false,
+    val lyricsHdrBrightnessPercent: Int = 200,
+    val lyricsHdrFlashbangEnabled: Boolean = false,
+    val wechatMomentsShareEnabled: Boolean = false,
     val futureBlurEnabled: Boolean = true,
     /** Enables the native rush-gradient adaptation for CJK karaoke lyrics. */
     val cjkKaraokeAnimationEnabled: Boolean = true,
@@ -78,11 +83,11 @@ data class ModuleSettings(
     /** Automatic provider priority, normalized against [DEFAULT_AUTOMATIC_LYRICS_SOURCE_ORDER]. */
     val automaticLyricsSourceOrder: List<String> = DEFAULT_AUTOMATIC_LYRICS_SOURCE_ORDER,
     /**
-     * Translates only the selected AM native lyrics through an OpenAI-compatible endpoint.
+     * Translates the selected native, online or imported lyrics through an OpenAI-compatible endpoint.
      * Per-song eligibility gates live in the LLM lyrics runtime.
      */
     val llmLyricsEnabled: Boolean = false,
-    /** OpenAI-compatible Chat Completions endpoint; blank disables AM native translation. */
+    /** OpenAI-compatible Chat Completions endpoint; blank disables AI translation. */
     val llmLyricsBaseUrl: String = "",
     /** Bearer token sent to [llmLyricsBaseUrl]. Never logged or echoed back to the host. */
     val llmLyricsApiKey: String = "",

@@ -30,8 +30,10 @@
 
 | 功能 | 说明 |
 | --- | --- |
+| HDR 歌词 | 100%–800% 亮度比例与震爆弹模式；真正 HDR 需 Android 14+ 和 HDR 屏幕，峰值由系统控制。 |
+| 朋友圈链接分享 | 在原生系统分享面板打开微信链接卡片编辑页，保留可点击 Apple Music URL；需启用微信作用域。 |
 | AI 歌词翻译 | 使用自己的 OpenAI 兼容接口，将符合条件的当前选中的外语歌词翻译为简体中文。 |
-| 自动翻译缓存 | 播放器验证通过后自动保存，重播和重启后优先复用。 |
+| 自动翻译缓存 | 译文通过 TTML 校验后自动保存，重播和重启后优先复用。 |
 | 原歌词更新校验 | 当前来源完整原歌词 TTML 的 SHA-256 变化后，使旧译文失效并重新翻译。 |
 | 自定义歌词 | 导入、编辑、搜索、删除 TTML，支持在线获取和 ZIP 备份恢复。 |
 | 在线歌词补全 | 为缺词、非逐字或缺翻译的歌曲查找在线歌词。 |
@@ -55,13 +57,15 @@
 需要 Android 8.0+、受支持版本的 Apple Music，以及支持 libxposed API 102 的 LSPosed 或兼容框架。具体宿主版本以 [版本配置目录](host-applemusic/src/main/resources/host-profiles/) 为准。
 
 1. 从 [本项目 Releases](https://github.com/Laoch832/LyricWave/releases) 下载 APK。
-2. 在 LSPosed 中启用模块，作用域仅选择 Apple Music（`com.apple.android.music`）。
+2. 在 LSPosed 中启用模块，作用域选择 Apple Music（`com.apple.android.music`）；若使用朋友圈链接分享，额外勾选微信（`com.tencent.mm`）。
 3. 强制停止并重新打开 Apple Music。
 4. 打开 Apple Music → 设置 → **澜音模块设置**。
 
 本项目使用独立固定签名。从上游原版迁移时，请先备份设置和自定义歌词，再卸载原版后安装。本分支同签名版本可覆盖升级。
 
 ## 使用
+
+HDR 与朋友圈链接分享的入口、作用域及兼容边界见 [HDR 与链接分享说明](docs/hdr-and-moments.md)。
 
 ### AI 歌词翻译
 
@@ -121,6 +125,6 @@ Windows 使用 `gradlew.bat`，并按本机路径传入插件样例。未配置�
 
 ## 隐私与许可证
 
-仅声明 `INTERNET` 权限，用于歌词获取、AI 翻译和歌曲信息查询。文件通过系统选择器导入，设置、歌词和字体保存在 Apple Music 私有目录；没有独立启动图标或分析服务。
+声明 `INTERNET` 权限用于歌词获取、AI 翻译和歌曲信息查询，并声明朋友圈链接桥接的本地签名权限。文件通过系统选择器导入，设置、歌词和字体保存在 Apple Music 私有目录；没有独立启动图标或分析服务。
 
 使用 [GNU GPL v3.0](LICENSE) 许可证。原作者与第三方版权、许可和来源声明见 [致谢](docs/ACKNOWLEDGMENTS.md) 与 [第三方声明](THIRD_PARTY_NOTICES.md)。

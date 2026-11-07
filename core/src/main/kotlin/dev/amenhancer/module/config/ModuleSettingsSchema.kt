@@ -66,6 +66,10 @@ object ModuleSettingsSchema {
                 ModuleSettings.MIN_PHONE_LIQUID_GLASS_MINI_SINK_BOUNCE_DP,
                 ModuleSettings.MAX_PHONE_LIQUID_GLASS_MINI_SINK_BOUNCE_DP,
             ) ?: EnhancementDefaults.GLASS_MINI_SINK_BOUNCE_DP,
+        lyricsHdrEnabled = values.boolean(KEY_LYRICS_HDR, default = false),
+        lyricsHdrBrightnessPercent = (values.number(KEY_LYRICS_HDR_BRIGHTNESS) ?: 200).coerceIn(100, 800),
+        lyricsHdrFlashbangEnabled = values.boolean(KEY_LYRICS_HDR_FLASHBANG, default = false),
+        wechatMomentsShareEnabled = values.boolean(KEY_WECHAT_MOMENTS, default = false),
         futureBlurEnabled = values.boolean(KEY_FUTURE_BLUR, default = true),
         cjkKaraokeAnimationEnabled = values.boolean(
             KEY_CJK_KARAOKE_ANIMATION_ENABLED,
@@ -155,6 +159,10 @@ object ModuleSettingsSchema {
                 ModuleSettings.normalizePhoneLiquidGlassMiniSinkBounceDp(
                     settings.phoneLiquidGlassMiniSinkBounceDp,
                 ),
+            KEY_LYRICS_HDR to settings.lyricsHdrEnabled,
+            KEY_LYRICS_HDR_BRIGHTNESS to settings.lyricsHdrBrightnessPercent.coerceIn(100, 800),
+            KEY_LYRICS_HDR_FLASHBANG to settings.lyricsHdrFlashbangEnabled,
+            KEY_WECHAT_MOMENTS to settings.wechatMomentsShareEnabled,
             KEY_FUTURE_BLUR to settings.futureBlurEnabled,
             KEY_CJK_KARAOKE_ANIMATION_ENABLED to settings.cjkKaraokeAnimationEnabled,
             KEY_LYRIC_EFFECTS_OPTIMIZATION_ENABLED to settings.lyricEffectsOptimizationEnabled,
@@ -367,6 +375,7 @@ object ModuleSettingsSchema {
         KEY_PHONE_LIQUID_GLASS_EXPAND_REBOUND_PERCENT,
         KEY_PHONE_LIQUID_GLASS_MINI_REBOUND_PERCENT,
         KEY_PHONE_LIQUID_GLASS_MINI_SINK_BOUNCE_DP,
+        KEY_LYRICS_HDR, KEY_LYRICS_HDR_BRIGHTNESS, KEY_LYRICS_HDR_FLASHBANG, KEY_WECHAT_MOMENTS,
         KEY_FUTURE_BLUR,
         KEY_CJK_KARAOKE_ANIMATION_ENABLED,
         KEY_LYRIC_EFFECTS_OPTIMIZATION_ENABLED,
@@ -422,6 +431,10 @@ object ModuleSettingsSchema {
         "phone_liquid_glass_mini_rebound_percent"
     private const val KEY_PHONE_LIQUID_GLASS_MINI_SINK_BOUNCE_DP =
         "phone_liquid_glass_mini_sink_bounce_dp"
+    private const val KEY_LYRICS_HDR = "lyrics_hdr_enabled"
+    private const val KEY_LYRICS_HDR_BRIGHTNESS = "lyrics_hdr_brightness_percent"
+    private const val KEY_LYRICS_HDR_FLASHBANG = "lyrics_hdr_flashbang_enabled"
+    private const val KEY_WECHAT_MOMENTS = "wechat_moments_share_enabled"
     private const val KEY_FUTURE_BLUR = "future_blur_enabled"
     private const val KEY_STARTUP_PAGE_PREWARM = "startup_page_prewarm_enabled"
     private const val KEY_CJK_KARAOKE_ANIMATION_ENABLED = "cjk_karaoke_animation_enabled"

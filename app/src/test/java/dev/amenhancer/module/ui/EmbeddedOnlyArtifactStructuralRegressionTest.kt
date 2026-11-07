@@ -19,14 +19,17 @@ class EmbeddedOnlyArtifactStructuralRegressionTest {
     ).firstOrNull(File::exists) ?: File(relativePath)
 
     @Test
-    fun `artifact exposes only the injected Apple Music settings entry`() {
+    fun `settings remain embedded and the only exported activity is the explicit link share bridge`() {
         val manifest = projectFile("app/src/main/AndroidManifest.xml")
         val entry = projectFile("app/src/main/java/dev/amenhancer/module/hook/HookEntry.kt")
         val host = projectFile("app/src/main/java/dev/amenhancer/module/ui/EmbeddedSettingsHost.kt")
 
-        assertFalse(manifest.contains("<activity"))
+        assertTrue(manifest.contains("<activity android:name=\".share.MomentsShareActivity\""))
+        assertFalse(manifest.contains("android.intent.category.LAUNCHER"))
+        assertFalse(manifest.contains("android.intent.action.MAIN"))
+        assertFalse(manifest.contains(".ui.SettingsActivity"))
         assertFalse(manifest.contains("<activity-alias"))
-        assertFalse(manifest.contains("android:exported=\"true\""))
+        assertTrue(manifest.contains("permission.SHARE_MOMENTS_LINK"))
         assertTrue(entry.contains("EmbeddedSettingsHost.install("))
         assertTrue(entry.contains("EmbeddedRuntimeSettingsController("))
         assertTrue(host.contains("Application.ActivityLifecycleCallbacks"))

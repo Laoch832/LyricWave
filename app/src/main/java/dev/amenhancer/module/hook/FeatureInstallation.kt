@@ -264,6 +264,8 @@ private fun productionFeatureInstallationModule(
                 feature = FutureLyricBlurFeature(),
                 registerResources = { AppleMusicHostFactory.registerLyricAuxiliaryResources() },
             ),
+            FeatureInstallationPlan(feature = LyricsHdrFeature()),
+            FeatureInstallationPlan(feature = WechatMomentsFeature()),
             FeatureInstallationPlan(feature = CjkKaraokeAnimationFeature()),
             FeatureInstallationPlan(feature = LyricWrapSweepFeature()),
             FeatureInstallationPlan(feature = LyricBackgroundHighlightFeature()),

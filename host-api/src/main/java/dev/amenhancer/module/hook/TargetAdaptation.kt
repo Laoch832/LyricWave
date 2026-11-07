@@ -16,6 +16,12 @@ data class TargetAdaptation(
     val cjkKaraokeAnimation: CjkKaraokeAnimationTarget = CjkKaraokeAnimationTarget {
         TargetCapabilityInstall.Degraded("CJK karaoke animation target was not configured")
     },
+    val lyricsHdr: LyricsHdrTarget = LyricsHdrTarget {
+        TargetCapabilityInstall.Unsupported("HDR lyrics target is not available")
+    },
+    val wechatMoments: WechatMomentsTarget = WechatMomentsTarget {
+        TargetCapabilityInstall.Unsupported("WeChat Moments sharing target is not available")
+    },
     val lyricsTypeface: LyricsTypefaceTarget = LyricsTypefaceTarget {
         TargetCapabilityInstall.Degraded("Lyrics typeface target was not configured")
     },
@@ -130,3 +136,6 @@ sealed interface TargetCapabilityInstall {
         }
     }
 }
+
+fun interface LyricsHdrTarget { fun install(): TargetCapabilityInstall }
+fun interface WechatMomentsTarget { fun install(): TargetCapabilityInstall }

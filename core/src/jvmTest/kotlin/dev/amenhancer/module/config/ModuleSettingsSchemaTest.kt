@@ -11,6 +11,18 @@ import org.junit.Assert.assertNull
 import org.junit.Test
 
 class ModuleSettingsSchemaTest {
+    @Test fun `HDR and Moments are opt in bounded and survive settings round trip`() {
+        val defaults = ModuleSettingsSchema.decode(emptyMap<String, Any>())
+        assertFalse(defaults.lyricsHdrEnabled)
+        assertFalse(defaults.lyricsHdrFlashbangEnabled)
+        assertFalse(defaults.wechatMomentsShareEnabled)
+        val configured = defaults.copy(lyricsHdrEnabled = true, lyricsHdrBrightnessPercent = 350,
+            lyricsHdrFlashbangEnabled = true, wechatMomentsShareEnabled = true)
+        assertEquals(configured, ModuleSettingsSchema.decode(ModuleSettingsSchema.encode(configured)))
+        assertEquals(800, ModuleSettingsSchema.decode(mapOf("lyrics_hdr_brightness_percent" to 99999)).lyricsHdrBrightnessPercent)
+        assertEquals(100, ModuleSettingsSchema.decode(mapOf("lyrics_hdr_brightness_percent" to -1)).lyricsHdrBrightnessPercent)
+    }
+
     @Test
     fun `dual pane status bar hiding defaults off and round trips`() {
         assertFalse(ModuleSettings().dualPaneHideStatusBarEnabled)
@@ -109,6 +121,10 @@ class ModuleSettingsSchemaTest {
                 "phone_liquid_glass_expand_rebound_percent" to 100,
                 "phone_liquid_glass_mini_rebound_percent" to 100,
                 "phone_liquid_glass_mini_sink_bounce_dp" to 4,
+                "lyrics_hdr_enabled" to false,
+                "lyrics_hdr_brightness_percent" to 200,
+                "lyrics_hdr_flashbang_enabled" to false,
+                "wechat_moments_share_enabled" to false,
                 "future_blur_enabled" to false,
                 "cjk_karaoke_animation_enabled" to true,
                 "lyric_effects_optimization_enabled" to false,
@@ -166,6 +182,10 @@ class ModuleSettingsSchemaTest {
                 "phone_liquid_glass_expand_rebound_percent" to 100,
                 "phone_liquid_glass_mini_rebound_percent" to 100,
                 "phone_liquid_glass_mini_sink_bounce_dp" to 4,
+                "lyrics_hdr_enabled" to false,
+                "lyrics_hdr_brightness_percent" to 200,
+                "lyrics_hdr_flashbang_enabled" to false,
+                "wechat_moments_share_enabled" to false,
                 "future_blur_enabled" to true,
                 "cjk_karaoke_animation_enabled" to true,
                 "lyric_effects_optimization_enabled" to false,

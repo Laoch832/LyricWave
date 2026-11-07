@@ -129,6 +129,8 @@ object AppleMusicHostFactory {
                     dev.amenhancer.module.model.FeatureState.DEGRADED, message, build.displayName,
                 )) },
             ),
+            lyricsHdr = AppleMusicLyricsHdrTarget(resolver, config),
+            wechatMoments = AppleMusicMomentsShareTarget { config.settings().wechatMomentsShareEnabled },
             lyricsTypeface = AppleMusicLyricsTypefaceTarget(
                 symbols = resolver,
                 session = lyricsTypefaceSession as LyricsTypefaceSession,

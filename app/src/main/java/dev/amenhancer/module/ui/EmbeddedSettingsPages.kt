@@ -665,7 +665,7 @@ internal fun EmbeddedSettingsHost.renderEmbeddedMainPage(
         localizedText(ModuleText.SUMMARY_DPI_SYSTEM)
     } else settings.appleMusicDpiOverrideDpi.toString()
     val effectCount = listOf(settings.futureBlurEnabled, settings.cjkKaraokeAnimationEnabled,
-        settings.lyricEffectsOptimizationEnabled).count { it }
+        settings.lyricEffectsOptimizationEnabled, settings.lyricsHdrEnabled).count { it }
 
     parent.addView(embeddedCard(activity, null) {
         setPadding(dp(activity, 4), dp(activity, 4), dp(activity, 4), dp(activity, 4))
@@ -728,6 +728,28 @@ private fun EmbeddedSettingsHost.renderEmbeddedCategoryPage(
         setPadding(dp(activity, 8), dp(activity, 8), dp(activity, 8), dp(activity, 8))
         when (page) {
             EmbeddedSettingsPage.LYRICS_EFFECTS -> {
+                setting(ModuleText.LYRICS_HDR, ModuleText.LYRICS_HDR_SUMMARY, settings.lyricsHdrEnabled) {
+                    onSettingsChanged(currentSettings().let { value -> value.copy(lyricsHdrEnabled = it, lyricsHdrFlashbangEnabled = it && value.lyricsHdrFlashbangEnabled) }); pageRefresh?.invoke()
+                }
+                if (settings.lyricsHdrEnabled) {
+                    val hdr = android.os.Build.VERSION.SDK_INT >= 34 && activity.window.decorView.display?.isHdr == true
+                    addView(TextView(activity).apply {
+                        text = localizedText(ModuleText.LYRICS_HDR_STATUS, localizedText(if (hdr) ModuleText.LYRICS_HDR_AVAILABLE else ModuleText.LYRICS_HDR_UNAVAILABLE))
+                        textSize = 13f
+                        setPadding(dp(activity, 12), dp(activity, 8), dp(activity, 12), dp(activity, 8))
+                        setEmbeddedTextColor(activity) { it.muted }
+                    })
+                    addView(embeddedGlassRangeRow(activity, localizedText(ModuleText.LYRICS_HDR_BRIGHTNESS),
+                        settings.lyricsHdrBrightnessPercent, 200, 100, 800, "", unit = "%") {
+                        onSettingsChanged(currentSettings().copy(lyricsHdrBrightnessPercent = it))
+                    })
+                }
+                setting(ModuleText.LYRICS_HDR_FLASHBANG, ModuleText.LYRICS_HDR_FLASHBANG_SUMMARY,
+                    settings.lyricsHdrEnabled && settings.lyricsHdrFlashbangEnabled) {
+                    onSettingsChanged(currentSettings().let { value -> value.copy(
+                        lyricsHdrEnabled = it || value.lyricsHdrEnabled, lyricsHdrFlashbangEnabled = it) })
+                    pageRefresh?.invoke()
+                }
                 setting(ModuleText.BIDIRECTIONAL_LYRIC_BLUR, ModuleText.BIDIRECTIONAL_LYRIC_BLUR_SUMMARY,
                     settings.futureBlurEnabled) {
                     onSettingsChanged(currentSettings().copy(futureBlurEnabled = it))
@@ -746,6 +768,9 @@ private fun EmbeddedSettingsHost.renderEmbeddedCategoryPage(
                 })
             }
             EmbeddedSettingsPage.INTERFACE -> {
+                setting(ModuleText.WECHAT_MOMENTS, ModuleText.WECHAT_MOMENTS_SUMMARY, settings.wechatMomentsShareEnabled) {
+                    onSettingsChanged(currentSettings().copy(wechatMomentsShareEnabled = it))
+                }
                 setting(ModuleText.TABLET_DUAL_PANE, ModuleText.TABLET_DUAL_PANE_SUMMARY, settings.dualPaneEnabled) {
                     onSettingsChanged(currentSettings().copy(dualPaneEnabled = it))
                     pageRefresh?.invoke()
@@ -863,11 +888,14 @@ private fun EmbeddedSettingsHost.showEmbeddedPageDetails(activity: Activity, pag
         )
         EmbeddedSettingsPage.LYRICS_EFFECTS -> listOf(
             ModuleText.BIDIRECTIONAL_LYRIC_BLUR to ModuleText.BIDIRECTIONAL_LYRIC_BLUR_SUMMARY,
+            ModuleText.LYRICS_HDR to ModuleText.LYRICS_HDR_SUMMARY,
+            ModuleText.LYRICS_HDR_FLASHBANG to ModuleText.LYRICS_HDR_FLASHBANG_SUMMARY,
             ModuleText.CJK_KARAOKE_ANIMATION to ModuleText.CJK_KARAOKE_ANIMATION_SUMMARY,
             ModuleText.LYRIC_EFFECTS_OPTIMIZATION to ModuleText.LYRIC_EFFECTS_OPTIMIZATION_SUMMARY,
             ModuleText.LYRICS_FONT to ModuleText.LYRICS_FONT_IMPORT_SUMMARY,
         )
         EmbeddedSettingsPage.INTERFACE -> listOf(
+            ModuleText.WECHAT_MOMENTS to ModuleText.WECHAT_MOMENTS_SUMMARY,
             ModuleText.TABLET_DUAL_PANE to ModuleText.TABLET_DUAL_PANE_SUMMARY,
             ModuleText.TABLET_DUAL_PANE_HIDE_STATUS_BAR to ModuleText.TABLET_DUAL_PANE_HIDE_STATUS_BAR_SUMMARY,
             ModuleText.LIQUID_GLASS_NAVIGATION to ModuleText.LIQUID_GLASS_NAVIGATION_SUMMARY,
