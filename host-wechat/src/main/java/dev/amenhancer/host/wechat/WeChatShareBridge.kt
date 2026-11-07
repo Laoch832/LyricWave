@@ -7,9 +7,9 @@ import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
-import android.os.Build
 import android.os.Bundle
 import android.os.Handler
+import androidx.core.content.ContextCompat
 import android.os.Looper
 import dev.amenhancer.module.MomentsLinkContract as Contract
 import dev.amenhancer.module.hook.ModernMethodHook
@@ -58,10 +58,8 @@ object WeChatShareBridge {
             }
         }
         // Permission is owned and held by the signed module app. Other apps cannot invoke this bridge.
-        if (Build.VERSION.SDK_INT >= 33) app.registerReceiver(receiver, IntentFilter(Contract.OPEN),
-            Contract.PERMISSION, Handler(Looper.getMainLooper()), Context.RECEIVER_EXPORTED)
-        else @Suppress("DEPRECATION") app.registerReceiver(receiver, IntentFilter(Contract.OPEN),
-            Contract.PERMISSION, Handler(Looper.getMainLooper()))
+        ContextCompat.registerReceiver(app, receiver, IntentFilter(Contract.OPEN),
+            Contract.PERMISSION, Handler(Looper.getMainLooper()), ContextCompat.RECEIVER_EXPORTED)
     }
 }
 
