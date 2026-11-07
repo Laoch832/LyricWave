@@ -2,6 +2,9 @@
 import importlib.util
 from pathlib import Path
 import unittest
+from unittest import mock
+from types import SimpleNamespace
+import json
 
 SCRIPT = Path(__file__).resolve().parents[1] / 'ci/release.py'
 SPEC = importlib.util.spec_from_file_location('ampp_release', SCRIPT)
@@ -50,6 +53,34 @@ class ReleasePolicyTest(unittest.TestCase):
                         dict(login='other', id=173591322, type='User')):
             with self.subTest(profile=profile), self.assertRaises(ValueError):
                 RELEASE.validate_identity(profile)
+
+    def test_published_tag_event_skips_duplicate_build_but_manual_publish_refuses_overwrite(self):
+        response = SimpleNamespace(returncode=0, stdout=json.dumps(dict(
+            draft=False, author=dict(login='Laoch832', id=173591322, type='User'))))
+        with mock.patch.object(RELEASE, 'context', return_value=(self.source, self.commit)), \
+                mock.patch.object(RELEASE.subprocess, 'run', return_value=response), \
+                mock.patch.dict(RELEASE.os.environ, {'GITHUB_REF': 'refs/tags/v1.6.8-custom.1'}, clear=True):
+            self.assertFalse(RELEASE.plan())
+            with mock.patch.dict(RELEASE.os.environ, {'AMPP_PUBLISH_REQUESTED': 'true'}):
+                with self.assertRaises(ValueError):
+                    RELEASE.plan()
+
+    def test_mismatched_tag_is_rejected_before_any_remote_operation(self):
+        with mock.patch.object(RELEASE, 'context', return_value=(self.source, self.commit)), \
+                mock.patch.object(RELEASE.subprocess, 'run') as remote, \
+                mock.patch.dict(RELEASE.os.environ, {'GITHUB_REF': 'refs/tags/v9.0.0'}, clear=True):
+            with self.assertRaises(ValueError):
+                RELEASE.plan()
+            remote.assert_not_called()
+
+    def test_unknown_release_state_fails_instead_of_bypassing_preflight(self):
+        for status, stderr in [(1, 'HTTP 403'), (1, 'network unavailable')]:
+            response = SimpleNamespace(returncode=status, stderr=stderr)
+            with mock.patch.object(RELEASE, 'context', return_value=(self.source, self.commit)), \
+                    mock.patch.object(RELEASE.subprocess, 'run', return_value=response), \
+                    mock.patch.dict(RELEASE.os.environ, {'GITHUB_REF': 'refs/tags/v1.6.8-custom.1'}, clear=True):
+                with self.assertRaises(ValueError):
+                    RELEASE.plan()
 
     def signature(self, digest='a' * 64):
         return ('Verified using v2 scheme (APK Signature Scheme v2): true\n'

@@ -30,11 +30,19 @@ jobs:
     name: Source checks
     runs-on: ubuntu-24.04
     timeout-minutes: 10
+    outputs:
+      should-build: ${{ steps.release-plan.outputs.should-build }}
     steps:
       - name: Check out source without persisted credentials
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
           persist-credentials: false
+      - name: Validate release request and avoid duplicate tag builds
+        id: release-plan
+        env:
+          GH_TOKEN: ${{ github.token }}
+          AMPP_PUBLISH_REQUESTED: ${{ inputs.publish }}
+        run: python3 scripts/ci/release.py plan
       - name: Verify source contracts and Python tests
         run: |
           python3 scripts/verify-glass-reference.py
@@ -47,6 +55,7 @@ jobs:
   android:
     name: Android tests, lint and builds
     needs: checks
+    if: needs.checks.outputs.should-build == 'true'
     runs-on: ubuntu-24.04
     timeout-minutes: 60
     steps:
