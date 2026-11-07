@@ -52,3 +52,6 @@ device-*.xml
 
 # User-exported lyrics are data, not application source
 /github-lyrics-export/
+
+# Packaged CI and release artifacts
+/dist/

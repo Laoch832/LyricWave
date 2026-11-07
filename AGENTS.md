@@ -20,3 +20,10 @@
 - Cache reuse and update detection must compare the current native source TTML;
   an older translation must not override changed vocals, timings or a native
   translation that has become available.
+
+# Cloud builds and releases
+
+- Follow `docs/ci-and-releases.md` for the CI, signing and personal-account release workflow.
+- Preserve the existing signing key and pinned certificate. Never regenerate it as a build fix.
+- Bump both app version fields for each new release; do not overwrite an existing release.
+- Run Python release-policy tests and workflow lint when changing publishing or signing.

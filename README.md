@@ -15,7 +15,7 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/Zennmn/AM-plus-plus/actions/workflows/build.yml"><img src="https://github.com/Zennmn/AM-plus-plus/actions/workflows/build.yml/badge.svg" alt="Build"></a>
+  <a href="https://github.com/Laoch832/AM-plus-plus-custom/actions/workflows/build.yml"><img src="https://github.com/Laoch832/AM-plus-plus-custom/actions/workflows/build.yml/badge.svg" alt="Build"></a>
   <a href="https://github.com/Zennmn/AM-plus-plus/blob/main/LICENSE"><img src="https://img.shields.io/github/license/Zennmn/AM-plus-plus" alt="GNU GPL v3.0"></a>
   <img src="https://img.shields.io/badge/Android-API%2026%2B-3DDC84?logo=android&logoColor=white" alt="Android API 26+">
   <img src="https://img.shields.io/badge/libxposed-API%20102-7F52FF" alt="libxposed API 102">
@@ -44,6 +44,12 @@
 13. [支持项目](#支持项目)
 
 </details>
+
+## 二次开发版本
+
+[下载安装包](https://github.com/Laoch832/AM-plus-plus-custom/releases) · [云端构建](https://github.com/Laoch832/AM-plus-plus-custom/actions/workflows/build.yml) · [构建与发布说明](docs/ci-and-releases.md)
+
+本分支由 Laoch832 维护，使用独立固定签名；从原版迁移前请先备份设置和自定义歌词。
 
 ## 项目简介
 
