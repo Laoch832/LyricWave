@@ -1,0 +1,79 @@
+{
+  "name": "lyricwave-website",
+  "version": "1.0.0",
+  "description": "LyricWave product website and synchronized Fumadocs documentation",
+  "scripts": {
+    "sync:content": "node scripts/sync-content.mjs",
+    "dev": "npm run sync:content && next dev --hostname 0.0.0.0",
+    "build": "npm run sync:content && next build",
+    "start": "next start --hostname 0.0.0.0",
+    "typecheck": "next typegen && tsc --noEmit",
+    "check:links": "node scripts/check-links.mjs",
+    "test": "tsx --test tests/*.test.ts",
+    "test:e2e": "playwright test",
+    "lint": "eslint . --max-warnings=0",
+    "check:external": "node scripts/check-external-links.mjs",
+    "check:repository": "node scripts/audit-repository.mjs"
+  },
+  "license": "GPL-3.0-only",
+  "type": "module",
+  "dependencies": {
+    "@radix-ui/react-slot": "^1.5.0",
+    "@tailwindcss/postcss": "^4.3.5",
+    "class-variance-authority": "^0.7.1",
+    "clsx": "^2.1.1",
+    "fumadocs-core": "^16.18.1",
+    "fumadocs-mdx": "^15.5.0",
+    "fumadocs-ui": "^16.18.1",
+    "github-slugger": "^2.0.0",
+    "lucide-react": "^1.70.0",
+    "mdast-util-to-string": "^4.0.0",
+    "motion": "^14.10.1",
+    "next": "^16.4.5",
+    "next-themes": "^0.4.6",
+    "react": "^19.2.4",
+    "react-dom": "^19.2.4",
+    "react-markdown": "^10.1.0",
+    "remark-gfm": "^4.0.1",
+    "remark-parse": "^11.0.0",
+    "remark-stringify": "^11.0.0",
+    "sharp": "^0.35.5",
+    "tailwind-merge": "^3.7.0",
+    "tailwindcss": "^4.3.5",
+    "unified": "^11.0.5",
+    "unist-util-visit": "^5.2.0",
+    "zod": "^4.6.7"
+  },
+  "devDependencies": {
+    "@axe-core/playwright": "^4.14.0",
+    "@eslint/js": "^10.0.1",
+    "@next/eslint-plugin-next": "^16.4.5",
+    "@playwright/test": "^1.65.0",
+    "@types/mdx": "^2.0.14",
+    "@types/node": "^26.6.6",
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0",
+    "eslint": "^10.14.0",
+    "eslint-plugin-react-hooks": "^7.1.1",
+    "globals": "^16.4.0",
+    "prettier": "^3.9.10",
+    "tsx": "^4.23.15",
+    "typescript": "^6.0.3",
+    "typescript-eslint": "^8.72.1"
+  },
+  "private": true,
+  "engines": {
+    "node": "24.x"
+  },
+  "overrides": {
+    "@typescript-eslint/typescript-estree": {
+      "minimatch": "11.0.1"
+    },
+    "@eslint/config-array": {
+      "minimatch": "11.0.1"
+    },
+    "eslint": {
+      "minimatch": "11.0.1"
+    }
+  }
+}

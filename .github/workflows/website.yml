@@ -1,0 +1,51 @@
+name: Website checks
+on:
+  pull_request:
+    paths:
+      - "website/**"
+      - "docs/**"
+      - "README*.md"
+      - "LICENSE"
+      - "THIRD_PARTY_NOTICES.md"
+      - "host-applemusic/src/main/resources/host-profiles/**"
+      - ".github/workflows/website.yml"
+  push:
+    branches: [main]
+    paths:
+      - "website/**"
+      - "docs/**"
+      - "README*.md"
+      - "LICENSE"
+      - "THIRD_PARTY_NOTICES.md"
+      - "host-applemusic/src/main/resources/host-profiles/**"
+      - ".github/workflows/website.yml"
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: website-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  website:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: website
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: "24"
+          cache: npm
+          cache-dependency-path: website/package-lock.json
+      - run: npm ci
+      - run: npm run build
+      - run: npm run lint
+      - run: npm run typecheck
+      - run: npm run check:links
+      - run: npm test
+      - run: npx playwright install --with-deps chromium
+      - run: npm run test:e2e

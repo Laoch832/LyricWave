@@ -8,7 +8,7 @@ LyricWave (澜音) is an Apple Music enhancement project for Android, maintained
 
 Manage features inside Apple Music → Settings → **LyricWave module settings**. Laoch832 maintains this fork's development, issue tracking, and releases.
 
-AI translations are saved after the player validates them. Later visits reuse the cache when the current source lyrics and translation settings still match. Changed lyrics or timings invalidate the old translation. Tablet playback, custom lyrics, fonts, lyric effects, Liquid Glass, and ZIP plugins remain available.
+AI translations are saved after TTML validation, independently of whether a native player pointer remains alive. Later visits reuse the cache when the current source lyrics and translation settings still match. Changed lyrics or timings invalidate the old translation. Tablet playback, custom lyrics, fonts, lyric effects, Liquid Glass, and ZIP plugins remain available.
 
 ## Acknowledgments and origins
 
