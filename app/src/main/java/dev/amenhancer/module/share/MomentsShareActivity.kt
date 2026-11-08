@@ -8,11 +8,14 @@ import android.content.Context
 import android.content.Intent
 import android.os.Bundle
 import android.os.Handler
+import android.os.SystemClock
 import android.os.Looper
 import android.text.util.Linkify
 import android.widget.Button
 import android.widget.LinearLayout
 import android.widget.TextView
+import android.widget.Toast
+import java.util.UUID
 import dev.amenhancer.module.MomentsLinkContract as Contract
 import dev.amenhancer.module.i18n.ModuleText
 
@@ -44,15 +47,17 @@ class MomentsShareActivity : Activity() {
             pending = true; open.isEnabled = false
             try {
                 startActivity(launch)
-                handler.postDelayed({ requestEditor(url, title, 0, status, open) }, 800)
+                val requestId = UUID.randomUUID().toString()
+                val deadline = SystemClock.elapsedRealtime() + Contract.REQUEST_TIMEOUT_MS
+                handler.postDelayed({ requestEditor(url, title, requestId, deadline, status, open) }, 800)
             } catch (_: Exception) { pending = false; open.isEnabled = true; status.text = ModuleText.WECHAT_MISSING.text() }
         }
     }
     @Suppress("DEPRECATION")
-    private fun requestEditor(url: String, title: String, attempt: Int, status: TextView, button: Button) {
+    private fun requestEditor(url: String, title: String, requestId: String, deadline: Long, status: TextView, button: Button) {
         if (isDestroyed || isFinishing) return
         val request = Intent(Contract.OPEN).setPackage(Contract.INTERMEDIARY_PACKAGE)
-            .putExtra(Contract.URL, url).putExtra(Contract.TITLE, title)
+            .putExtra(Contract.URL, url).putExtra(Contract.TITLE, title).putExtra(Contract.REQUEST_ID, requestId)
         sendOrderedBroadcast(request, null, object : BroadcastReceiver() {
             override fun onReceive(context: Context, intent: Intent?) {
                 if (isDestroyed || isFinishing) return
@@ -61,11 +66,28 @@ class MomentsShareActivity : Activity() {
                     status.text = ModuleText.WECHAT_EDITOR_OPENED.text()
                     return
                 }
-                if (attempt < 12 && (resultCode == 0 || resultCode == Contract.RESULT_NOT_READY)) {
-                    handler.postDelayed({ requestEditor(url, title, attempt + 1, status, button) }, 500)
+                val code = resultCode
+                if (SystemClock.elapsedRealtime() < deadline &&
+                    code in listOf(0, Contract.RESULT_NOT_READY, Contract.RESULT_PENDING)) {
+                    status.text = ModuleText.WECHAT_SHARE_WAITING.text()
+                    handler.postDelayed({ requestEditor(url, title, requestId, deadline, status, button) }, 500)
                 } else {
                     pending = false; button.isEnabled = true
-                    status.text = ModuleText.WECHAT_BRIDGE_UNAVAILABLE.text()
+                    val message = when (code) {
+                        0 -> ModuleText.WECHAT_BRIDGE_NOT_LOADED.text()
+                        Contract.RESULT_NOT_READY -> ModuleText.WECHAT_BRIDGE_NO_ACTIVITY.text()
+                        Contract.RESULT_PENDING -> ModuleText.WECHAT_PANEL_NOT_VISIBLE.text()
+                        Contract.RESULT_UNSUPPORTED -> ModuleText.WECHAT_VERSION_UNSUPPORTED.text()
+                        Contract.RESULT_SIGNATURE -> ModuleText.WECHAT_SIGNATURE_UNSUPPORTED.text()
+                        Contract.RESULT_CONTRACT -> ModuleText.WECHAT_CONTRACT_UNAVAILABLE.text()
+                        Contract.RESULT_LAUNCH -> ModuleText.WECHAT_PANEL_LAUNCH_FAILED.text()
+                        Contract.RESULT_BUSY -> ModuleText.WECHAT_SHARE_BUSY.text()
+                        else -> ModuleText.WECHAT_BRIDGE_UNAVAILABLE.text()
+                    }
+                    // Only fixed result codes and version metadata are returned, never song content.
+                    val version = resultData?.takeIf { it.matches(Regex("[0-9A-Za-z./_-]{1,80}")) }
+                    status.text = "$message [N$code]" + (version?.let { " ($it)" } ?: "")
+                    Toast.makeText(this@MomentsShareActivity, status.text, Toast.LENGTH_LONG).show()
                 }
             }
         }, handler, 0, null, null)

@@ -24,6 +24,7 @@ internal object NetEaseShareProfiles {
 internal class NetEaseShareContract private constructor(
     private val constructor: Constructor<*>, private val setters: Map<String, Method>,
     private val readUrl: Method, private val openPanel: Method,
+    private val panelClass: Class<*>,
 ) {
     fun open(activity: Activity, url: String, title: String?) {
         require(MomentsLinkContract.validate(url) != null)
@@ -39,6 +40,12 @@ internal class NetEaseShareContract private constructor(
         // The host opens its own visible panel; the module never chooses a target or posts content.
         openPanel.invoke(null, activity, 19, resource, null)
     }
+
+    @Suppress("DEPRECATION")
+    fun isPanel(activity: Activity, url: String): Boolean = runCatching {
+        panelClass.isInstance(activity) && activity.intent.getIntExtra("res_type", -1) == 19 &&
+            activity.intent.getSerializableExtra("res_obj")?.let { readUrl.invoke(it) } == url
+    }.getOrDefault(false)
 
     companion object {
         const val PANEL = "com.netease.cloudmusic.music.biz.share.SharePanelActivity"
@@ -58,7 +65,7 @@ internal class NetEaseShareContract private constructor(
                 Serializable::class.java, Serializable::class.java).also {
                 check(Modifier.isStatic(it.modifiers) && Modifier.isPublic(it.modifiers) && it.returnType == Void.TYPE)
             }
-            return NetEaseShareContract(constructor, setters, getter, helper)
+            return NetEaseShareContract(constructor, setters, getter, helper, panel)
         }
     }
 }
