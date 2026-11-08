@@ -12,7 +12,7 @@
 
 1. 检查渲染源码、架构边界、精确宿主版本配置、Python 测试与工作流语法。
 2. 使用 JDK 21、Gradle Wrapper、Android SDK 37.0 和 Build Tools 37.0.0，构建独立插件 SDK 与测试样例。
-3. 执行所有 Gradle 单元测试、应用与库的 Lint，构建 Debug 与 unsigned Release APK。
+3. 执行所有 Gradle 单元测试、应用与库的 Lint，构建 Debug 与 unsigned Release APK。CI 限制最多 2 个 Gradle worker、3 GiB JVM 堆，避免并行打包耗尽默认堆内存。
 4. 对本仓库由 Laoch832 发起的 `main` 或版本标签构建，使用固定密钥签名，核对源码提交、应用 ID、版本号、APK 校验和及证书指纹。
 5. 上传 APK、SDK、插件样例和测试报告。即使测试失败，也尝试保留诊断报告。
 

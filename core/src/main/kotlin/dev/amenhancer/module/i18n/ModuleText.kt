@@ -555,6 +555,8 @@ enum class ModuleText(internal val english: String, internal val chinese: String
     UPDATE_OPEN_FAILED("Could not open the update downloader.", "未能打开澜音内建下载页面。"),
     PLAYBACK_RECOVERY("Recover interrupted playback", "播放中断恢复"),
     PLAYBACK_RECOVERY_SUMMARY("Reprepare a failed network source once without changing song or position; play/seek can recover too. Requires restart when enabling. Authorization and DRM failures are left to Apple Music.", "网络播放源失败时尝试一次同曲恢复，保留歌曲与进度；点播放或拖进度也可触发恢复。开启需重开应用；账号与 DRM 错误仍由 Apple Music 处理。"),
+    PLAYBACK_DRM_EXCHANGE("DRM key exchange", "DRM 密钥交换"),
+    PLAYBACK_REFRESH_SERIALIZED("Native key refresh threading repair enabled", "原生密钥刷新线程修复已启用"),
     PLAYBACK_FAULT_CONTEXT("%1\$s · recorded %2\$s seconds ago", "%1\$s · %2\$s 秒前记录"),
     PLAYBACK_FAULT_ACTIVE("Error still on the same playback item", "同一播放项仍持有错误"),
     PLAYBACK_FAULT_HISTORICAL("Historical error; audio recovery is unverified", "历史错误，尚不能证明声音已恢复"),

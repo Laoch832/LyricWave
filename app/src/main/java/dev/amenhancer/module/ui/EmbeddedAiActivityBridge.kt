@@ -56,7 +56,7 @@ internal fun EmbeddedSettingsHost.EmbeddedPlaybackDiagnostic(activity: Activity,
         PlaybackFailure.NETWORK -> ModuleText.PLAYBACK_NETWORK
         PlaybackFailure.HTTP_TRANSIENT -> ModuleText.PLAYBACK_HTTP
         PlaybackFailure.AUTHORIZATION -> ModuleText.PLAYBACK_AUTH
-        PlaybackFailure.DRM -> ModuleText.PLAYBACK_DRM_ONLY
+        PlaybackFailure.DRM -> if (report.nativeErrorCode == -25) ModuleText.PLAYBACK_DRM_EXCHANGE else ModuleText.PLAYBACK_DRM_ONLY
         PlaybackFailure.RENDERER -> ModuleText.PLAYBACK_RENDERER
         PlaybackFailure.UNEXPECTED -> ModuleText.PLAYBACK_UNEXPECTED
         PlaybackFailure.REMOTE -> ModuleText.PLAYBACK_REMOTE
@@ -78,7 +78,8 @@ internal fun EmbeddedSettingsHost.EmbeddedPlaybackDiagnostic(activity: Activity,
             false -> ModuleText.PLAYBACK_FAULT_HISTORICAL
             null -> ModuleText.PLAYBACK_OTHER
         }), ageSeconds) else ""
-    SelectionContainer(Modifier.padding(horizontal = 16.dp, vertical = 8.dp)) { EmbeddedSettingsNotice(text + detail) }
+    SelectionContainer(Modifier.padding(horizontal = 16.dp, vertical = 8.dp)) { EmbeddedSettingsNotice(text + detail + if (PlaybackRecoveryStatus.rendererRefreshAvailable == true)
+        "\n" + localizedText(ModuleText.PLAYBACK_REFRESH_SERIALIZED) else "") }
 }
 
 // Native controls used only by the journal panel; the rest of the settings use Miuix preferences.

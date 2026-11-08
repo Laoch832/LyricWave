@@ -94,11 +94,14 @@ object AppleMusicHostFactory {
                 else -> TargetCapabilityInstall.Degraded(message)
             }
         }
+        val rendererRefresh = AppleMusicRendererRefreshTarget(profile.document.optJSONObject("playbackRendererRefresh"),
+            classLoader, enabled = { config.settings().playbackStallRecoveryEnabled })
         return TargetAdaptation(
             identity = build.displayName,
             build = build,
             currentSong = currentSong,
-            playbackStall = AppleMusicPlaybackStallTarget(classLoader, enabled = { config.settings().playbackStallRecoveryEnabled }),
+            playbackStall = AppleMusicPlaybackStallTarget(classLoader, enabled = { config.settings().playbackStallRecoveryEnabled },
+                rendererRefresh = rendererRefresh::install),
             playerRecovery = FragmentPlayerRecoveryTarget(resolver, build),
             startupPagePrewarm = FragmentStartupPagePrewarmTarget(
                 application, classLoader, { config.settings().startupPagePrewarmEnabled },

@@ -7,8 +7,10 @@ import java.net.UnknownHostException
 
 enum class PlaybackFailure { NETWORK, HTTP_TRANSIENT, AUTHORIZATION, DRM, RENDERER, UNEXPECTED, REMOTE, OTHER }
 enum class PlaybackRecoveryAction { OBSERVED, RETRY_REQUESTED, READY }
-data class PlaybackRecoveryReport(val failure: PlaybackFailure, val action: PlaybackRecoveryAction, val httpStatus: Int?, val diagnostic: String? = null)
+data class PlaybackRecoveryReport(val failure: PlaybackFailure, val action: PlaybackRecoveryAction, val httpStatus: Int?, val diagnostic: String? = null,
+    val nativeErrorCode: Int? = null, val componentErrorCode: Int? = null)
 object PlaybackRecoveryStatus {
+    @Volatile var rendererRefreshAvailable: Boolean? = null
     @Volatile var available: Boolean? = null
     @Volatile var latest: PlaybackRecoveryReport? = null
     @Volatile var nativeState: Int? = null
@@ -18,10 +20,11 @@ object PlaybackRecoveryStatus {
 
 /** Never infer an error from a buffering spinner or force playback while paused. */
 object PlaybackFailurePolicy {
-    fun classify(type: Int, cause: Throwable?, httpStatus: Int?): PlaybackFailure {
+    fun classify(type: Int, cause: Throwable?, httpStatus: Int?, componentErrorCode: Int? = null): PlaybackFailure {
         val chain = generateSequence(cause) { it.cause }.take(8).toList()
         val names = chain.map { it.javaClass.simpleName }.toSet()
-        if (httpStatus == 401 || httpStatus == 403 || names.any {
+        // Native DrmException constants: item revoked, subscription key missing, subscription expired.
+        if (componentErrorCode in setOf(-42584, -42585, -42587) || httpStatus == 401 || httpStatus == 403 || names.any {
             it in setOf("PersistentKeyLoaderException", "ErrorConditionException", "NetworkConnectionDeniedException",
                 "DeniedByServerException", "NotProvisionedException", "KeysExpiredException")
         }) return PlaybackFailure.AUTHORIZATION

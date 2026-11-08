@@ -6190,5 +6190,66 @@
       "search": "Ea.f#x and Ea.m#x retain the same field type and are read by the same method-body operation in 1614. These continue to identify song and grid result MediaEntity rows.",
       "runtimeVerified": false
     }
+  },
+  "playbackRendererRefresh": {
+    "contractVersion": 1,
+    "methods": {
+      "refresh": {
+        "owner": "com.apple.android.music.playback.renderer.SVAudioRendererV2",
+        "name": "onKeyRefreshed",
+        "parameters": [
+          "com.google.android.exoplayer2.drm.appledrm.LicenseKeyData"
+        ],
+        "returns": "void",
+        "static": false
+      },
+      "disabled": {
+        "owner": "com.apple.android.music.playback.renderer.SVAudioRendererV2",
+        "name": "onDisabled",
+        "parameters": [],
+        "returns": "void",
+        "static": false
+      },
+      "positionReset": {
+        "owner": "com.apple.android.music.playback.renderer.SVAudioRendererV2",
+        "name": "onPositionReset",
+        "parameters": [
+          "long",
+          "boolean"
+        ],
+        "returns": "void",
+        "static": false
+      },
+      "reset": {
+        "owner": "com.apple.android.music.playback.renderer.SVAudioRendererV2",
+        "name": "onReset",
+        "parameters": [],
+        "returns": "void",
+        "static": false
+      },
+      "streamChanged": {
+        "owner": "com.apple.android.music.playback.renderer.SVAudioRendererV2",
+        "name": "onStreamChanged",
+        "parameters": [
+          "[Lcom.google.android.exoplayer2.Format;",
+          "long"
+        ],
+        "returns": "void",
+        "static": false
+      }
+    },
+    "fields": {
+      "handler": {
+        "owner": "com.apple.android.music.playback.renderer.SVAudioRendererV2",
+        "name": "handler",
+        "type": "android.os.Handler"
+      }
+    },
+    "verification": {
+      "rendererError": -25,
+      "rendererErrorName": "ErrorInvalidKDExchange",
+      "source": "Apple Music 7.0.0 (1614) classes2.dex: SVAudioRendererV2.onKeyRefreshed/decodeAudioBuffer/onDisabled; PlayerDrmManager.updateLicenseKeyListeners; SVAudioRendererV2.onStreamChanged",
+      "apkSha256": "49e83b64fccff79310c7dff174e02228dd0455a3d87df4d9655d1e4f8cd2e351"
+    }
   }
 }

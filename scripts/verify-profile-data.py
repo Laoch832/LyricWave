@@ -38,6 +38,14 @@ def main():
             for group, roles in required_wrap.items():
                 assert roles <= wrap.get(group, {}).keys(), f'missing wrap sweep {group}: {filename}'
             assert profile['productionEnabled'], f'wrap sweep must use an enabled exact profile: {filename}'
+        if 'playbackRendererRefresh' in profile:
+            refresh = profile['playbackRendererRefresh']
+            assert refresh.get('contractVersion') == 1
+            assert {'refresh', 'disabled', 'positionReset', 'reset', 'streamChanged'} <= refresh.get('methods', {}).keys()
+            assert {'handler'} <= refresh.get('fields', {}).keys()
+            assert profile['productionEnabled']
+            assert refresh.get('verification', {}).get('rendererError') == -25
+            assert len(refresh['verification'].get('apkSha256', '')) == 64
         artist_targets = profile['hookTargets'].get('ARTIST_SURFACE_CLASSES', [])
         artist_roles = [target['runtimeMemberNames'].get('ARTIST_RUNTIME_ROLE') for target in artist_targets]
         compose_roles = {'compose_profile_view_model', 'compose_profile_success_state'}

@@ -136,6 +136,22 @@ class PlaybackStallRecoveryTest {
         assertEquals(false, PlaybackRecoveryStatus.currentFaultActive)
         assertEquals(PlaybackRecoveryAction.OBSERVED, PlaybackRecoveryStatus.latest?.action)
     }
+    class DrmException(private val component: Int) : IOException("Secret native DRM context") {
+        fun getErrorCode() = -25
+        fun getComponentErrorCode() = component
+    }
+    @Test fun `KD exchange preserves component code and never causes source retry`() {
+        for ((component, expected) in listOf(-1 to PlaybackFailure.DRM, -42587 to PlaybackFailure.AUTHORIZATION)) {
+            engine.state = 1; engine.fault = Fault(1, DrmException(component))
+            call("onPlayerError", engine.fault)
+            assertEquals(expected, PlaybackRecoveryStatus.latest?.failure)
+            assertEquals(-25, PlaybackRecoveryStatus.latest?.nativeErrorCode)
+            assertEquals(component, PlaybackRecoveryStatus.latest?.componentErrorCode)
+            assertEquals("T1:DrmException / E-25 / C$component", PlaybackRecoveryStatus.latest?.diagnostic)
+            waitForRetry(); call("play"); call("seekToPosition", 44L)
+            assertEquals(0, engine.retries)
+        }
+    }
     class DrmLicenseKeyException : IOException("Private license URI and key response") { fun getErrorCode() = -84 }
     @Test fun `license error exposes numeric code without retrying authorization`() {
         fault(DrmLicenseKeyException())

@@ -13,6 +13,7 @@ import java.util.WeakHashMap
 /** Repairs the native error-idle gap: normal play/seek do not reprepare a failed Exo source. */
 internal class AppleMusicPlaybackStallTarget(
     private val loader: ClassLoader, private val enabled: () -> Boolean,
+    private val rendererRefresh: (() -> TargetCapabilityInstall)? = null,
     private val register: (Method, ModernMethodHook, HookRegistrationScope) -> Boolean = { method, callback, scope ->
         ModernXposedRuntime.hookMethod(method, callback, scope)
     },
@@ -64,9 +65,15 @@ internal class AppleMusicPlaybackStallTarget(
                             ?.invoke(item) as? Int
                     }.getOrNull()
                 }
-                return PlaybackRecoveryReport(PlaybackFailurePolicy.classify(kind, cause, code),
+                val componentCode = generateSequence(cause) { it.cause }.take(8).firstNotNullOfOrNull { item ->
+                    if (item.javaClass.simpleName !in setOf("DrmException", "AudioRendererException")) null
+                    else runCatching { item.javaClass.getMethod("getComponentErrorCode").takeIf {
+                        it.returnType == Int::class.javaPrimitiveType }?.invoke(item) as? Int }.getOrNull()
+                }
+                return PlaybackRecoveryReport(PlaybackFailurePolicy.classify(kind, cause, code, componentCode),
                     PlaybackRecoveryAction.OBSERVED, code, PlaybackFailurePolicy.diagnostic(kind, cause) +
-                        (nativeCode?.let { " / E$it" } ?: ""))
+                        (nativeCode?.let { " / E$it" } ?: "") + (componentCode?.let { " / C$it" } ?: ""),
+                    nativeErrorCode = nativeCode, componentErrorCode = componentCode)
             }
             fun itemKey(host: Any, engine: Any): String? {
                 val item = current.invoke(host) ?: return null
@@ -164,7 +171,11 @@ internal class AppleMusicPlaybackStallTarget(
             scope.onClose { pending.clear(); budgets.clear(); retrying.clear(); reportOwner.clear(); reportFault.clear(); reportItemKey = null }
             scope.activate()
             PlaybackRecoveryStatus.available = true
-            TargetCapabilityInstall.Active("Confirmed network-error IDLE recovery; one attempt per item, explicit play/seek reprepare, no skip or queue edits")
+            val refreshResult = rendererRefresh?.invoke()
+            val detail = "Confirmed network-error IDLE recovery; one attempt per item, no skip or queue edits" +
+                (refreshResult?.let { "; ${it.message}" } ?: "")
+            if (refreshResult is TargetCapabilityInstall.Degraded) TargetCapabilityInstall.Degraded(detail)
+            else TargetCapabilityInstall.Active(detail)
         } catch (error: Throwable) {
             scope.close()
             PlaybackRecoveryStatus.available = false

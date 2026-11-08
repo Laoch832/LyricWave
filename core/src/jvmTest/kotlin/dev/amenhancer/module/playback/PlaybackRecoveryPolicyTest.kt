@@ -37,6 +37,13 @@ class PlaybackRecoveryPolicyTest {
         for (failure in listOf(PlaybackFailure.DRM, PlaybackFailure.RENDERER, PlaybackFailure.UNEXPECTED, PlaybackFailure.REMOTE))
             assertFalse(PlaybackFailurePolicy.recoverable(failure))
     }
+    @Test fun `native authorization component failures cannot become renderer recovery`() {
+        for (component in listOf(-42584, -42585, -42587)) {
+            val failure = PlaybackFailurePolicy.classify(1, DrmSessionException(IOException()), null, component)
+            assertEquals(PlaybackFailure.AUTHORIZATION, failure)
+            assertFalse(PlaybackFailurePolicy.recoverable(failure))
+        }
+    }
     @Test fun `diagnostic contains class identities but no signed URLs or exception messages`() {
         val cause = DrmSessionException(IOException("https://secret.test/song?token=credential"))
         assertEquals("T1:DrmSessionException > IOException", PlaybackFailurePolicy.diagnostic(1, cause))

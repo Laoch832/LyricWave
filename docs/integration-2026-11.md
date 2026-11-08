@@ -37,3 +37,17 @@
 - 下载页实际按钮测试覆盖点击前不下载、内建下载后才显示安装、错误附件 ID 拒绝和取消关闭；分段测试覆盖 206 拼接、忽略 Range 的 200、分段失败单流降级、截断、哈希失败、取消和非法重定向。
 - 线上 API 与构建清单验证后，4 段下载公开 beta.8 APK（10489535 字节），完整 SHA-256 为 `733c0f2fe4ddefeea2b7b7ec687b069ed82498659092948fa9d603bd9b102948`；apksigner 核对固定证书 `4ec2f441139585083e476b596a503db7e6c459ec1ca1d9bcf59d815b6981da53`。这不等同于已在真机安装 beta.10 或修复声音。
 - 网站 16 项测试、62 篇文档链接/锚点检查及生产构建通过。真机 LSPosed、安装确认和偶发无声仍待验收。
+
+## beta.11：针对 E-25 的线程修复
+
+用户补充的错误为 `T1:DrmException / E-25`。已对 Apple Music 7.0.0（1614）原生代码核验：`SVAudioRendererV2.createRendererException` 将 `-25` 映射为 `SVErrorCode.ErrorInvalidKDExchange`，这是无效密钥交换阶段，不能据此推断唯一底层原因；`DrmException.getComponentErrorCode()` 提供进一步整数原因码。
+
+`PlayerDrmManager.updateLicenseKeyListeners` 直接调用监听器，续期请求可从 DRM 工作线程触发；`SVAudioRendererV2.onKeyRefreshed` 会读写与解码、位置重置、释放共用的渲染器状态，并直接调用 native codec。已修复这一线程安全缺口：将原生回调的同一参数对象投递到该渲染器 onEnabled 创建的 Handler，原生方法在自己的 looper 中执行一次；位置重置/切换播放源/释放后作废旧回调，另一个渲染器的回调独立处理。既不改许可证数据，也不请求额外许可证、不重建队列、不强制播放或跳歌。投递失败保留原生行为，目标契约不匹配则不启用此修复。仅在已核验的 1614 profile 登记目标符号，未向其他版本推定兼容。
+
+新增组件码诊断 `E-25 / C…`，将原生订阅过期、缺少订阅密钥或撤销内容的组件错误归入授权失败，不触发网络 reprepare。界面单独标记“DRM 密钥交换”和“原生密钥刷新线程修复已启用”。安装后需强停重开 Apple Music，让 Hook 生效。这项改动修复了已核实的并发风险，用户偶发无声是否由它引起、声音是否恢复仍需真机验证，不能以测试通过宣布 DRM 已完全修复。
+
+上一提交的云端 `42489870484` 在 APK 压缩打包阶段出现 `OutOfMemoryError: Java heap space`。CI 改为最多 2 个 worker、3 GiB Gradle 堆，保留所有检查及固定签名流程；没有通过更换签名或跳过检查处理构建失败。
+
+验证补充：已从真实 1614 APK 的 DEX 对新增 5 个方法和 1 个字段做精确描述符核验，并验证错误 Handler 类型会被拒绝。完整历史 profile 验证脚本报告 705 项检查、278 项失败，涉及原有混淆符号/资源契约；新增 renderer refresh 部分没有失败。本次没有把整个宿主 profile 宣称为通过，也没有为消除失败去覆盖其余功能的既有适配。真机验收与用户版本确认仍待完成。
+
+beta.11 本地最终检查：1323 项 Gradle 测试通过，无失败/跳过；应用及库 Lint、Debug/Release 构建、架构、profile 数据、玻璃参考检查、27 项 Python 策略测试与工作流语法检查通过。9 项 renderer refresh 定向测试覆盖正确线程/同一对象/单次执行、seek/切源/重建失效、不同渲染器隔离、关闭设置、投递失败与错误契约。APK 内核对版本 `1.0.0-beta.11` / 131 及新增 target/契约均存在。网站生产构建及 62 篇文档链接检查通过。以上不替代真机长时间播放验收。

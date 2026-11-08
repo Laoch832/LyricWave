@@ -149,6 +149,8 @@ def verify_fragment_contracts(document, classes, failures):
                              else 'L' + name.replace('.', '/') + ';')
     sections = {name: document.get(name) for name in (
         'fragmentDualPane', 'fragmentLyricsRuntime', 'fragmentKaraokeWidth', 'fragmentTabletVideoHandoff')}
+    if document.get('playbackRendererRefresh') is not None:
+        sections['playbackRendererRefresh'] = document['playbackRendererRefresh']
     sections['fragmentChrome.members'] = (document.get('fragmentChrome') or {}).get('members')
     settings = document.get('settings') or {}
     presentation = document.get('metadataPresentation')
