@@ -54,8 +54,8 @@ data class AutoLyricsSource(
 class AutoLyricsSourceResolver(
     private val sources: List<AutoLyricsSource>,
 ) {
-    fun fetch(appleMusicId: Long): AutoLyricsCandidate? =
-        fetch(appleMusicId, sources.map { it.name })
+    fun fetch(appleMusicId: Long, budgetMs: Long = DEFAULT_CHAIN_BUDGET_MS): AutoLyricsCandidate? =
+        fetch(appleMusicId, sources.map { it.name }, budgetMs = budgetMs)
 
     /** Uses the caller's provider order and consults [cached] only at its recorded source. */
     fun fetch(
