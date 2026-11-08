@@ -1,4 +1,4 @@
-import { pageMetadata } from "@/lib/site";
+import { pageMetadata, siteOrigin } from "@/lib/site";
 import Link from "next/link";
 import Image from "next/image";
 import {
@@ -46,6 +46,41 @@ export default async function Home({ params }: Props) {
   const doc = (p: string) => `/docs/${lang}/${p}`;
   return (
     <>
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{
+          __html: JSON.stringify({
+            "@context": "https://schema.org",
+            "@graph": [
+              {
+                "@type": "WebSite",
+                "@id": `${siteOrigin}/#website`,
+                name: "澜音 LyricWave",
+                url: siteOrigin,
+                inLanguage: ["zh-CN", "en"],
+              },
+              {
+                "@type": "SoftwareSourceCode",
+                "@id": `${siteOrigin}/#project`,
+                name: "LyricWave",
+                alternateName: "澜音",
+                url: `${siteOrigin}/${lang}`,
+                description: zh
+                  ? "基于 AM++ 的 Apple Music Android 增强项目，由 Laoch832 维护。"
+                  : "An Apple Music Android enhancement project based on AM++, maintained by Laoch832.",
+                codeRepository: "https://github.com/Laoch832/LyricWave",
+                license: "https://www.gnu.org/licenses/gpl-3.0.html",
+                author: {
+                  "@type": "Person",
+                  name: "Laoch832",
+                  url: "https://github.com/Laoch832",
+                },
+                isBasedOn: "https://github.com/Zennmn/AM-plus-plus",
+              },
+            ],
+          }).replace(/</g, "\\u003c"),
+        }}
+      />
       <SiteHeader locale={lang} />
       <main id="main">
         <section className="hero page-width">

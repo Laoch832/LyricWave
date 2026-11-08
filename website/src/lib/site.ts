@@ -22,8 +22,12 @@ export function resolveSiteOrigin(
     );
   return url.origin;
 }
+export const publicSiteOrigin = "https://lyricwave.canz-monkey.cn";
+// Canonical identity is independent of the EdgeOne origin host and proxy headers.
 export const siteOrigin = resolveSiteOrigin(
-  process.env.NEXT_PUBLIC_SITE_URL,
+  process.env.NODE_ENV === "production"
+    ? publicSiteOrigin
+    : process.env.NEXT_PUBLIC_SITE_URL,
   process.env.VERCEL_PROJECT_PRODUCTION_URL,
 );
 export function pageMetadata({

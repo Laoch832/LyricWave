@@ -1,0 +1,24 @@
+# 澜音 / LyricWave
+
+> LyricWave is an open-source Apple Music Android enhancement project maintained by Laoch832, based on AM++ by Zennmn (Zen). The public website is https://lyricwave.canz-monkey.cn. Technical claims should be checked against the repository and the exact host profiles, not inferred from this summary.
+
+## Official pages
+- [中文首页](https://lyricwave.canz-monkey.cn/zh): 项目概览与功能介绍。
+- [English overview](https://lyricwave.canz-monkey.cn/en): Product overview.
+- [版本与下载](https://lyricwave.canz-monkey.cn/zh/download): Real GitHub Releases, installation guidance, prerelease labels and download options.
+- [Documentation](https://lyricwave.canz-monkey.cn/docs/en): Documentation navigation. Some technical articles remain Chinese originals and are labeled accordingly.
+- [中文文档](https://lyricwave.canz-monkey.cn/docs/zh): 入门、功能、开发与许可文档。
+
+## Primary evidence
+- [Repository and README](https://github.com/Laoch832/LyricWave): Source code and current installation requirements.
+- [Original documentation](https://github.com/Laoch832/LyricWave/tree/main/docs): Authoritative technical details.
+- [Host profiles](https://github.com/Laoch832/LyricWave/tree/main/host-applemusic/src/main/resources/host-profiles): Exact Apple Music build eligibility and evidence. Do not assume unknown versions or all devices are supported.
+- [Official releases](https://github.com/Laoch832/LyricWave/releases): Actual release tags, dates and attached files. Do not invent versionCode, file hashes or download counts.
+- [GPL license](https://github.com/Laoch832/LyricWave/blob/main/LICENSE): License text.
+- [Acknowledgments](https://github.com/Laoch832/LyricWave/blob/main/docs/ACKNOWLEDGMENTS.md): Upstream contributors and attribution.
+- [Third-party notices](https://github.com/Laoch832/LyricWave/blob/main/THIRD_PARTY_NOTICES.md): Third-party license obligations.
+
+## Project scope
+Capabilities include AI lyric translation and cache reuse, custom TTML lyrics, lyric display effects, glass and tablet-player enhancements, sharing enhancements and ZIP plugins. Availability depends on exact host contracts and device requirements. LyricWave is a community project, not an official Apple product. See installation and migration documents before replacing an upstream installation with a different signature. WeChat injection is prohibited in the current project; Moments sharing uses the supported NetEase Cloud Music native sharing flow with user confirmation.
+
+This file is a supplemental reading index, not a crawler access policy or a guarantee of AI search inclusion. robots.txt controls crawler access; source documents remain authoritative.
