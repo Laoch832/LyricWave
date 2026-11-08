@@ -15,7 +15,7 @@ dependencyResolutionManagement {
 }
 
 rootProject.name = "LyricWave"
-include(":app", ":host-wechat")
+include(":app", ":host-netease")
 include(":backdrop", ":glass")
 include(":core", ":host-api", ":hook-runtime", ":host-applemusic")
 include(":plugin-api", ":plugin-runtime")

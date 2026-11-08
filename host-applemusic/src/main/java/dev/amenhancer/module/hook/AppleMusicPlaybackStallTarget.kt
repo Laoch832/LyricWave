@@ -1,0 +1,141 @@
+package dev.amenhancer.module.hook
+
+import android.os.Handler
+import android.os.Looper
+import android.os.SystemClock
+import dev.amenhancer.module.playback.*
+import java.lang.ref.WeakReference
+import java.lang.reflect.Method
+import java.lang.reflect.Modifier
+import java.util.Collections
+import java.util.WeakHashMap
+
+/** Repairs the native error-idle gap: normal play/seek do not reprepare a failed Exo source. */
+internal class AppleMusicPlaybackStallTarget(
+    private val loader: ClassLoader, private val enabled: () -> Boolean,
+    private val register: (Method, ModernMethodHook, HookRegistrationScope) -> Boolean = { method, callback, scope ->
+        ModernXposedRuntime.hookMethod(method, callback, scope)
+    },
+) : PlaybackStallTarget {
+    private val scope = HookRegistrationScope()
+    private val budgets = Collections.synchronizedMap(WeakHashMap<Any, PlaybackRetryBudget>())
+    private val pending = Collections.synchronizedMap(WeakHashMap<Any, Any>())
+    private val retrying = Collections.synchronizedMap(WeakHashMap<Any, String>())
+    private var reportOwner = WeakReference<Any>(null)
+    private var report: PlaybackRecoveryReport? = null
+    override fun install(): TargetCapabilityInstall {
+        if (scope.isActive) return TargetCapabilityInstall.Active("Playback source recovery already installed")
+        return try {
+            val owner = loader.loadClass("com.apple.android.music.playback.player.ExoMediaPlayer")
+            val exo = loader.loadClass("com.google.android.exoplayer2.ExoPlayer")
+            val error = loader.loadClass("com.google.android.exoplayer2.ExoPlaybackException")
+            val queueItem = loader.loadClass("com.apple.android.music.playback.model.PlayerQueueItem")
+            val player = owner.getDeclaredField("player").apply { isAccessible = true }
+            check(exo.isAssignableFrom(player.type))
+            val current = owner.getMethod("getCurrentItem").also { check(queueItem.isAssignableFrom(it.returnType)) }
+            val queueId = queueItem.getMethod("getPlaybackQueueId").also { check(it.returnType == java.lang.Long.TYPE) }
+            val state = exo.getMethod("getPlaybackState").also { check(it.returnType == java.lang.Integer.TYPE) }
+            val window = exo.getMethod("getCurrentWindowIndex").also { check(it.returnType == java.lang.Integer.TYPE) }
+            val errorNow = exo.getMethod("getPlaybackError").also { check(error.isAssignableFrom(it.returnType)) }
+            val wantsPlay = exo.getMethod("getPlayWhenReady").also { check(it.returnType == java.lang.Boolean.TYPE) }
+            val looper = exo.getMethod("getApplicationLooper").also { check(it.returnType == Looper::class.java) }
+            val retry = exo.getMethod("retry").also { check(it.returnType == Void.TYPE && !Modifier.isStatic(it.modifiers)) }
+            val type = error.getField("type").also { check(it.type == java.lang.Integer.TYPE) }
+            val source = error.getMethod("getSourceException")
+            val invalidHttp = loader.loadClass("com.google.android.exoplayer2.upstream.HttpDataSource\$InvalidResponseCodeException")
+            val responseCode = invalidHttp.getField("responseCode").also { check(it.type == java.lang.Integer.TYPE) }
+            fun category(fault: Any): Pair<PlaybackFailure, Int?> {
+                val kind = type.getInt(fault)
+                val cause = if (kind == 0) source.invoke(fault) as? Throwable else null
+                val code = generateSequence(cause) { it.cause }.take(8).firstOrNull(invalidHttp::isInstance)?.let(responseCode::getInt)
+                return PlaybackFailurePolicy.classify(kind, cause, code) to code
+            }
+            fun itemKey(host: Any, engine: Any): String? {
+                val item = current.invoke(host) ?: return null
+                val index = window.invoke(engine) as? Int ?: return null
+                if (index < 0) return null
+                return "${queueId.invoke(item)}:$index"
+            }
+            fun publish(failure: PlaybackFailure, action: PlaybackRecoveryAction, code: Int?) {
+                report = PlaybackRecoveryReport(failure, action, code)
+                PlaybackRecoveryStatus.latest = report
+            }
+            fun attempt(host: Any, expectedError: Any?, expectedKey: String?, automatic: Boolean) {
+                if (!scope.isActive || !enabled()) return
+                val engine = player.get(host) ?: return
+                if (looper.invoke(engine) !== Looper.myLooper()) return
+                if (state.invoke(engine) != 1) return // Only confirmed fatal IDLE, never ordinary BUFFERING.
+                val fault = errorNow.invoke(engine) ?: return
+                if (expectedError != null && fault !== expectedError) return
+                val key = itemKey(host, engine) ?: return
+                if (expectedKey != null && expectedKey != key) return
+                if (automatic && wantsPlay.invoke(engine) != true) return
+                val (failure, code) = category(fault)
+                if (!PlaybackFailurePolicy.recoverable(failure)) return
+                val budget = budgets.getOrPut(host) { PlaybackRetryBudget(SystemClock::elapsedRealtime) }
+                if (!budget.claim(key, automatic)) return
+                // ExoPlayer.retry reuses the same source with resetPosition=false/resetState=false.
+                // No queue/index/position/playWhenReady/DRM credentials are rewritten.
+                retrying[host] = key
+                reportOwner = WeakReference(host)
+                publish(failure, PlaybackRecoveryAction.RETRY_REQUESTED, code)
+                retry.invoke(engine)
+                ModernXposedRuntime.log("Playback source recovery requested: mode=${if (automatic) "once" else "user"}, category=$failure, http=${code ?: 0}")
+            }
+            fun safely(action: () -> Unit) { runCatching(action).onFailure {
+                ModernXposedRuntime.log("Playback source recovery skipped: ${it.javaClass.simpleName}")
+            } }
+            val onError = owner.getMethod("onPlayerError", error)
+            check(register(onError, object : ModernMethodHook() {
+                override fun afterHookedMethod(param: MethodHookParam) = safely {
+                    if (param.throwable != null || !enabled()) return@safely
+                    val host = param.thisObject ?: return@safely
+                    val fault = param.args.firstOrNull() ?: return@safely
+                    val (failure, code) = category(fault)
+                    publish(failure, PlaybackRecoveryAction.OBSERVED, code)
+                    if (!PlaybackFailurePolicy.recoverable(failure)) return@safely
+                    val engine = player.get(host) ?: return@safely
+                    PlaybackRecoveryStatus.nativeState = state.invoke(engine) as? Int
+                    val key = itemKey(host, engine) ?: return@safely
+                    val handler = Handler(looper.invoke(engine) as Looper)
+                    val token = Any()
+                    pending[host] = token
+                    handler.postDelayed({ safely {
+                        if (pending[host] === token) { pending.remove(host); attempt(host, fault, key, true) }
+                    } }, 750)
+                }
+            }, scope))
+            for (method in listOf(owner.getMethod("play"), owner.getMethod("seekToPosition", java.lang.Long.TYPE))) {
+                check(method.returnType == Void.TYPE)
+                check(register(method, object : ModernMethodHook() {
+                    override fun afterHookedMethod(param: MethodHookParam) = safely {
+                        if (param.throwable == null) param.thisObject?.let { attempt(it, null, null, false) }
+                    }
+                }, scope))
+            }
+            check(register(owner.getMethod("onPlayerStateChanged", java.lang.Boolean.TYPE, java.lang.Integer.TYPE),
+                object : ModernMethodHook() {
+                    override fun afterHookedMethod(param: MethodHookParam) = safely {
+                        if (param.throwable != null) return@safely
+                        PlaybackRecoveryStatus.nativeState = param.args.getOrNull(1) as? Int
+                        val host = param.thisObject ?: return@safely
+                        val engine = player.get(host) ?: return@safely
+                        if (param.args.getOrNull(0) == true && param.args.getOrNull(1) == 3 &&
+                            reportOwner.get() === host && report?.action == PlaybackRecoveryAction.RETRY_REQUESTED &&
+                            retrying[host] == itemKey(host, engine) && errorNow.invoke(engine) == null) {
+                            retrying.remove(host)
+                            report?.let { publish(it.failure, PlaybackRecoveryAction.READY, it.httpStatus) }
+                        }
+                    }
+                }, scope))
+            scope.onClose { pending.clear(); budgets.clear(); retrying.clear(); reportOwner.clear() }
+            scope.activate()
+            PlaybackRecoveryStatus.available = true
+            TargetCapabilityInstall.Active("Confirmed network-error IDLE recovery; one attempt per item, explicit play/seek reprepare, no skip or queue edits")
+        } catch (error: Throwable) {
+            scope.close()
+            PlaybackRecoveryStatus.available = false
+            TargetCapabilityInstall.Degraded("Playback source recovery contract unavailable: ${error.javaClass.simpleName}")
+        }
+    }
+}

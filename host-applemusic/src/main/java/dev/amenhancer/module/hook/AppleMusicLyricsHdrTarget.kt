@@ -81,7 +81,7 @@ internal class AppleMusicLyricsHdrTarget(
         ModernXposedRuntime.hookMethod(method, object : ModernMethodHook() {
             override fun beforeHookedMethod(param: MethodHookParam) {
                 val text = param.thisObject as? TextView ?: return
-                if (bypass.get() || incompatible[text] == true) return
+                if (bypass.get() == true || incompatible[text] == true) return
                 val canvas = param.args.firstOrNull() as? Canvas ?: return
                 if (!canvas.isHardwareAccelerated) return // Nested super.onDraw and offscreen draws stay untouched.
                 val session = owners[text]?.get() ?: return
@@ -133,11 +133,11 @@ internal class LyricsHdrWindow(private val window: Window) : AutoCloseable {
             appliedBrightness = null
         }
         if (hdr) {
-            window.colorMode = ActivityInfo.COLOR_MODE_HDR
+            if (window.colorMode != ActivityInfo.COLOR_MODE_HDR) window.colorMode = ActivityInfo.COLOR_MODE_HDR
             appliedMode = ActivityInfo.COLOR_MODE_HDR
             if (Build.VERSION.SDK_INT >= 35) {
                 val desired = if (flashbang) 0f else ratio // 0 asks the system for automatic maximum headroom.
-                window.desiredHdrHeadroom = desired
+                if (window.desiredHdrHeadroom != desired) window.desiredHdrHeadroom = desired
                 appliedHeadroom = desired
             }
         }
@@ -145,8 +145,9 @@ internal class LyricsHdrWindow(private val window: Window) : AutoCloseable {
     override fun close() {
         if (appliedBrightness == window.attributes.screenBrightness)
             window.attributes = window.attributes.apply { screenBrightness = oldBrightness }
-        if (appliedMode == window.colorMode) window.colorMode = oldMode
-        if (Build.VERSION.SDK_INT >= 35 && appliedHeadroom == window.desiredHdrHeadroom) window.desiredHdrHeadroom = oldHeadroom
+        if (appliedMode == window.colorMode && window.colorMode != oldMode) window.colorMode = oldMode
+        if (Build.VERSION.SDK_INT >= 35 && appliedHeadroom == window.desiredHdrHeadroom && window.desiredHdrHeadroom != oldHeadroom) window.desiredHdrHeadroom = oldHeadroom
+        appliedBrightness = null; appliedMode = null; appliedHeadroom = null
     }
 }
 

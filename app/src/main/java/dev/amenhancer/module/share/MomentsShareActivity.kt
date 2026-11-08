@@ -16,7 +16,7 @@ import android.widget.TextView
 import dev.amenhancer.module.MomentsLinkContract as Contract
 import dev.amenhancer.module.i18n.ModuleText
 
-/** Opens a genuine clickable link card in WeChat; user still reviews and publishes it. */
+/** Opens NetEase Cloud Music's native share panel with the original Apple Music URL. */
 class MomentsShareActivity : Activity() {
     private val handler = Handler(Looper.getMainLooper())
     private var pending = false
@@ -39,7 +39,7 @@ class MomentsShareActivity : Activity() {
         if (url == null) status.text = ModuleText.WECHAT_LINK_REQUIRED.text()
         open.setOnClickListener {
             if (pending || url == null) return@setOnClickListener
-            val launch = packageManager.getLaunchIntentForPackage(Contract.WECHAT_PACKAGE)
+            val launch = packageManager.getLaunchIntentForPackage(Contract.INTERMEDIARY_PACKAGE)
             if (launch == null) { status.text = ModuleText.WECHAT_MISSING.text(); return@setOnClickListener }
             pending = true; open.isEnabled = false
             try {
@@ -51,7 +51,7 @@ class MomentsShareActivity : Activity() {
     @Suppress("DEPRECATION")
     private fun requestEditor(url: String, title: String, attempt: Int, status: TextView, button: Button) {
         if (isDestroyed || isFinishing) return
-        val request = Intent(Contract.OPEN).setPackage(Contract.WECHAT_PACKAGE)
+        val request = Intent(Contract.OPEN).setPackage(Contract.INTERMEDIARY_PACKAGE)
             .putExtra(Contract.URL, url).putExtra(Contract.TITLE, title)
         sendOrderedBroadcast(request, null, object : BroadcastReceiver() {
             override fun onReceive(context: Context, intent: Intent?) {

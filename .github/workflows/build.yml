@@ -96,7 +96,7 @@ jobs:
           fi
       - name: Run all unit tests, lint and assemble both variants
         run: |
-          ./gradlew test :app:lintDebug :app:lintVitalRelease :glass:lintDebug :host-applemusic:lintDebug :host-wechat:lintDebug :plugin-api:lintDebug :plugin-runtime:lintDebug :app:assembleDebug :app:assembleRelease -PpluginFixture="$PWD/build/plugin-example/basic-plugin.zip" --no-daemon --stacktrace
+          ./gradlew test :app:lintDebug :app:lintVitalRelease :glass:lintDebug :host-applemusic:lintDebug :host-netease:lintDebug :plugin-api:lintDebug :plugin-runtime:lintDebug :app:assembleDebug :app:assembleRelease -PpluginFixture="$PWD/build/plugin-example/basic-plugin.zip" --no-daemon --stacktrace
       - name: Package unsigned release with source metadata
         run: python3 scripts/ci/release.py prepare
       - name: Upload unsigned release for this run

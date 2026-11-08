@@ -41,6 +41,9 @@ data class TargetAdaptation(
     val cellularDataEntry: CellularDataEntryTarget = CellularDataEntryTarget {
         TargetCapabilityInstall.Degraded("Cellular data entry target was not configured")
     },
+    val playbackStall: PlaybackStallTarget = PlaybackStallTarget {
+        TargetCapabilityInstall.Unsupported("Playback source recovery is not available")
+    },
     val playerRecovery: PlayerRecoveryTarget = PlayerRecoveryTarget {
         TargetCapabilityInstall.Unsupported("Native player recovery is not available for this host")
     },
@@ -139,3 +142,5 @@ sealed interface TargetCapabilityInstall {
 
 fun interface LyricsHdrTarget { fun install(): TargetCapabilityInstall }
 fun interface WechatMomentsTarget { fun install(): TargetCapabilityInstall }
+
+fun interface PlaybackStallTarget { fun install(): TargetCapabilityInstall }

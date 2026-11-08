@@ -768,6 +768,36 @@ private fun EmbeddedSettingsHost.renderEmbeddedCategoryPage(
                 })
             }
             EmbeddedSettingsPage.INTERFACE -> {
+                setting(ModuleText.PLAYBACK_RECOVERY, ModuleText.PLAYBACK_RECOVERY_SUMMARY, settings.playbackStallRecoveryEnabled) {
+                    onSettingsChanged(currentSettings().copy(playbackStallRecoveryEnabled = it))
+                }
+                val playback = dev.amenhancer.module.playback.PlaybackRecoveryStatus.latest
+                val fault = playback?.failure?.let {
+                    when (it) {
+                        dev.amenhancer.module.playback.PlaybackFailure.NETWORK -> ModuleText.PLAYBACK_NETWORK
+                        dev.amenhancer.module.playback.PlaybackFailure.HTTP_TRANSIENT -> ModuleText.PLAYBACK_HTTP
+                        dev.amenhancer.module.playback.PlaybackFailure.AUTHORIZATION -> ModuleText.PLAYBACK_AUTH
+                        dev.amenhancer.module.playback.PlaybackFailure.DRM_OR_RENDERER -> ModuleText.PLAYBACK_DRM
+                        dev.amenhancer.module.playback.PlaybackFailure.OTHER -> ModuleText.PLAYBACK_OTHER
+                    }
+                } ?: ModuleText.PLAYBACK_NO_FAULT
+                val action = playback?.action?.let {
+                    when (it) {
+                        dev.amenhancer.module.playback.PlaybackRecoveryAction.OBSERVED -> ModuleText.PLAYBACK_OBSERVED
+                        dev.amenhancer.module.playback.PlaybackRecoveryAction.RETRY_REQUESTED -> ModuleText.PLAYBACK_RETRY
+                        dev.amenhancer.module.playback.PlaybackRecoveryAction.READY -> ModuleText.PLAYBACK_READY
+                    }
+                } ?: ModuleText.PLAYBACK_NO_FAULT
+                addView(TextView(activity).apply {
+                    text = if (dev.amenhancer.module.playback.PlaybackRecoveryStatus.available == false)
+                        localizedText(ModuleText.PLAYBACK_RECOVERY_UNAVAILABLE)
+                    else localizedText(ModuleText.PLAYBACK_RECOVERY_STATUS,
+                        dev.amenhancer.module.playback.PlaybackRecoveryStatus.nativeState ?: "—",
+                        localizedText(fault), localizedText(action), playback?.httpStatus ?: "—")
+                    textSize = 13f
+                    setPadding(dp(activity, 12), dp(activity, 8), dp(activity, 12), dp(activity, 8))
+                    setEmbeddedTextColor(activity) { it.muted }
+                })
                 setting(ModuleText.WECHAT_MOMENTS, ModuleText.WECHAT_MOMENTS_SUMMARY, settings.wechatMomentsShareEnabled) {
                     onSettingsChanged(currentSettings().copy(wechatMomentsShareEnabled = it))
                 }
@@ -895,6 +925,7 @@ private fun EmbeddedSettingsHost.showEmbeddedPageDetails(activity: Activity, pag
             ModuleText.LYRICS_FONT to ModuleText.LYRICS_FONT_IMPORT_SUMMARY,
         )
         EmbeddedSettingsPage.INTERFACE -> listOf(
+            ModuleText.PLAYBACK_RECOVERY to ModuleText.PLAYBACK_RECOVERY_SUMMARY,
             ModuleText.WECHAT_MOMENTS to ModuleText.WECHAT_MOMENTS_SUMMARY,
             ModuleText.TABLET_DUAL_PANE to ModuleText.TABLET_DUAL_PANE_SUMMARY,
             ModuleText.TABLET_DUAL_PANE_HIDE_STATUS_BAR to ModuleText.TABLET_DUAL_PANE_HIDE_STATUS_BAR_SUMMARY,

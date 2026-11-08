@@ -55,6 +55,7 @@ data class ModuleSettings(
      */
     val phoneLiquidGlassMiniSinkBounceDp: Int = EnhancementDefaults.GLASS_MINI_SINK_BOUNCE_DP,
     /** HDR gainmap lyrics; system thermal and display limits always apply. */
+    val playbackStallRecoveryEnabled: Boolean = true,
     val lyricsHdrEnabled: Boolean = false,
     val lyricsHdrBrightnessPercent: Int = 200,
     val lyricsHdrFlashbangEnabled: Boolean = false,

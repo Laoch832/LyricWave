@@ -36,3 +36,14 @@
 
 - For AI activity UI changes, verify actual settings buttons against a local fake API with `AiLyricsActivityUiTest`, including cache hits, displayed counters and page detachment.
 - Never infer missing API usage or persist API keys, request/response bodies or lyrics in the activity journal.
+
+# Sharing scope constraint
+
+- Never hook or inject code into WeChat (`com.tencent.mm`), even if the manager retains an old scope selection.
+- The user explicitly permits NetEase Cloud Music as the sharing intermediary. Reuse its actual native sharing flow, preserve the original clickable Apple Music URL, and never post automatically.
+
+# Playback recovery
+
+- Never change the queue, skip tracks, rewrite playback URLs/credentials or force playWhenReady to recover a fault.
+- Only confirmed recoverable network-source errors in native IDLE may reprepare; automatic recovery is bounded and pause/song-change guards must be tested.
+- A spinner or a unit-test pass is not evidence that the user's audio problem is resolved. Keep error reporting free of signed URLs and credentials.

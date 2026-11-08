@@ -36,6 +36,19 @@ class EmbeddedOnlyArtifactStructuralRegressionTest {
         assertTrue(host.contains("showSettingsDialog(activity)"))
     }
 
+    @Test fun `WeChat is never an injection target even if an old scope selection remains`() {
+        val scope = projectFile("app/src/main/resources/META-INF/xposed/scope.list")
+        assertFalse(scope.lineSequence().any { it.trim() == "com.tencent.mm" })
+        assertTrue(scope.contains("com.netease.cloudmusic"))
+        val entry = projectFile("app/src/main/java/dev/amenhancer/module/hook/HookEntry.kt")
+        val moduleLoaded = entry.substringAfter("override fun onModuleLoaded").substringBefore("override fun onPackageReady")
+        val denied = moduleLoaded.indexOf("com.tencent.mm")
+        assertTrue(denied >= 0)
+        assertTrue(denied < moduleLoaded.indexOf("ModernXposedRuntime.attach"))
+        assertFalse(entry.contains("WeChatShareBridge"))
+        assertTrue(entry.contains("NetEaseShareBridge"))
+    }
+
     @Test
     fun `obsolete standalone settings sources are absent`() {
         listOf(

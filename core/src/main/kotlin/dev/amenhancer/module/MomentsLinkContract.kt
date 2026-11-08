@@ -2,9 +2,9 @@ package dev.amenhancer.module
 
 import java.net.URI
 
-/** Restricted, public-data-only IPC. No SDK app identity, cookies or account data are transferred. */
+/** Restricted, public-data-only IPC to NetEase Cloud Music. No hooks run in WeChat. */
 object MomentsLinkContract {
-    const val WECHAT_PACKAGE = "com.tencent.mm"
+    const val INTERMEDIARY_PACKAGE = "com.netease.cloudmusic"
     const val OPEN = "dev.amenhancer.module.action.OPEN_MOMENTS_LINK"
     const val PERMISSION = "dev.amenhancer.module.permission.SHARE_MOMENTS_LINK"
     const val URL = "music_url"

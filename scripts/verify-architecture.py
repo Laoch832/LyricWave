@@ -5,10 +5,10 @@ import re
 
 ROOT = Path(__file__).resolve().parents[1]
 ALLOWED = {
-    'app': {'core','host-api','hook-runtime','host-applemusic','host-wechat','glass','plugin-api','plugin-runtime'},
+    'app': {'core','host-api','hook-runtime','host-applemusic','host-netease','glass','plugin-api','plugin-runtime'},
     'plugin-api': set(), 'plugin-runtime': {'plugin-api','hook-runtime'},
     'core': set(), 'host-api': {'core'}, 'hook-runtime': {'core'},
-    'host-wechat': {'core','hook-runtime'},
+    'host-netease': {'core','hook-runtime'},
     'host-applemusic': {'core','host-api','hook-runtime'}, 'glass': {'core','backdrop'}, 'backdrop': set(),
 }
 
@@ -46,6 +46,13 @@ def check():
         if path.name.endswith('Feature.kt') or path.name in ('PhoneGlassSession.kt','TabletDualPaneGlassSession.kt') or path.name.startswith(('FragmentGlass','FragmentTabletGlass','FragmentPhoneGlass')):
             if re.search(r'getDeclared(?:Field|Method)|\.declaredFields|AppleMusicSymbols|TargetSymbolResolver|ModernXposedRuntime\.callMethod',source):
                 failures.append(f'{path.relative_to(ROOT)} bypasses semantic host API')
+    scope = (ROOT/'app/src/main/resources/META-INF/xposed/scope.list').read_text().splitlines()
+    if 'com.tencent.mm' in scope: failures.append('WeChat must never be in the recommended scope')
+    for module in ALLOWED:
+        for path in (ROOT/module/'src/main').rglob('*.kt'):
+            text = path.read_text(encoding='utf-8')
+            if 'WeChatShareBridge' in text or 'SnsUploadUI' in text or 'Ksnsupload_' in text:
+                failures.append(f'{path.relative_to(ROOT)} reintroduces private WeChat integration')
     if failures: raise SystemExit('\n'.join(failures))
     print('PASS: module dependencies, JVM core, semantic API, feature and settings boundaries')
 

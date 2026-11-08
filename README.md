@@ -30,8 +30,9 @@
 
 | 功能 | 说明 |
 | --- | --- |
+| 播放中断恢复 | 确认网络播放源错误后尝试一次同曲重准备，保留队列和进度；不对正常缓冲或账号错误循环重试。 |
 | HDR 歌词 | 100%–800% 亮度比例与震爆弹模式；真正 HDR 需 Android 14+ 和 HDR 屏幕，峰值由系统控制。 |
-| 朋友圈链接分享 | 在原生系统分享面板打开微信链接卡片编辑页，保留可点击 Apple Music URL；需启用微信作用域。 |
+| 朋友圈链接分享 | 通过网易云原生分享面板分享可点击的 Apple Music URL；只勾选 Apple Music 与网易云，不 Hook 微信。 |
 | AI 歌词翻译 | 使用自己的 OpenAI 兼容接口，将符合条件的当前选中的外语歌词翻译为简体中文。 |
 | 自动翻译缓存 | 译文通过 TTML 校验后自动保存，重播和重启后优先复用。 |
 | 原歌词更新校验 | 当前来源完整原歌词 TTML 的 SHA-256 变化后，使旧译文失效并重新翻译。 |
@@ -57,7 +58,7 @@
 需要 Android 8.0+、受支持版本的 Apple Music，以及支持 libxposed API 102 的 LSPosed 或兼容框架。具体宿主版本以 [版本配置目录](host-applemusic/src/main/resources/host-profiles/) 为准。
 
 1. 从 [本项目 Releases](https://github.com/Laoch832/LyricWave/releases) 下载 APK。
-2. 在 LSPosed 中启用模块，作用域选择 Apple Music（`com.apple.android.music`）；若使用朋友圈链接分享，额外勾选微信（`com.tencent.mm`）。
+2. 在 LSPosed 中启用模块，作用域选择 Apple Music（`com.apple.android.music`）；若使用朋友圈链接分享，额外勾选网易云音乐（`com.netease.cloudmusic`），不勾选微信。
 3. 强制停止并重新打开 Apple Music。
 4. 打开 Apple Music → 设置 → **澜音模块设置**。
 

@@ -5,7 +5,7 @@
     <permission android:name="dev.amenhancer.module.permission.SHARE_MOMENTS_LINK" android:protectionLevel="signature" />
     <uses-permission android:name="dev.amenhancer.module.permission.SHARE_MOMENTS_LINK" />
     <queries>
-        <package android:name="com.tencent.mm" />
+        <package android:name="com.netease.cloudmusic" />
     </queries>
     <application
         android:allowBackup="false"

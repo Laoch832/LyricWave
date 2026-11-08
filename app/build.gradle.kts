@@ -37,8 +37,8 @@ android {
         applicationId = "dev.amenhancer.module"
         minSdk = 26
         targetSdk = 37
-        versionCode = 124
-        versionName = "1.0.0-beta.4"
+        versionCode = 125
+        versionName = "1.0.0-beta.5"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
@@ -100,7 +100,7 @@ dependencies {
     implementation(project(":host-api"))
     implementation(project(":hook-runtime"))
     implementation(project(":host-applemusic"))
-    implementation(project(":host-wechat"))
+    implementation(project(":host-netease"))
     implementation(project(":glass"))
     compileOnly("io.github.libxposed:api:102.0.0")
     compileOnly("io.github.libxposed:service:102.0.0")

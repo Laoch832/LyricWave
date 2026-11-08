@@ -37,6 +37,21 @@ class LyricsHdrRenderingTest {
         text.layout(0, 0, 5000, 5000)
         assertNull(pool.frame(text, destination, 2f))
     }
+    class CountingActivity : Activity() {
+        var changes = 0
+        override fun onWindowAttributesChanged(params: android.view.WindowManager.LayoutParams) {
+            super.onWindowAttributesChanged(params); changes++
+        }
+    }
+    @Test fun `unchanged HDR polling does not keep relaying window attributes`() {
+        val activity = Robolectric.buildActivity(CountingActivity::class.java).setup().get()
+        val owner = LyricsHdrWindow(activity.window)
+        owner.apply(true, 2f, false)
+        val changes = activity.changes
+        repeat(10) { owner.apply(true, 2f, false) }
+        assertEquals(changes, activity.changes)
+        owner.close()
+    }
     @Test fun `flashbang exit restores original brightness without changing global settings`() {
         val activity = Robolectric.buildActivity(Activity::class.java).setup().get()
         val window = activity.window

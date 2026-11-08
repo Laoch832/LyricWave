@@ -98,6 +98,7 @@ object AppleMusicHostFactory {
             identity = build.displayName,
             build = build,
             currentSong = currentSong,
+            playbackStall = AppleMusicPlaybackStallTarget(classLoader, enabled = { config.settings().playbackStallRecoveryEnabled }),
             playerRecovery = FragmentPlayerRecoveryTarget(resolver, build),
             startupPagePrewarm = FragmentStartupPagePrewarmTarget(
                 application, classLoader, { config.settings().startupPagePrewarmEnabled },

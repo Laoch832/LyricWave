@@ -1,6 +1,6 @@
 plugins { id("com.android.library") }
 android {
-    namespace = "dev.amenhancer.host.wechat"
+    namespace = "dev.amenhancer.host.netease"
     compileSdk = 37
     defaultConfig { minSdk = 26 }
     testOptions {

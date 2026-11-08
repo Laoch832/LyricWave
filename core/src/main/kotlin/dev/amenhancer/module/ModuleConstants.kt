@@ -23,6 +23,7 @@ object ModuleConstants {
     const val FEATURE_TITLE_CORRECTION = "title_correction"
     const val FEATURE_APPLE_MUSIC_DPI = "apple_music_dpi"
     const val FEATURE_CELLULAR_DATA_ENTRY = "cellular_data_entry"
+    const val FEATURE_PLAYBACK_STALL_RECOVERY = "playback_stall_recovery"
     const val FEATURE_PLAYER_RECOVERY = "player_recovery"
     const val FEATURE_STARTUP_PAGE_PREWARM = "startup_page_prewarm"
 }

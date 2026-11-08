@@ -18,7 +18,7 @@ The original author's support link and the credits for other projects are collec
 
 ## Features
 
-HDR lyrics offer a 100%–800% luminance ratio and a maximum-brightness mode. Genuine HDR requires Android 14+ and an HDR display. WeChat Moments sharing preserves a clickable Apple Music link and opens the native link editor; enable both Apple Music and WeChat in LSPosed. See [setup and compatibility](docs/hdr-and-moments.md).
+HDR lyrics offer a 100%–800% luminance ratio and a maximum-brightness mode. Genuine HDR requires Android 14+ and an HDR display. WeChat Moments sharing preserves a clickable Apple Music link and opens NetEase Cloud Music’s native share panel; enable only Apple Music and NetEase in LSPosed, never WeChat. See [setup and compatibility](docs/hdr-and-moments.md).
 
 - AI translation of eligible selected foreign-language lyrics into Simplified Chinese through your own OpenAI-compatible endpoint.
 - Automatic persistent translation caching and source TTML SHA-256 checks, including lyric and timing changes.
@@ -40,7 +40,7 @@ The **API requests & translation cache** page supports explicit translation, cac
 Requires Android 8.0+, a supported Apple Music build, and LSPosed or a compatible framework supporting libxposed API 102. Exact host builds are listed in [host profiles](host-applemusic/src/main/resources/host-profiles/).
 
 1. Download the APK from [this project's Releases](https://github.com/Laoch832/LyricWave/releases).
-2. Enable the module and select Apple Music (`com.apple.android.music`) in its scope; additionally select WeChat (`com.tencent.mm`) for Moments link sharing.
+2. Enable the module and select Apple Music (`com.apple.android.music`) in its scope; additionally select NetEase Cloud Music (`com.netease.cloudmusic`) for Moments link sharing; do not select WeChat.
 3. Force stop and reopen Apple Music.
 4. Open Apple Music → Settings → **LyricWave module settings**.
 

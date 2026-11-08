@@ -39,6 +39,8 @@ class HookEntry : XposedModule() {
     private var processName: String = ""
 
     override fun onModuleLoaded(param: ModuleLoadedParam) {
+        processName = param.processName
+        if (processName == "com.tencent.mm" || processName.startsWith("com.tencent.mm:")) return
         ModernXposedRuntime.attach(this)
         val moduleInfo = runCatching { getModuleApplicationInfo() }.getOrNull()
         dev.amenhancer.host.applemusic.AppleMusicHostProfiles.initializeModulePaths(
@@ -57,10 +59,12 @@ class HookEntry : XposedModule() {
             ModernXposedRuntime.log("framework API $apiVersion is below the embedded API 102 minimum")
             return
         }
-        if (param.packageName == dev.amenhancer.module.MomentsLinkContract.WECHAT_PACKAGE) {
+        // Never install hooks in WeChat, including when an old scope selection remains after upgrade.
+        if (param.packageName == "com.tencent.mm" || processName.startsWith("com.tencent.mm:")) return
+        if (param.packageName == dev.amenhancer.module.MomentsLinkContract.INTERMEDIARY_PACKAGE) {
             if (param.isFirstPackage && processName == param.packageName) {
                 ModernXposedRuntime.attach(this)
-                dev.amenhancer.host.wechat.WeChatShareBridge.install()
+                dev.amenhancer.host.netease.NetEaseShareBridge.install()
             }
             return
         }
