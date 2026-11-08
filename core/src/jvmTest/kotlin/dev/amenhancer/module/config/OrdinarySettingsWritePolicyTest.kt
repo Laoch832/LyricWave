@@ -130,6 +130,7 @@ class OrdinarySettingsWritePolicyTest {
                 "title_correction_mode" to "original_hyper",
                 "custom_lyrics_enabled" to false,
                 "automatic_lyrics_enabled" to true,
+                "custom_lyrics_source_base_url" to "",
                 "automatic_lyrics_prefer_native" to true,
                 "automatic_lyrics_source_order" to "amll-ttml-db,am-lyrics,am-native,lunabeat-ttml-hub",
                 "llm_lyrics_enabled" to false,

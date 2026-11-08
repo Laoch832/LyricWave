@@ -165,7 +165,7 @@ private fun EmbeddedSettingsHost.addAiActivityPanel(
         songs.take(20).forEach { song ->
             body.addView(embeddedNavigationRow(activity, song.title ?: "Apple Music ID ${song.appleMusicId}",
                 localizedText(ModuleText.AI_CACHE_INFO, song.appleMusicId, song.model, stamp(song.savedAt), (song.bytes + 1023) / 1024),
-                compactWidePadding = true, onClick = { showCache(song) }))
+                 onClick = { showCache(song) }))
         }
         if (songs.size > 20) action("${localizedText(ModuleText.AI_CACHE_TITLE)} (${songs.size})") {
             embeddedDialogBuilder(activity).setTitle(localizedText(ModuleText.AI_CACHE_TITLE))

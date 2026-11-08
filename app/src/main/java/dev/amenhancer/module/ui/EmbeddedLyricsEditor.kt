@@ -443,7 +443,8 @@ internal fun EmbeddedSettingsHost.showLyricsEditor(
 }
 
 internal fun EmbeddedSettingsHost.embeddedOnlineLyricsImporter(): CustomLyricsOnlineImporter =
-    dev.amenhancer.module.lyrics.createEmbeddedOnlineLyricsImporter(application)
+    dev.amenhancer.module.lyrics.createEmbeddedOnlineLyricsImporter(application,
+        customSourceBaseUrl = runCatching { controller.currentSettings().customLyricsSourceBaseUrl }.getOrDefault(""))
 
 internal fun EmbeddedSettingsHost.embeddedLyricsSourceName(source: String): String = when (source) {
     CustomLyricsSources.AUTO_CACHE -> localizedText(ModuleText.AUTO_CACHE)

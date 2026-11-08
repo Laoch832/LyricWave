@@ -138,6 +138,7 @@ class ModuleSettingsSchemaTest {
                 "title_correction_mode" to "original_hyper",
                 "custom_lyrics_enabled" to false,
                 "automatic_lyrics_enabled" to true,
+                "custom_lyrics_source_base_url" to "",
                 "automatic_lyrics_prefer_native" to true,
                 "automatic_lyrics_source_order" to "amll-ttml-db,am-lyrics,am-native,lunabeat-ttml-hub",
                 "llm_lyrics_enabled" to false,
@@ -200,6 +201,7 @@ class ModuleSettingsSchemaTest {
                 "title_correction_mode" to "original_hyper",
                 "custom_lyrics_enabled" to false,
                 "automatic_lyrics_enabled" to true,
+                "custom_lyrics_source_base_url" to "",
                 "automatic_lyrics_prefer_native" to true,
                 "automatic_lyrics_source_order" to "amll-ttml-db,am-lyrics,am-native,lunabeat-ttml-hub",
                 "llm_lyrics_enabled" to false,
@@ -870,5 +872,11 @@ class ModuleSettingsSchemaTest {
                 mapOf("phone_liquid_glass_mini_sink_bounce_dp" to "deep"),
             ).phoneLiquidGlassMiniSinkBounceDp,
         )
+    }
+    @Test fun `custom lyrics mirror is normalized and round trips through ordinary settings`() {
+        val values = ModuleSettingsSchema.encodeOrdinarySettings(ModuleSettings(customLyricsSourceBaseUrl = " https://lyrics.example.com/root/ "))
+        assertEquals("https://lyrics.example.com/root", ModuleSettingsSchema.decode(values).customLyricsSourceBaseUrl)
+        for (invalid in listOf("https://", "relative/path", "https://user:password@example.com/root", "https://example.com/root?token=secret"))
+            assertEquals("", ModuleSettings.normalizeCustomLyricsSourceBaseUrl(invalid))
     }
 }

@@ -66,7 +66,7 @@ internal fun createAutoLyricsRuntime(
     val indexScheduler = ScheduledThreadPoolExecutor(1) { task -> Thread(task, "lyricwave-amlyrics-index").apply { isDaemon = true } }
     val amLyricsIndexCache = FileAmLyricsIndexCache(
         directory = File(application.filesDir, "ampp-amlyrics"), transport = indexTransport,
-        indexUrls = { AmLyricsClient(indexTransport, customSourceBaseUrl).urls("index.json") }, executor = indexScheduler,
+        indexUrls = { AmLyricsClient(indexTransport, customSourceBaseUrl).indexUrls() }, executor = indexScheduler,
     )
     val amll = AmllTtmlClient(lyricTransport, customSourceBaseUrl)
     val amLyrics = AmLyricsClient(lyricTransport, customSourceBaseUrl, amLyricsIndexCache)
