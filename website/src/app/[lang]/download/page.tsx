@@ -128,6 +128,12 @@ export default async function DownloadPage({ params }: Props) {
                       <ReactMarkdown
                         remarkPlugins={[remarkGfm]}
                         components={{
+                          h1: ({ children }) => <h3>{children}</h3>,
+                          h2: ({ children }) => <h4>{children}</h4>,
+                          h3: ({ children }) => <h5>{children}</h5>,
+                          h4: ({ children }) => <h6>{children}</h6>,
+                          h5: ({ children }) => <h6>{children}</h6>,
+                          h6: ({ children }) => <h6>{children}</h6>,
                           a: ({ href, children }) => (
                             <a
                               href={
