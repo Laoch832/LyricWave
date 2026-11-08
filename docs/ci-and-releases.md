@@ -85,3 +85,5 @@ Release 附件不按这些 Artifact 时限自动清理。
 对外名称为澜音（LyricWave），仓库与新发布附件使用 LyricWave。安装身份 `dev.amenhancer.module`、插件 API 的 Java 命名空间、既有存储路径和 `AMPP_*` 签名配置继续沿用，以便保留设置、翻译缓存、插件兼容性及覆盖升级关系。证书指纹保持不变。历史版本附件和上游来源记录保留当时名称。
 
 发布后必须核对 Release 作者 Laoch832、标签目标完整 SHA、latest 指向、draft=false/prerelease=false，以及 APK、SHA256SUMS.txt、SIGNATURE.txt、build-metadata.json、client-update.json 齐全；下载实际附件比对哈希与固定证书。签名步骤生成本版本结构化配置和 Markdown，不重复写入历史功能长文。客户端配置与私有反馈运维见 [版本 API](../website/VERSION_API.md)。
+
+反馈存储 SDK 保持 @vercel/blob 2.8.2；其 @vercel/cli-config 的 Zod 4.1.11 使用 scoped override 更新至 4.6.7，修复 GHSA-mrhx-c7xc-m3w5。不要使用 npm audit fix --force 将 Blob SDK 降级；依赖变更须重新执行网站测试、构建和 audit。
