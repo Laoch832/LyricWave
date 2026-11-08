@@ -16,6 +16,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import dev.amenhancer.module.BuildConfig
@@ -26,7 +27,6 @@ import dev.amenhancer.module.update.AppUpdateRelease
 import dev.amenhancer.module.update.UpdateComparison
 import java.text.DateFormat
 import java.util.Date
-import java.util.Locale
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -46,6 +46,7 @@ internal fun EmbeddedSettingsHost.EmbeddedAppUpdates(activity: Activity, active:
     var job by remember { mutableStateOf<Job?>(null) }
     val currentActive by rememberUpdatedState(active)
     val scope = rememberCoroutineScope()
+    val locale = LocalConfiguration.current.locales[0]
     DisposableEffect(active) {
         if (!active) { job?.cancel(); checking = false }
         onDispose { job?.cancel() }
@@ -80,7 +81,7 @@ internal fun EmbeddedSettingsHost.EmbeddedAppUpdates(activity: Activity, active:
             release?.let { known ->
                 EmbeddedSettingsNotice(updateStatus(known))
                 EmbeddedSettingsNotice(localizedText(ModuleText.UPDATE_LAST_CHECK,
-                    DateFormat.getDateTimeInstance(DateFormat.SHORT, DateFormat.SHORT).format(Date(known.checkedAt))))
+                    DateFormat.getDateTimeInstance(DateFormat.SHORT, DateFormat.SHORT, locale).format(Date(known.checkedAt))))
                 TextButton(localizedText(ModuleText.UPDATE_DETAILS), onClick = { showAppRelease(activity, known) })
             }
             TextButton(localizedText(ModuleText.UPDATE_RELEASES), onClick = { openUpdateUrl(activity, AppUpdateClient.RELEASES_URL) })
@@ -97,11 +98,12 @@ private fun EmbeddedSettingsHost.updateStatus(release: AppUpdateRelease): String
 
 private fun EmbeddedSettingsHost.showAppRelease(activity: Activity, release: AppUpdateRelease) {
     showEmbeddedMiuixDialog(activity, release.name) { dismiss ->
+        val locale = LocalConfiguration.current.locales[0]
         EmbeddedSettingsNotice(updateStatus(release))
         if (release.prerelease) EmbeddedSettingsNotice(localizedText(ModuleText.UPDATE_PRERELEASE))
         if (release.notes.isNotBlank()) Text(release.notes.take(12_000)) // Markdown is displayed as text, never HTML.
         release.apks.sortedBy { it.name != release.build?.apk }.forEach { asset ->
-            val size = String.format(Locale.getDefault(), "%.1f", asset.size / (1024.0 * 1024.0))
+            val size = String.format(locale, "%.1f", asset.size / (1024.0 * 1024.0))
             TextButton(localizedText(ModuleText.UPDATE_DOWNLOAD, asset.name, size),
                 onClick = { openUpdateUrl(activity, asset.downloadUrl) })
             TextButton(localizedText(ModuleText.UPDATE_GITHUB_DOWNLOAD), onClick = { openUpdateUrl(activity, asset.upstreamUrl) })

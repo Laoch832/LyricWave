@@ -15,6 +15,20 @@ internal class AppleSongMetadataLookup(
         val id = MomentsSongMetadata.songId(sharedUrl) ?: return null
         val region = URI(sharedUrl).path.split('/').getOrNull(1)?.lowercase()
             ?.takeIf { it.matches(Regex("[a-z]{2}")) } ?: "us"
+        var first: MomentsSongMetadata? = null
+        // Some Apple Music regions (including CN) have no iTunes lookup results. The ID must
+        // still match exactly; this changes only public metadata, never the shared URL/storefront.
+        for (country in listOf(region, "us").distinct()) {
+            if (Thread.currentThread().isInterrupted) return first
+            val candidate = runCatching { lookupCountry(id, country) }.getOrNull() ?: continue
+            val selected = first ?: candidate
+            first = selected
+            if (candidate.artworkUrl != null) return selected.copy(artworkUrl = candidate.artworkUrl)
+        }
+        return first
+    }
+
+    private fun lookupCountry(id: Long, region: String): MomentsSongMetadata? {
         val connection = connect(URL("https://itunes.apple.com/lookup?id=$id&country=$region&entity=song"))
         return try {
             connection.connectTimeout = 5000
