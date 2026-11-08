@@ -87,7 +87,6 @@ export default async function DownloadPage({ params }: Props) {
                             <a
                               className={`asset-link ${/\.apk$/i.test(a.name) ? "asset-primary" : ""}`}
                               href={`/api/v1/download/${a.id}`}
-                              aria-label={`${zh ? "本站下载" : "Download via this site"}: ${a.name}`}
                             >
                               <Download size={15} />
                               <span>{a.name}</span>
@@ -99,7 +98,7 @@ export default async function DownloadPage({ params }: Props) {
                               href={a.browser_download_url}
                               target="_blank"
                               rel="noopener noreferrer"
-                              aria-label={`GitHub: ${a.name}`}
+                              aria-label={`${zh ? "GitHub 原始下载" : "Download from GitHub"}: ${a.name}`}
                             >
                               {zh ? "GitHub 原始下载" : "Download from GitHub"}
                               <ArrowUpRight size={12} />
