@@ -65,7 +65,7 @@ test("localized SEO, social previews, security headers and discovery routes are 
   );
   await expect(page.locator('link[rel="canonical"]')).toHaveAttribute(
     "href",
-    /\/en$/,
+    "https://lyricwave.canz-monkey.cn/en",
   );
   expect((await page.title()).match(/LyricWave/g)).toHaveLength(1);
   const og = await request.get("/opengraph-image");
@@ -75,7 +75,11 @@ test("localized SEO, social previews, security headers and discovery routes are 
   const sitemap = await request.get("/sitemap.xml");
   const xml = await sitemap.text();
   expect(xml).toContain("/docs/zh");
-  expect(xml.match(/<url>/g)).toHaveLength(66);
+  expect(xml).not.toContain("originlw.canz-monkey.cn");
+  expect(xml.match(/<loc>https:\/\/lyricwave.canz-monkey.cn\//g)).toHaveLength(
+    68,
+  );
+  expect(xml.match(/<url>/g)).toHaveLength(68);
   const robots = await request.get("/robots.txt");
   expect(await robots.text()).toContain("/sitemap.xml");
   const search = await request.get("/api/search?query=cache&locale=en");
@@ -83,4 +87,21 @@ test("localized SEO, social previews, security headers and discovery routes are 
   const results = await search.json();
   expect(results.length).toBeGreaterThan(0);
   for (const item of results) expect(item.url).toMatch(/^\/docs\/en\//);
+});
+
+test("public project metadata and AI reading index are discoverable", async ({
+  page,
+  request,
+}) => {
+  await page.goto("/zh");
+  const schema = JSON.parse(
+    await page.locator('script[type="application/ld+json"]').innerText(),
+  );
+  expect(schema["@graph"][0].url).toBe("https://lyricwave.canz-monkey.cn");
+  expect(schema["@graph"][1].codeRepository).toBe(
+    "https://github.com/Laoch832/LyricWave",
+  );
+  const index = await request.get("/llms.txt");
+  expect(index.status()).toBe(200);
+  expect(await index.text()).toContain("Zennmn");
 });

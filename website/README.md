@@ -64,7 +64,7 @@ The server reads `https://api.github.com/repos/Laoch832/LyricWave/releases?per_p
 
 | Variable               | Required           | Purpose                                                                                                                                                                                                                                                                                           |
 | ---------------------- | ------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `NEXT_PUBLIC_SITE_URL` | For production SEO | Public HTTPS origin, without trailing slash, used in canonical metadata, sitemap, robots and OG metadata. Falls back to Vercel’s `VERCEL_PROJECT_PRODUCTION_URL` when available, then local `http://localhost:3000`. An invalid origin fails the build instead of emitting broken canonical URLs. |
+| `NEXT_PUBLIC_SITE_URL` | For production SEO | Development origin. Production canonical/OG/sitemap/robots use publicSiteOrigin in src/lib/site.ts (https://lyricwave.canz-monkey.cn), independent of the EdgeOne origin hostname. Invalid development origins fail clearly. |
 | `GITHUB_TOKEN`         | No                 | Server-only optional read token to increase GitHub API allowance. Never prefix with `NEXT_PUBLIC_`; no publishing rights are needed. Public API access works without it.                                                                                                                          |
 
 No Android signing variables are consumed. No database is required.
@@ -76,7 +76,7 @@ No live Vercel resources are created by this change. To deploy when ready:
 1. Import `Laoch832/LyricWave` into a Vercel project with the Next.js preset.
 2. Set **Root Directory** to `website` and enable **Include source files outside of the Root Directory in the Build Step**. Content synchronization requires the repository README/docs/license/profile files above `website/`. Use the full repository checkout, not a website-only upload.
 3. Use Node.js 24, install command `npm ci`, build command `npm run build`, and the framework's default output directory. `website/vercel.json` supplies the commands; `next.config.mjs` supplies consistent security headers for both Vercel and a Node host.
-4. Set `NEXT_PUBLIC_SITE_URL` to the intended public origin. Optionally configure server-only `GITHUB_TOKEN`. Rebuild after changing public metadata configuration.
+4. Confirm `publicSiteOrigin` in `src/lib/site.ts` is the intended public origin, never the EdgeOne origin hostname. Optionally configure server-only `GITHUB_TOKEN`. Rebuild after changing public metadata configuration.
 5. Review a preview, then publish through your normal authorized process. Domain bindings, repository permissions, release settings and production sites are not changed by this implementation.
 
 The website-only GitHub workflow checks relevant input changes; it does not sign APKs, publish packages, or deploy. Existing Android CI is unmodified.
@@ -96,3 +96,8 @@ Before a real Vercel deployment, set the actual public HTTPS origin (without a p
 ## 版本查询与 Release 下载反代
 
 新增 `/api/v1/version` 和 `/api/v1/download/{assetId}`。完整协议、接入示例、频道选择、缓存与 EdgeOne 配置、错误处理及平台限制见 [VERSION_API.md](./VERSION_API.md)。下载页主入口使用代理下载，并保留每个附件的 GitHub 原始链接及版本 API、接入文档入口。接口不提供未经证实的 Android versionCode 或附件校验值。
+
+
+## SEO / GEO 与搜索通知
+
+生产域名、IndexNow 通知、Google/Bing 验证和 AI 检索说明见 [SEARCH_VISIBILITY.md](./SEARCH_VISIBILITY.md)。`/llms.txt` 是项目证据索引，不保证收录。
