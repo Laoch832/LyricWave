@@ -21,7 +21,8 @@ import dev.amenhancer.module.playback.*
 
 /** Keep the tested journal/cache controls and their attachment lifecycle inside the Miuix navigation. */
 @Composable
-internal fun EmbeddedSettingsHost.EmbeddedAiActivityPage(activity: Activity, settings: ModuleSettings) {
+internal fun EmbeddedSettingsHost.EmbeddedAiActivityPage(activity: Activity, settings: ModuleSettings, active: Boolean) {
+    if (!active) return
     key(settings) {
         AndroidView(modifier = Modifier.fillMaxWidth(), factory = {
             LinearLayout(activity).apply {

@@ -222,14 +222,14 @@ internal fun EmbeddedSettingsHost.showSettingsDialog(activity: Activity) {
                                 val scrollState = pageScrollStates.getOrPut(page) { ScrollState(0) }
                                 EmbeddedSettingsScreen(activity, page, current, wide, scrollState, goBack) {
                                     when (page) {
-                                        EmbeddedSettingsPage.MAIN -> EmbeddedSettingsHome(activity, current, refresh, ::open)
+                                        EmbeddedSettingsPage.MAIN -> EmbeddedSettingsHome(activity, current, refresh, ::open, active)
                                         EmbeddedSettingsPage.CUSTOM_LYRICS ->
                                             EmbeddedCustomLyricsPage(activity, current, refresh, ::update, ::open)
                                         EmbeddedSettingsPage.AUTOMATIC_LYRICS -> EmbeddedAutomaticLyricsPage(current, ::update)
                                         EmbeddedSettingsPage.LLM_LYRICS ->
                                             EmbeddedLlmLyricsPage(activity, current, ::update, active = active,
                                                 onOpenActivity = { open(EmbeddedSettingsPage.AI_LYRICS_ACTIVITY) })
-                                        EmbeddedSettingsPage.AI_LYRICS_ACTIVITY -> EmbeddedAiActivityPage(activity, current)
+                                        EmbeddedSettingsPage.AI_LYRICS_ACTIVITY -> EmbeddedAiActivityPage(activity, current, active)
                                         EmbeddedSettingsPage.PLUGINS -> EmbeddedPluginManagementPage(activity, refresh, active)
                                         EmbeddedSettingsPage.BOTTOM_BAR_ANIMATION ->
                                             EmbeddedAnimationSettingsPage(current) { edit -> update(edit(draft.settings)) }
@@ -237,6 +237,7 @@ internal fun EmbeddedSettingsHost.showSettingsDialog(activity: Activity) {
                                             activity, page, current, refresh,
                                             onEdit = { edit -> update(edit(draft.settings)) },
                                             onOpenAnimationSettings = { open(EmbeddedSettingsPage.BOTTOM_BAR_ANIMATION) },
+                                            active = active,
                                         )
                                     }
                                 }
@@ -403,6 +404,7 @@ private fun EmbeddedSettingsHost.EmbeddedSettingsHome(
     settings: ModuleSettings,
     revision: Int,
     onOpen: (EmbeddedSettingsPage) -> Unit,
+    active: Boolean,
 ) {
     val lyricsCount = remember(revision) { runCatching { controller.lyricsEntries().size }.getOrDefault(0) }
     val font = remember(revision) { runCatching { controller.currentSettings().fontManifest }.getOrDefault(settings.fontManifest) }
@@ -452,6 +454,7 @@ private fun EmbeddedSettingsHost.EmbeddedSettingsHome(
             EmbeddedSvgIcon.Plugins,
         ) { onOpen(EmbeddedSettingsPage.PLUGINS) }
     }
+    EmbeddedAppUpdates(activity, active)
 }
 
 @Composable
@@ -462,6 +465,7 @@ private fun EmbeddedSettingsHost.EmbeddedSettingsCategory(
     revision: Int,
     onEdit: ((ModuleSettings) -> ModuleSettings) -> Unit,
     onOpenAnimationSettings: () -> Unit,
+    active: Boolean,
 ) {
     when (page) {
         EmbeddedSettingsPage.LYRICS_EFFECTS -> {
@@ -581,7 +585,8 @@ private fun EmbeddedSettingsHost.EmbeddedSettingsCategory(
                 onSelectedIndexChange = { index -> onEdit { it.copy(titleCorrectionMode = modes[index]) } },
             )
         }
-        EmbeddedSettingsPage.ADVANCED -> EmbeddedSettingsGroup {
+        EmbeddedSettingsPage.ADVANCED -> {
+            EmbeddedSettingsGroup {
             if (nativeBridge.supportsStartupPagePrewarm(activity)) Setting(
                 ModuleText.STARTUP_PAGE_PREWARM, ModuleText.STARTUP_PAGE_PREWARM_SUMMARY,
                 settings.startupPagePrewarmEnabled, EmbeddedSvgIcon.StartupPrewarm,
@@ -598,6 +603,8 @@ private fun EmbeddedSettingsHost.EmbeddedSettingsCategory(
             ) {
                 showEmbeddedDpiDialog(activity, dpi) { value -> onEdit { it.copy(appleMusicDpiOverrideDpi = value) } }
             }
+            }
+            EmbeddedAppUpdates(activity, active)
         }
         else -> Unit
     }
