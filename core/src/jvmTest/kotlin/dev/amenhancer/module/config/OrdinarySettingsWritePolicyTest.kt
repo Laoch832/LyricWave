@@ -113,6 +113,7 @@ class OrdinarySettingsWritePolicyTest {
                 "phone_liquid_glass_expand_rebound_percent" to 100,
                 "phone_liquid_glass_mini_rebound_percent" to 100,
                 "phone_liquid_glass_mini_sink_bounce_dp" to 4,
+                "automatic_update_check_enabled" to true,
                 "playback_stall_recovery_enabled" to true,
                 "lyrics_hdr_enabled" to false,
                 "lyrics_hdr_brightness_percent" to 200,

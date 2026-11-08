@@ -66,6 +66,7 @@ object ModuleSettingsSchema {
                 ModuleSettings.MIN_PHONE_LIQUID_GLASS_MINI_SINK_BOUNCE_DP,
                 ModuleSettings.MAX_PHONE_LIQUID_GLASS_MINI_SINK_BOUNCE_DP,
             ) ?: EnhancementDefaults.GLASS_MINI_SINK_BOUNCE_DP,
+        automaticUpdateCheckEnabled = values.boolean(KEY_AUTOMATIC_UPDATE_CHECK, default = true),
         playbackStallRecoveryEnabled = values.boolean(KEY_PLAYBACK_STALL_RECOVERY, default = true),
         lyricsHdrEnabled = values.boolean(KEY_LYRICS_HDR, default = false),
         lyricsHdrBrightnessPercent = (values.number(KEY_LYRICS_HDR_BRIGHTNESS) ?: 200).coerceIn(100, 800),
@@ -161,6 +162,7 @@ object ModuleSettingsSchema {
                 ModuleSettings.normalizePhoneLiquidGlassMiniSinkBounceDp(
                     settings.phoneLiquidGlassMiniSinkBounceDp,
                 ),
+            KEY_AUTOMATIC_UPDATE_CHECK to settings.automaticUpdateCheckEnabled,
             KEY_PLAYBACK_STALL_RECOVERY to settings.playbackStallRecoveryEnabled,
             KEY_LYRICS_HDR to settings.lyricsHdrEnabled,
             KEY_LYRICS_HDR_BRIGHTNESS to settings.lyricsHdrBrightnessPercent.coerceIn(100, 800),
@@ -379,6 +381,7 @@ object ModuleSettingsSchema {
         KEY_PHONE_LIQUID_GLASS_EXPAND_REBOUND_PERCENT,
         KEY_PHONE_LIQUID_GLASS_MINI_REBOUND_PERCENT,
         KEY_PHONE_LIQUID_GLASS_MINI_SINK_BOUNCE_DP,
+        KEY_AUTOMATIC_UPDATE_CHECK,
         KEY_PLAYBACK_STALL_RECOVERY,
         KEY_LYRICS_HDR, KEY_LYRICS_HDR_BRIGHTNESS, KEY_LYRICS_HDR_FLASHBANG, KEY_WECHAT_MOMENTS,
         KEY_FUTURE_BLUR,
@@ -437,6 +440,7 @@ object ModuleSettingsSchema {
         "phone_liquid_glass_mini_rebound_percent"
     private const val KEY_PHONE_LIQUID_GLASS_MINI_SINK_BOUNCE_DP =
         "phone_liquid_glass_mini_sink_bounce_dp"
+    private const val KEY_AUTOMATIC_UPDATE_CHECK = "automatic_update_check_enabled"
     private const val KEY_PLAYBACK_STALL_RECOVERY = "playback_stall_recovery_enabled"
     private const val KEY_LYRICS_HDR = "lyrics_hdr_enabled"
     private const val KEY_LYRICS_HDR_BRIGHTNESS = "lyrics_hdr_brightness_percent"

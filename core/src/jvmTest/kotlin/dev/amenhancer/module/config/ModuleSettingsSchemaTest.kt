@@ -11,6 +11,11 @@ import org.junit.Assert.assertNull
 import org.junit.Test
 
 class ModuleSettingsSchemaTest {
+    @org.junit.Test fun automaticUpdatePreferenceDefaultsOnAndRoundTripsOff() {
+        org.junit.Assert.assertTrue(ModuleSettingsSchema.decode(emptyMap<String, Any>()).automaticUpdateCheckEnabled)
+        val stored = ModuleSettingsSchema.encodeOrdinarySettings(dev.amenhancer.module.model.ModuleSettings(automaticUpdateCheckEnabled = false))
+        org.junit.Assert.assertFalse(ModuleSettingsSchema.decodeOrdinarySettings(stored).automaticUpdateCheckEnabled)
+    }
     @Test fun `HDR and Moments are opt in bounded and survive settings round trip`() {
         val defaults = ModuleSettingsSchema.decode(emptyMap<String, Any>())
         assertFalse(defaults.lyricsHdrEnabled)
@@ -121,6 +126,7 @@ class ModuleSettingsSchemaTest {
                 "phone_liquid_glass_expand_rebound_percent" to 100,
                 "phone_liquid_glass_mini_rebound_percent" to 100,
                 "phone_liquid_glass_mini_sink_bounce_dp" to 4,
+                "automatic_update_check_enabled" to true,
                 "playback_stall_recovery_enabled" to true,
                 "lyrics_hdr_enabled" to false,
                 "lyrics_hdr_brightness_percent" to 200,
@@ -184,6 +190,7 @@ class ModuleSettingsSchemaTest {
                 "phone_liquid_glass_expand_rebound_percent" to 100,
                 "phone_liquid_glass_mini_rebound_percent" to 100,
                 "phone_liquid_glass_mini_sink_bounce_dp" to 4,
+                "automatic_update_check_enabled" to true,
                 "playback_stall_recovery_enabled" to true,
                 "lyrics_hdr_enabled" to false,
                 "lyrics_hdr_brightness_percent" to 200,

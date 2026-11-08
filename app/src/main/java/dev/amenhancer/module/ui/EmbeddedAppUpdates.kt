@@ -8,13 +8,11 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.Modifier
@@ -22,63 +20,44 @@ import androidx.compose.ui.unit.dp
 import dev.amenhancer.module.BuildConfig
 import dev.amenhancer.module.i18n.ModuleText
 import dev.amenhancer.module.update.AppUpdateClient
-import dev.amenhancer.module.update.AppUpdateException
 import dev.amenhancer.module.update.AppUpdateRelease
 import dev.amenhancer.module.update.UpdateComparison
 import java.text.DateFormat
 import java.util.Date
-import kotlinx.coroutines.CancellationException
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.Job
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
 import top.yukonga.miuix.kmp.basic.Text
 import top.yukonga.miuix.kmp.basic.TextButton
 
-private object UpdateMemoryCache { @Volatile var latest: AppUpdateRelease? = null }
-
-/** A user-initiated check. Closing or covering the page cancels UI publication, never playback. */
+/** Foreground checks share one coordinator with the lifecycle hook. */
 @Composable
-internal fun EmbeddedSettingsHost.EmbeddedAppUpdates(activity: Activity, active: Boolean) {
-    var release by remember { mutableStateOf(UpdateMemoryCache.latest) }
-    var checking by remember { mutableStateOf(false) }
-    var failed by remember { mutableStateOf<String?>(null) }
-    var job by remember { mutableStateOf<Job?>(null) }
-    val currentActive by rememberUpdatedState(active)
-    val scope = rememberCoroutineScope()
+internal fun EmbeddedSettingsHost.EmbeddedAppUpdates(activity: Activity, active: Boolean,
+    settings: dev.amenhancer.module.model.ModuleSettings,
+    onEdit: ((dev.amenhancer.module.model.ModuleSettings) -> dev.amenhancer.module.model.ModuleSettings) -> Unit,
+) {
+    val snapshot by AppUpdateCoordinator.state.collectAsState()
+    var waiting by remember { mutableStateOf(false) }
     val locale = LocalConfiguration.current.locales[0]
-    DisposableEffect(active) {
-        if (!active) { job?.cancel(); checking = false }
-        onDispose { job?.cancel() }
+    androidx.compose.runtime.LaunchedEffect(snapshot.completed, active) {
+        if (!active) waiting = false
+        if (waiting && !snapshot.checking && snapshot.completed > 0 && active && !activity.isFinishing && !activity.isDestroyed) {
+            waiting = false
+            if (!snapshot.failed) snapshot.release?.let { showAppRelease(activity, it) }
+        }
     }
     EmbeddedSettingsGroup {
+        EmbeddedSettingSwitch(localizedText(ModuleText.UPDATE_AUTOMATIC), localizedText(ModuleText.UPDATE_AUTOMATIC_SUMMARY),
+            checked = settings.automaticUpdateCheckEnabled,
+            onCheckedChange = { enabled ->
+                onEdit { it.copy(automaticUpdateCheckEnabled = enabled) }
+                if (enabled) AppUpdateCoordinator.foreground(activity.applicationContext, true)
+            })
         Column(Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Text(localizedText(ModuleText.UPDATE_INSTALLED, BuildConfig.VERSION_NAME))
-            TextButton(text = localizedText(if (checking) ModuleText.UPDATE_CHECKING else ModuleText.UPDATE_CHECK),
-                enabled = !checking,
-                onClick = {
-                    if (currentActive && !checking) {
-                        checking = true; failed = null
-                        job = scope.launch {
-                            val result = try {
-                                withContext(Dispatchers.IO) {
-                                    runCatching { AppUpdateClient().check(BuildConfig.VERSION_CODE.toLong(), BuildConfig.APPLICATION_ID) }
-                                }
-                            } catch (_: CancellationException) { return@launch }
-                            if (!currentActive || activity.isFinishing || activity.isDestroyed) return@launch
-                            checking = false
-                            result.onSuccess {
-                                UpdateMemoryCache.latest = it; release = it
-                                showAppRelease(activity, it)
-                            }.onFailure { error ->
-                                failed = localizedText(ModuleText.UPDATE_FAILED,
-                                    (error as? AppUpdateException)?.httpStatus?.toString() ?: "—")
-                            }
-                        }
-                    }
+            TextButton(text = localizedText(if (snapshot.checking) ModuleText.UPDATE_CHECKING else ModuleText.UPDATE_CHECK),
+                enabled = !snapshot.checking, onClick = {
+                    if (active) { waiting = true; AppUpdateCoordinator.request(activity.applicationContext, true) }
                 })
-            failed?.let { EmbeddedSettingsNotice(it) }
-            release?.let { known ->
+            if (snapshot.failed) EmbeddedSettingsNotice(localizedText(ModuleText.UPDATE_FAILED, snapshot.failureHttp?.toString() ?: "—"))
+            snapshot.release?.let { known ->
                 EmbeddedSettingsNotice(updateStatus(known))
                 EmbeddedSettingsNotice(localizedText(ModuleText.UPDATE_LAST_CHECK,
                     DateFormat.getDateTimeInstance(DateFormat.SHORT, DateFormat.SHORT, locale).format(Date(known.checkedAt))))
@@ -105,8 +84,10 @@ private fun EmbeddedSettingsHost.showAppRelease(activity: Activity, release: App
         release.apks.sortedBy { it.name != release.build?.apk }.forEach { asset ->
             val size = String.format(locale, "%.1f", asset.size / (1024.0 * 1024.0))
             TextButton(localizedText(ModuleText.UPDATE_DOWNLOAD, asset.name, size),
-                onClick = { openUpdateUrl(activity, asset.downloadUrl) })
-            TextButton(localizedText(ModuleText.UPDATE_GITHUB_DOWNLOAD), onClick = { openUpdateUrl(activity, asset.upstreamUrl) })
+                enabled = release.build?.apk == asset.name,
+                onClick = { openInternalDownload(activity, asset.id, false) })
+            TextButton(localizedText(ModuleText.UPDATE_GITHUB_DOWNLOAD), enabled = release.build?.apk == asset.name,
+                onClick = { openInternalDownload(activity, asset.id, true) })
         }
         TextButton(localizedText(ModuleText.UPDATE_RELEASES), onClick = { openUpdateUrl(activity, release.htmlUrl) })
         EmbeddedDialogActions(localizedText(ModuleText.CLOSE), dismiss)
@@ -117,4 +98,12 @@ private fun EmbeddedSettingsHost.openUpdateUrl(activity: Activity, url: String) 
     runCatching { activity.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url))) }.onFailure {
         Toast.makeText(activity, localizedText(ModuleText.UPDATE_OPEN_FAILED), Toast.LENGTH_LONG).show()
     }
+}
+
+private fun EmbeddedSettingsHost.openInternalDownload(activity: Activity, assetId: Long, official: Boolean) {
+    runCatching {
+        activity.startActivity(Intent().setComponent(android.content.ComponentName(BuildConfig.APPLICATION_ID,
+            "dev.amenhancer.module.update.UpdateDownloadActivity"))
+            .putExtra("asset_id", assetId).putExtra("official", official))
+    }.onFailure { Toast.makeText(activity, localizedText(ModuleText.UPDATE_OPEN_FAILED), Toast.LENGTH_LONG).show() }
 }

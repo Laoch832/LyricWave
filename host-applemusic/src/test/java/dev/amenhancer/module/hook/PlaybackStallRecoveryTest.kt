@@ -45,6 +45,7 @@ class PlaybackStallRecoveryTest {
     private var enabled = true
     @Before fun setup() {
         engine = Engine(); host = Host(engine); enabled = true; hooks.clear(); PlaybackRecoveryStatus.latest = null
+        PlaybackRecoveryStatus.currentFaultActive = null; PlaybackRecoveryStatus.observedAtElapsedMs = null
         val mapping = mapOf("com.apple.android.music.playback.player.ExoMediaPlayer" to Host::class.java,
             "com.google.android.exoplayer2.ExoPlayer" to Engine::class.java,
             "com.google.android.exoplayer2.ExoPlaybackException" to Fault::class.java,
@@ -56,11 +57,12 @@ class PlaybackStallRecoveryTest {
         val target = AppleMusicPlaybackStallTarget(loader, { enabled }) { method, hook, _ -> hooks[method.name] = method to hook; true }
         assertTrue(target.install() is TargetCapabilityInstall.Active)
     }
-    private fun call(name: String, vararg args: Any?) {
+    private fun call(name: String, vararg args: Any?) = callOn(host, name, *args)
+    private fun callOn(receiver: Host, name: String, vararg args: Any?) {
         val (method, hook) = hooks.getValue(name)
-        method.invoke(host, *args)
+        method.invoke(receiver, *args)
         val param = ModernMethodHook.MethodHookParam::class.java.declaredConstructors.single()
-            .apply { isAccessible = true }.newInstance(method, host, args) as ModernMethodHook.MethodHookParam
+            .apply { isAccessible = true }.newInstance(method, receiver, args) as ModernMethodHook.MethodHookParam
         hook.afterHookedMethod(param)
     }
     private fun fault(error: IOException = SocketTimeoutException()) {
@@ -120,6 +122,27 @@ class PlaybackStallRecoveryTest {
         assertEquals(0, engine.retries)
         assertEquals(PlaybackFailure.DRM, PlaybackRecoveryStatus.latest?.failure)
         assertEquals(PlaybackRecoveryAction.OBSERVED, PlaybackRecoveryStatus.latest?.action)
+    }
+    @Test fun `another native player cannot overwrite the failing players state`() {
+        fault(DrmLicenseKeyException())
+        assertEquals(true, PlaybackRecoveryStatus.currentFaultActive)
+        assertNotNull(PlaybackRecoveryStatus.observedAtElapsedMs)
+        val another = Host(Engine())
+        callOn(another, "onPlayerStateChanged", true, 3)
+        assertEquals(1, PlaybackRecoveryStatus.nativeState)
+        assertEquals(true, PlaybackRecoveryStatus.currentFaultActive)
+        engine.fault = null
+        call("onPlayerStateChanged", true, 3)
+        assertEquals(false, PlaybackRecoveryStatus.currentFaultActive)
+        assertEquals(PlaybackRecoveryAction.OBSERVED, PlaybackRecoveryStatus.latest?.action)
+    }
+    class DrmLicenseKeyException : IOException("Private license URI and key response") { fun getErrorCode() = -84 }
+    @Test fun `license error exposes numeric code without retrying authorization`() {
+        fault(DrmLicenseKeyException())
+        assertEquals("T0:DrmLicenseKeyException / E-84", PlaybackRecoveryStatus.latest?.diagnostic)
+        waitForRetry(); call("play"); call("seekToPosition", 22L)
+        assertEquals(0, engine.retries)
+        assertEquals(42L, host.item.id)
     }
     class AudioRendererException : IOException("Private playback URL and credentials") { fun getErrorCode() = -6 }
     @Test fun `native audio error code is reported without the exception message`() {

@@ -222,7 +222,7 @@ internal fun EmbeddedSettingsHost.showSettingsDialog(activity: Activity) {
                                 val scrollState = pageScrollStates.getOrPut(page) { ScrollState(0) }
                                 EmbeddedSettingsScreen(activity, page, current, wide, scrollState, goBack) {
                                     when (page) {
-                                        EmbeddedSettingsPage.MAIN -> EmbeddedSettingsHome(activity, current, refresh, ::open, active)
+                                        EmbeddedSettingsPage.MAIN -> EmbeddedSettingsHome(activity, current, refresh, ::open, active) { edit -> update(edit(settings)) }
                                         EmbeddedSettingsPage.CUSTOM_LYRICS ->
                                             EmbeddedCustomLyricsPage(activity, current, refresh, ::update, ::open)
                                         EmbeddedSettingsPage.AUTOMATIC_LYRICS -> EmbeddedAutomaticLyricsPage(current, ::update)
@@ -405,6 +405,7 @@ private fun EmbeddedSettingsHost.EmbeddedSettingsHome(
     revision: Int,
     onOpen: (EmbeddedSettingsPage) -> Unit,
     active: Boolean,
+    onEdit: ((ModuleSettings) -> ModuleSettings) -> Unit,
 ) {
     val lyricsCount = remember(revision) { runCatching { controller.lyricsEntries().size }.getOrDefault(0) }
     val font = remember(revision) { runCatching { controller.currentSettings().fontManifest }.getOrDefault(settings.fontManifest) }
@@ -454,7 +455,7 @@ private fun EmbeddedSettingsHost.EmbeddedSettingsHome(
             EmbeddedSvgIcon.Plugins,
         ) { onOpen(EmbeddedSettingsPage.PLUGINS) }
     }
-    EmbeddedAppUpdates(activity, active)
+    EmbeddedAppUpdates(activity, active, settings, onEdit)
 }
 
 @Composable
@@ -520,7 +521,7 @@ private fun EmbeddedSettingsHost.EmbeddedSettingsCategory(
                 Setting(ModuleText.PLAYBACK_RECOVERY, ModuleText.PLAYBACK_RECOVERY_SUMMARY,
                     settings.playbackStallRecoveryEnabled, EmbeddedSvgIcon.RestoreDefault
                 ) { value -> onEdit { it.copy(playbackStallRecoveryEnabled = value) } }
-                EmbeddedPlaybackDiagnostic(activity)
+                EmbeddedPlaybackDiagnostic(activity, active)
                 Setting(ModuleText.WECHAT_MOMENTS, ModuleText.WECHAT_MOMENTS_SUMMARY,
                     settings.wechatMomentsShareEnabled, EmbeddedSvgIcon.Document
                 ) { value -> onEdit { it.copy(wechatMomentsShareEnabled = value) } }
@@ -604,7 +605,7 @@ private fun EmbeddedSettingsHost.EmbeddedSettingsCategory(
                 showEmbeddedDpiDialog(activity, dpi) { value -> onEdit { it.copy(appleMusicDpiOverrideDpi = value) } }
             }
             }
-            EmbeddedAppUpdates(activity, active)
+            EmbeddedAppUpdates(activity, active, settings, onEdit)
         }
         else -> Unit
     }

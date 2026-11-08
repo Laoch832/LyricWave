@@ -23,6 +23,8 @@ internal class AppleMusicPlaybackStallTarget(
     private val retrying = Collections.synchronizedMap(WeakHashMap<Any, String>())
     private var reportOwner = WeakReference<Any>(null)
     private var report: PlaybackRecoveryReport? = null
+    private var reportFault = WeakReference<Any>(null)
+    private var reportItemKey: String? = null
     override fun install(): TargetCapabilityInstall {
         if (scope.isActive) return TargetCapabilityInstall.Active("Playback source recovery already installed")
         return try {
@@ -56,7 +58,7 @@ internal class AppleMusicPlaybackStallTarget(
                 }
                 val code = generateSequence(cause) { it.cause }.take(8).firstOrNull(invalidHttp::isInstance)?.let(responseCode::getInt)
                 val nativeCode = generateSequence(cause) { it.cause }.take(8).firstNotNullOfOrNull { item ->
-                    if (item.javaClass.simpleName !in setOf("DrmException", "AudioRendererException", "ErrorConditionException")) null
+                    if (item.javaClass.simpleName !in setOf("DrmException", "DrmLicenseKeyException", "AudioRendererException", "ErrorConditionException")) null
                     else runCatching {
                         item.javaClass.getMethod("getErrorCode").takeIf { it.returnType == Int::class.javaPrimitiveType }
                             ?.invoke(item) as? Int
@@ -114,8 +116,12 @@ internal class AppleMusicPlaybackStallTarget(
                     reportOwner = WeakReference(host)
                     val observed = category(fault)
                     publish(observed)
+                    PlaybackRecoveryStatus.observedAtElapsedMs = SystemClock.elapsedRealtime()
+                    reportFault = WeakReference(fault)
                     val engine = player.get(host) ?: return@safely
                     PlaybackRecoveryStatus.nativeState = state.invoke(engine) as? Int
+                    reportItemKey = itemKey(host, engine)
+                    PlaybackRecoveryStatus.currentFaultActive = errorNow.invoke(engine) === fault && reportItemKey != null
                     if (!PlaybackFailurePolicy.recoverable(observed.failure)) return@safely
                     val key = itemKey(host, engine) ?: return@safely
                     val handler = Handler(looper.invoke(engine) as Looper)
@@ -138,9 +144,15 @@ internal class AppleMusicPlaybackStallTarget(
                 object : ModernMethodHook() {
                     override fun afterHookedMethod(param: MethodHookParam) = safely {
                         if (param.throwable != null) return@safely
-                        PlaybackRecoveryStatus.nativeState = param.args.getOrNull(1) as? Int
                         val host = param.thisObject ?: return@safely
+                        if (reportOwner.get() != null && reportOwner.get() !== host) return@safely
+                        PlaybackRecoveryStatus.nativeState = param.args.getOrNull(1) as? Int
                         val engine = player.get(host) ?: return@safely
+                        if (reportOwner.get() === host) {
+                            PlaybackRecoveryStatus.currentFaultActive = reportFault.get()?.let {
+                                errorNow.invoke(engine) === it && reportItemKey == itemKey(host, engine)
+                            } ?: false
+                        }
                         if (param.args.getOrNull(0) == true && param.args.getOrNull(1) == 3 &&
                             reportOwner.get() === host && report?.action == PlaybackRecoveryAction.RETRY_REQUESTED &&
                             retrying[host] == itemKey(host, engine) && errorNow.invoke(engine) == null) {
@@ -149,7 +161,7 @@ internal class AppleMusicPlaybackStallTarget(
                         }
                     }
                 }, scope))
-            scope.onClose { pending.clear(); budgets.clear(); retrying.clear(); reportOwner.clear() }
+            scope.onClose { pending.clear(); budgets.clear(); retrying.clear(); reportOwner.clear(); reportFault.clear(); reportItemKey = null }
             scope.activate()
             PlaybackRecoveryStatus.available = true
             TargetCapabilityInstall.Active("Confirmed network-error IDLE recovery; one attempt per item, explicit play/seek reprepare, no skip or queue edits")

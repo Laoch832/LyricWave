@@ -10,6 +10,8 @@ import android.widget.TextView
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.text.selection.SelectionContainer
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.key
 import androidx.compose.ui.Modifier
@@ -43,7 +45,12 @@ internal fun EmbeddedSettingsHost.EmbeddedAiLyricsSummary(activity: Activity, se
 }
 
 @Composable
-internal fun EmbeddedSettingsHost.EmbeddedPlaybackDiagnostic(activity: Activity) {
+internal fun EmbeddedSettingsHost.EmbeddedPlaybackDiagnostic(activity: Activity, active: Boolean) {
+    var now by androidx.compose.runtime.remember { androidx.compose.runtime.mutableLongStateOf(android.os.SystemClock.elapsedRealtime()) }
+    androidx.compose.runtime.LaunchedEffect(active) {
+        while (active) { now = android.os.SystemClock.elapsedRealtime(); kotlinx.coroutines.delay(1000) }
+    }
+    val ageSeconds = ((now - (PlaybackRecoveryStatus.observedAtElapsedMs ?: now)).coerceAtLeast(0) / 1000)
     val report = PlaybackRecoveryStatus.latest
     val fault = when (report?.failure) {
         PlaybackFailure.NETWORK -> ModuleText.PLAYBACK_NETWORK
@@ -65,7 +72,13 @@ internal fun EmbeddedSettingsHost.EmbeddedPlaybackDiagnostic(activity: Activity)
     val text = if (PlaybackRecoveryStatus.available == false) localizedText(ModuleText.PLAYBACK_RECOVERY_UNAVAILABLE)
         else localizedText(ModuleText.PLAYBACK_RECOVERY_STATUS, PlaybackRecoveryStatus.nativeState ?: "—",
             localizedText(fault), localizedText(action), report?.httpStatus ?: "—") + (report?.diagnostic?.let { "\n$it" } ?: "")
-    SelectionContainer(Modifier.padding(horizontal = 16.dp, vertical = 8.dp)) { EmbeddedSettingsNotice(text) }
+    val detail = if (report != null) "\n" + localizedText(ModuleText.PLAYBACK_FAULT_CONTEXT,
+        localizedText(when (PlaybackRecoveryStatus.currentFaultActive) {
+            true -> ModuleText.PLAYBACK_FAULT_ACTIVE
+            false -> ModuleText.PLAYBACK_FAULT_HISTORICAL
+            null -> ModuleText.PLAYBACK_OTHER
+        }), ageSeconds) else ""
+    SelectionContainer(Modifier.padding(horizontal = 16.dp, vertical = 8.dp)) { EmbeddedSettingsNotice(text + detail) }
 }
 
 // Native controls used only by the journal panel; the rest of the settings use Miuix preferences.

@@ -54,8 +54,10 @@ data class ModuleSettings(
      * before springing back, in dp. 0 disables the dip. Read live.
      */
     val phoneLiquidGlassMiniSinkBounceDp: Int = EnhancementDefaults.GLASS_MINI_SINK_BOUNCE_DP,
-    /** HDR gainmap lyrics; system thermal and display limits always apply. */
+    /** Throttled public release checks when a supported host Activity enters the foreground. */
+    val automaticUpdateCheckEnabled: Boolean = true,
     val playbackStallRecoveryEnabled: Boolean = true,
+    /** HDR gainmap lyrics; system thermal and display limits always apply. */
     val lyricsHdrEnabled: Boolean = false,
     val lyricsHdrBrightnessPercent: Int = 200,
     val lyricsHdrFlashbangEnabled: Boolean = false,

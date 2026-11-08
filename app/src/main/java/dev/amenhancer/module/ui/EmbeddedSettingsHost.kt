@@ -76,6 +76,7 @@ internal class EmbeddedSettingsHost private constructor(
         if (!registered) return
         refreshEmbeddedTheme(activity)
         val role = activityMatcher.roleFor(activity) ?: return
+        runCatching { AppUpdateCoordinator.foreground(activity.applicationContext, controller.currentSettings().automaticUpdateCheckEnabled) }
         val action = lifecycleState.onActivityResumed(
             activityId = activityKey(activity),
             className = activity.javaClass.name,

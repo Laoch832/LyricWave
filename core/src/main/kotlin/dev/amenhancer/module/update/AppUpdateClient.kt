@@ -141,11 +141,13 @@ class AppUpdateHttpTransport(private val connect: (URL) -> HttpURLConnection = {
         throw AppUpdateException("redirect")
     }
 
-    private fun allowed(uri: URI): Boolean = uri.scheme == "https" && uri.userInfo == null && uri.port in listOf(-1, 443) &&
+    companion object {
+    fun allowed(uri: URI): Boolean = uri.scheme == "https" && uri.userInfo == null && uri.port in listOf(-1, 443) &&
         uri.rawFragment == null && when (uri.host) {
             "lyricwave.canz-monkey.cn" -> uri.path.startsWith("/api/v1/")
             "github.com" -> uri.path.startsWith("/${AppUpdateClient.REPOSITORY}/releases/download/")
             "release-assets.githubusercontent.com" -> true
             else -> false
         }
+    }
 }

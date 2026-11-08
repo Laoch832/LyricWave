@@ -2,6 +2,7 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
     <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
     <permission android:name="dev.amenhancer.module.permission.SHARE_MOMENTS_LINK" android:protectionLevel="signature" />
     <uses-permission android:name="dev.amenhancer.module.permission.SHARE_MOMENTS_LINK" />
     <queries>
@@ -17,6 +18,13 @@
         <activity android:name=".share.MomentsShareActivity" android:exported="true"
             android:label="@string/moments_share_label" android:excludeFromRecents="true" />
 
+        <activity android:name=".update.UpdateDownloadActivity" android:exported="true"
+            android:launchMode="singleTask" android:label="@string/app_name" />
+        <provider android:name="androidx.core.content.FileProvider"
+            android:authorities="${applicationId}.updates" android:exported="false"
+            android:grantUriPermissions="true">
+            <meta-data android:name="android.support.FILE_PROVIDER_PATHS" android:resource="@xml/update_file_paths" />
+        </provider>
     </application>
 
 </manifest>

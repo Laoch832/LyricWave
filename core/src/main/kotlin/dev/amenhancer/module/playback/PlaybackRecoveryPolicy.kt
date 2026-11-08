@@ -12,6 +12,8 @@ object PlaybackRecoveryStatus {
     @Volatile var available: Boolean? = null
     @Volatile var latest: PlaybackRecoveryReport? = null
     @Volatile var nativeState: Int? = null
+    @Volatile var currentFaultActive: Boolean? = null
+    @Volatile var observedAtElapsedMs: Long? = null
 }
 
 /** Never infer an error from a buffering spinner or force playback while paused. */
