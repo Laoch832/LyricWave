@@ -36,7 +36,8 @@ internal class AppleSongMetadataLookup(
             (0 until results.length()).asSequence().mapNotNull { results.optJSONObject(it) }
                 .firstOrNull { it.optLong("trackId") == id && it.optString("kind") == "song" }
                 ?.let { row -> MomentsSongMetadata.title(row.optString("trackName"))?.let {
-                    MomentsSongMetadata(it, MomentsSongMetadata.clean(row.optString("artistName")))
+                    MomentsSongMetadata(it, MomentsSongMetadata.clean(row.optString("artistName")),
+                        MomentsSongMetadata.artwork(row.optString("artworkUrl100")))
                 } }
         } finally { connection.disconnect() }
     }

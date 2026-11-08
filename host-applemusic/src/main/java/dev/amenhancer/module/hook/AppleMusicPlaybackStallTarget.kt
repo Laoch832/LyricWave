@@ -42,13 +42,29 @@ internal class AppleMusicPlaybackStallTarget(
             val retry = exo.getMethod("retry").also { check(it.returnType == Void.TYPE && !Modifier.isStatic(it.modifiers)) }
             val type = error.getField("type").also { check(it.type == java.lang.Integer.TYPE) }
             val source = error.getMethod("getSourceException")
+            val renderer = error.getMethod("getRendererException")
+            val unexpected = error.getMethod("getUnexpectedException")
             val invalidHttp = loader.loadClass("com.google.android.exoplayer2.upstream.HttpDataSource\$InvalidResponseCodeException")
             val responseCode = invalidHttp.getField("responseCode").also { check(it.type == java.lang.Integer.TYPE) }
-            fun category(fault: Any): Pair<PlaybackFailure, Int?> {
+            fun category(fault: Any): PlaybackRecoveryReport {
                 val kind = type.getInt(fault)
-                val cause = if (kind == 0) source.invoke(fault) as? Throwable else null
+                val cause = when (kind) {
+                    0 -> source.invoke(fault) as? Throwable
+                    1 -> renderer.invoke(fault) as? Throwable
+                    2 -> unexpected.invoke(fault) as? Throwable
+                    else -> (fault as? Throwable)?.cause
+                }
                 val code = generateSequence(cause) { it.cause }.take(8).firstOrNull(invalidHttp::isInstance)?.let(responseCode::getInt)
-                return PlaybackFailurePolicy.classify(kind, cause, code) to code
+                val nativeCode = generateSequence(cause) { it.cause }.take(8).firstNotNullOfOrNull { item ->
+                    if (item.javaClass.simpleName !in setOf("DrmException", "AudioRendererException", "ErrorConditionException")) null
+                    else runCatching {
+                        item.javaClass.getMethod("getErrorCode").takeIf { it.returnType == Int::class.javaPrimitiveType }
+                            ?.invoke(item) as? Int
+                    }.getOrNull()
+                }
+                return PlaybackRecoveryReport(PlaybackFailurePolicy.classify(kind, cause, code),
+                    PlaybackRecoveryAction.OBSERVED, code, PlaybackFailurePolicy.diagnostic(kind, cause) +
+                        (nativeCode?.let { " / E$it" } ?: ""))
             }
             fun itemKey(host: Any, engine: Any): String? {
                 val item = current.invoke(host) ?: return null
@@ -56,8 +72,8 @@ internal class AppleMusicPlaybackStallTarget(
                 if (index < 0) return null
                 return "${queueId.invoke(item)}:$index"
             }
-            fun publish(failure: PlaybackFailure, action: PlaybackRecoveryAction, code: Int?) {
-                report = PlaybackRecoveryReport(failure, action, code)
+            fun publish(value: PlaybackRecoveryReport) {
+                report = value
                 PlaybackRecoveryStatus.latest = report
             }
             fun attempt(host: Any, expectedError: Any?, expectedKey: String?, automatic: Boolean) {
@@ -70,7 +86,9 @@ internal class AppleMusicPlaybackStallTarget(
                 val key = itemKey(host, engine) ?: return
                 if (expectedKey != null && expectedKey != key) return
                 if (automatic && wantsPlay.invoke(engine) != true) return
-                val (failure, code) = category(fault)
+                val observed = category(fault)
+                val failure = observed.failure
+                val code = observed.httpStatus
                 if (!PlaybackFailurePolicy.recoverable(failure)) return
                 val budget = budgets.getOrPut(host) { PlaybackRetryBudget(SystemClock::elapsedRealtime) }
                 if (!budget.claim(key, automatic)) return
@@ -78,7 +96,7 @@ internal class AppleMusicPlaybackStallTarget(
                 // No queue/index/position/playWhenReady/DRM credentials are rewritten.
                 retrying[host] = key
                 reportOwner = WeakReference(host)
-                publish(failure, PlaybackRecoveryAction.RETRY_REQUESTED, code)
+                publish(observed.copy(action = PlaybackRecoveryAction.RETRY_REQUESTED))
                 retry.invoke(engine)
                 ModernXposedRuntime.log("Playback source recovery requested: mode=${if (automatic) "once" else "user"}, category=$failure, http=${code ?: 0}")
             }
@@ -91,11 +109,14 @@ internal class AppleMusicPlaybackStallTarget(
                     if (param.throwable != null || !enabled()) return@safely
                     val host = param.thisObject ?: return@safely
                     val fault = param.args.firstOrNull() ?: return@safely
-                    val (failure, code) = category(fault)
-                    publish(failure, PlaybackRecoveryAction.OBSERVED, code)
-                    if (!PlaybackFailurePolicy.recoverable(failure)) return@safely
+                    // A new failure supersedes any pending recovery, including another player's report.
+                    pending.remove(host); retrying.remove(host)
+                    reportOwner = WeakReference(host)
+                    val observed = category(fault)
+                    publish(observed)
                     val engine = player.get(host) ?: return@safely
                     PlaybackRecoveryStatus.nativeState = state.invoke(engine) as? Int
+                    if (!PlaybackFailurePolicy.recoverable(observed.failure)) return@safely
                     val key = itemKey(host, engine) ?: return@safely
                     val handler = Handler(looper.invoke(engine) as Looper)
                     val token = Any()
@@ -124,7 +145,7 @@ internal class AppleMusicPlaybackStallTarget(
                             reportOwner.get() === host && report?.action == PlaybackRecoveryAction.RETRY_REQUESTED &&
                             retrying[host] == itemKey(host, engine) && errorNow.invoke(engine) == null) {
                             retrying.remove(host)
-                            report?.let { publish(it.failure, PlaybackRecoveryAction.READY, it.httpStatus) }
+                            report?.let { publish(it.copy(action = PlaybackRecoveryAction.READY)) }
                         }
                     }
                 }, scope))

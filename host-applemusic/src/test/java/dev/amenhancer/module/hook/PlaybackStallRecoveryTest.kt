@@ -20,7 +20,7 @@ import org.robolectric.annotation.LooperMode
 @LooperMode(LooperMode.Mode.PAUSED)
 class PlaybackStallRecoveryTest {
     class Item(var id: Long = 42) { fun getPlaybackQueueId() = id }
-    class Fault(@JvmField val type: Int, val failure: IOException) : Exception() { fun getSourceException() = failure }
+    class Fault(@JvmField val type: Int, val failure: IOException) : Exception() { fun getSourceException() = failure; fun getRendererException() = failure; fun getUnexpectedException() = failure }
     class HttpFault(@JvmField val responseCode: Int) : IOException()
     class Engine {
         var state = 1; var position = 73_000L; var window = 5; var wantsPlay = true; var fault: Fault? = null; var retries = 0
@@ -95,5 +95,38 @@ class PlaybackStallRecoveryTest {
     }
     @Test fun `disabling recovery before the scheduled attempt leaves playback untouched`() {
         fault(); enabled = false; waitForRetry(); assertEquals(0, engine.retries)
+    }
+    class DrmSessionException(cause: IOException) : IOException(cause)
+    @Test fun `DRM renderer and runtime failures report the real cause and native state without retry`() {
+        for ((type, cause, category) in listOf(
+            Triple(1, DrmSessionException(IOException()), PlaybackFailure.DRM),
+            Triple(1, IOException(), PlaybackFailure.RENDERER),
+            Triple(2, IOException(), PlaybackFailure.UNEXPECTED))) {
+            engine.state = 1; engine.fault = Fault(type, cause)
+            call("onPlayerError", engine.fault)
+            assertEquals(category, PlaybackRecoveryStatus.latest?.failure)
+            assertEquals(1, PlaybackRecoveryStatus.nativeState)
+            assertTrue(PlaybackRecoveryStatus.latest?.diagnostic?.startsWith("T$type:") == true)
+            waitForRetry(); call("play"); call("seekToPosition", 12L)
+            assertEquals(0, engine.retries)
+        }
+    }
+    @Test fun `a new renderer failure cancels scheduled network recovery`() {
+        fault()
+        engine.fault = Fault(1, DrmSessionException(IOException()))
+        call("onPlayerError", engine.fault)
+        waitForRetry()
+        call("onPlayerStateChanged", true, 3)
+        assertEquals(0, engine.retries)
+        assertEquals(PlaybackFailure.DRM, PlaybackRecoveryStatus.latest?.failure)
+        assertEquals(PlaybackRecoveryAction.OBSERVED, PlaybackRecoveryStatus.latest?.action)
+    }
+    class AudioRendererException : IOException("Private playback URL and credentials") { fun getErrorCode() = -6 }
+    @Test fun `native audio error code is reported without the exception message`() {
+        engine.state = 1; engine.fault = Fault(1, AudioRendererException())
+        call("onPlayerError", engine.fault)
+        assertEquals("T1:AudioRendererException / E-6", PlaybackRecoveryStatus.latest?.diagnostic)
+        waitForRetry()
+        assertEquals(0, engine.retries)
     }
 }

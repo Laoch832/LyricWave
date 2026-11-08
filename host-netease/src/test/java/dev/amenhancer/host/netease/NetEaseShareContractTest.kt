@@ -16,7 +16,7 @@ import org.robolectric.annotation.Config
 @Config(sdk = [34], manifest = Config.NONE)
 class NetEaseShareContractTest {
     class Resource : Serializable {
-        var title = ""; var subTitle = ""; var content = ""; var headerTitle = ""; var webUrl = ""
+        var cover = ""; var title = ""; var subTitle = ""; var content = ""; var headerTitle = ""; var webUrl = ""
     }
     class Panel : Activity() {
         companion object {
@@ -38,7 +38,7 @@ class NetEaseShareContractTest {
         val activity = Robolectric.buildActivity(Activity::class.java).setup().get()
         val profile = NetEaseShareProfiles.find("9.5.81", 9005081)!!
         val url = "https://music.apple.com/cn/album/song/123?i=456"
-        NetEaseShareContract.resolve(loader(), profile).open(activity, url, "Despacito", "Luis Fonsi")
+        NetEaseShareContract.resolve(loader(), profile).open(activity, url, "Despacito", "Luis Fonsi", "https://is1-ssl.mzstatic.com/image/thumb/cover/100x100bb.jpg")
         val intent = shadowOf(activity).nextStartedActivity
         assertEquals(Panel::class.java.name, intent.component?.className)
         assertEquals(19, intent.getIntExtra("res_type", -1))
@@ -46,6 +46,7 @@ class NetEaseShareContractTest {
         assertEquals(url, nativeResource.webUrl); assertEquals("Despacito", nativeResource.title)
         assertEquals("Luis Fonsi", nativeResource.subTitle)
         assertEquals("Despacito", nativeResource.headerTitle)
+        assertEquals("https://is1-ssl.mzstatic.com/image/thumb/cover/100x100bb.jpg", nativeResource.cover)
         assertFalse(intent.hasExtra(Intent.EXTRA_STREAM))
         assertNotEquals("com.tencent.mm", intent.component?.packageName)
     }

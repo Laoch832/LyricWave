@@ -36,7 +36,7 @@
 | 9.5.81 | 9005081 | `SharePanelActivity.Lb(Context,int,Serializable,Serializable)` |
 | 9.6.22 | 9006022 | `SharePanelActivity.Rb(Context,int,Serializable,Serializable)` |
 
-原生 `GeneralResource` 使用 `setTitle`、`setSubTitle`、`setContent`、`setHeaderTitle`、`setWebUrl` 设置元数据；原生 helper 接收 `res_type=19`，最终由网易云自身构造 `WXWebpageObject` 并调用自己的 SDK。模块没有直接调用微信内部页面或修改 SDK。
+原生 `GeneralResource` 使用 `setTitle`、`setSubTitle`、`setContent`、`setHeaderTitle`、`setWebUrl`、`setCover` 设置元数据；原生 helper 接收 `res_type=19`，最终由网易云自身构造 `WXWebpageObject` 并调用自己的 SDK。模块没有直接调用微信内部页面或修改 SDK。
 
 签名证书 SHA-256：`54254d2be09daef48dedc2b4a4f497d153e14ed9d70814fc9c360ee9240827f7`。
 
@@ -44,11 +44,17 @@
 
 `host-netease` 仅在网易云主进程注册受模块签名权限保护的接收器，且只接受 Apple Music 链接。用户点击后唤起网易云，从实际 Activity 的 `onResume` 接管前台页面并注册桥接，不依赖启动 Application 的生命周期回调；从该 Activity 的 ClassLoader 解析上述原生 helper。模块不读取网易云或微信的账号、聊天或数据库，也不替用户发布。
 
+### beta.9：外链封面
+
+封面同样按分享 URL 的歌曲 ID 查询 Apple 公开元数据，将经校验的 HTTPS Apple 图片 CDN 地址填入原生 `setCover`（已核验签名匹配的网易云 9.6.22）。查询进行中先等待结果，避免已有歌名时抢先发送无封面资源；查询失败时明确提示将无封面分享。模块不 Hook 微信。
+
+本次复核样本为应用宝分发的网易云 9.6.22（9006022），APK SHA-256：`a0040599d0522cfbd833cba52d521a4ed12bd4be8cfbaeffb4f9c0b2f2ad6bb7`，证书与上文一致。`res_type=19` 分支从 `GeneralResource.getCover()` 读取图片 URL，原生分享最终将加载的位图写入 `WXMediaMessage.thumbData`。实体设备上的发送面板及朋友圈接收结果仍需验收。
+
 ### beta.8：歌曲名称与歌手
 
 Apple Music 6.5.2 的原生网页分享只传 URL，不提供 `EXTRA_SUBJECT`。beta.8 从已核验的当前歌曲状态补入歌名和歌手，且歌曲 ID 必须与链接匹配；专辑链接使用 `?i=` 的曲目 ID，不能用专辑 ID 或专辑名。没有本机信息时，在澜音分享确认页通过 Apple 的公开 `itunes.apple.com/lookup` 按原链接地区、曲目 ID 查询；只有返回的 `trackId` 匹配时才接受，原始分享链接保持不变。
 
-确认页可核对、修改歌名和歌手；异步查询不覆盖已有信息或用户编辑。查询失败时允许手动填写，歌名为空时不打开分享页。网易云的 GeneralResource 分别填入歌名、歌手和歌名页头，朋友圈沿用其原生“歌名 - 歌手”格式；没有歌手时仅显示歌名，不再回退成“Apple Music - Apple Music”。本次不添加封面，也不 Hook 微信。
+确认页可核对、修改歌名和歌手；异步查询不覆盖已有信息或用户编辑。查询失败时允许手动填写，歌名为空时不打开分享页。网易云的 GeneralResource 分别填入歌名、歌手和歌名页头，朋友圈沿用其原生“歌名 - 歌手”格式；没有歌手时仅显示歌名，不再回退成“Apple Music - Apple Music”。模块不 Hook 微信。
 
 ### beta.6：已打开网易云但未出现分享面板
 

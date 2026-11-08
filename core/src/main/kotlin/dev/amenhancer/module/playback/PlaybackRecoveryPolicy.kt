@@ -5,9 +5,9 @@ import java.net.SocketException
 import java.net.SocketTimeoutException
 import java.net.UnknownHostException
 
-enum class PlaybackFailure { NETWORK, HTTP_TRANSIENT, AUTHORIZATION, DRM_OR_RENDERER, OTHER }
+enum class PlaybackFailure { NETWORK, HTTP_TRANSIENT, AUTHORIZATION, DRM, RENDERER, UNEXPECTED, REMOTE, OTHER }
 enum class PlaybackRecoveryAction { OBSERVED, RETRY_REQUESTED, READY }
-data class PlaybackRecoveryReport(val failure: PlaybackFailure, val action: PlaybackRecoveryAction, val httpStatus: Int?)
+data class PlaybackRecoveryReport(val failure: PlaybackFailure, val action: PlaybackRecoveryAction, val httpStatus: Int?, val diagnostic: String? = null)
 object PlaybackRecoveryStatus {
     @Volatile var available: Boolean? = null
     @Volatile var latest: PlaybackRecoveryReport? = null
@@ -17,17 +17,28 @@ object PlaybackRecoveryStatus {
 /** Never infer an error from a buffering spinner or force playback while paused. */
 object PlaybackFailurePolicy {
     fun classify(type: Int, cause: Throwable?, httpStatus: Int?): PlaybackFailure {
-        if (type == 1) return PlaybackFailure.DRM_OR_RENDERER
-        if (type != 0) return PlaybackFailure.OTHER
         val chain = generateSequence(cause) { it.cause }.take(8).toList()
-        if (httpStatus == 401 || httpStatus == 403 || chain.any {
-            it.javaClass.simpleName in setOf("PersistentKeyLoaderException", "ErrorConditionException", "NetworkConnectionDeniedException", "DrmException")
+        val names = chain.map { it.javaClass.simpleName }.toSet()
+        if (httpStatus == 401 || httpStatus == 403 || names.any {
+            it in setOf("PersistentKeyLoaderException", "ErrorConditionException", "NetworkConnectionDeniedException",
+                "DeniedByServerException", "NotProvisionedException", "KeysExpiredException")
         }) return PlaybackFailure.AUTHORIZATION
+        if (names.any { it.contains("Drm", ignoreCase = true) || it in setOf("ResourceBusyException", "DrmException") })
+            return PlaybackFailure.DRM
+        if (type == 1) return PlaybackFailure.RENDERER
+        if (type == 2) return PlaybackFailure.UNEXPECTED
+        if (type == 3) return PlaybackFailure.REMOTE
+        if (type != 0) return PlaybackFailure.OTHER
         if (httpStatus != null) return if (httpStatus == 408 || httpStatus == 429 || httpStatus in 500..599)
             PlaybackFailure.HTTP_TRANSIENT else PlaybackFailure.OTHER
         return if (chain.any { it is SocketTimeoutException || it is SocketException || it is UnknownHostException || it is EOFException })
             PlaybackFailure.NETWORK else PlaybackFailure.OTHER
     }
+    /** Class identities only: never persist exception messages, URLs, credentials or license bodies. */
+    fun diagnostic(type: Int, cause: Throwable?): String = "T$type:" +
+        generateSequence(cause) { it.cause }.take(8).map { it.javaClass.simpleName }
+            .filter { it.matches(Regex("[A-Za-z0-9_$]{1,100}")) }.distinct().joinToString(" > ").ifEmpty { "unknown" }
+
     fun recoverable(failure: PlaybackFailure) = failure == PlaybackFailure.NETWORK || failure == PlaybackFailure.HTTP_TRANSIENT
 }
 

@@ -20,4 +20,12 @@ class MomentsSongMetadataTest {
         assertNull(MomentsSongMetadata.title("Apple Music"))
         assertNull(MomentsSongMetadata.title("  "))
     }
+    @Test fun `artwork permits only public Apple CDN HTTPS URLs`() {
+        val url = "https://is1-ssl.mzstatic.com/image/thumb/a/100x100bb.jpg"
+        assertEquals(url, MomentsSongMetadata.artwork(url))
+        for (invalid in listOf("http://is1.mzstatic.com/a", "https://mzstatic.com.evil.com/a",
+            "https://127.0.0.1/a", "https://user:pass@is1.mzstatic.com/a", "https://is1.mzstatic.com:8080/a")) {
+            assertNull(MomentsSongMetadata.artwork(invalid))
+        }
+    }
 }

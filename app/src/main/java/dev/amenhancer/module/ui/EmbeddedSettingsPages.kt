@@ -777,7 +777,10 @@ private fun EmbeddedSettingsHost.renderEmbeddedCategoryPage(
                         dev.amenhancer.module.playback.PlaybackFailure.NETWORK -> ModuleText.PLAYBACK_NETWORK
                         dev.amenhancer.module.playback.PlaybackFailure.HTTP_TRANSIENT -> ModuleText.PLAYBACK_HTTP
                         dev.amenhancer.module.playback.PlaybackFailure.AUTHORIZATION -> ModuleText.PLAYBACK_AUTH
-                        dev.amenhancer.module.playback.PlaybackFailure.DRM_OR_RENDERER -> ModuleText.PLAYBACK_DRM
+                        dev.amenhancer.module.playback.PlaybackFailure.DRM -> ModuleText.PLAYBACK_DRM_ONLY
+                        dev.amenhancer.module.playback.PlaybackFailure.RENDERER -> ModuleText.PLAYBACK_RENDERER
+                        dev.amenhancer.module.playback.PlaybackFailure.UNEXPECTED -> ModuleText.PLAYBACK_UNEXPECTED
+                        dev.amenhancer.module.playback.PlaybackFailure.REMOTE -> ModuleText.PLAYBACK_REMOTE
                         dev.amenhancer.module.playback.PlaybackFailure.OTHER -> ModuleText.PLAYBACK_OTHER
                     }
                 } ?: ModuleText.PLAYBACK_NO_FAULT
@@ -793,7 +796,9 @@ private fun EmbeddedSettingsHost.renderEmbeddedCategoryPage(
                         localizedText(ModuleText.PLAYBACK_RECOVERY_UNAVAILABLE)
                     else localizedText(ModuleText.PLAYBACK_RECOVERY_STATUS,
                         dev.amenhancer.module.playback.PlaybackRecoveryStatus.nativeState ?: "—",
-                        localizedText(fault), localizedText(action), playback?.httpStatus ?: "—")
+                        localizedText(fault), localizedText(action), playback?.httpStatus ?: "—") +
+                        (playback?.diagnostic?.let { "\n$it" } ?: "")
+                    setTextIsSelectable(true)
                     textSize = 13f
                     setPadding(dp(activity, 12), dp(activity, 8), dp(activity, 12), dp(activity, 8))
                     setEmbeddedTextColor(activity) { it.muted }

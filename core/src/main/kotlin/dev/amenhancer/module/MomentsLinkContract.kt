@@ -9,6 +9,7 @@ object MomentsLinkContract {
     const val PERMISSION = "dev.amenhancer.module.permission.SHARE_MOMENTS_LINK"
     const val URL = "music_url"
     const val TITLE = "music_title"
+    const val ARTWORK = "music_artwork"
     const val ARTIST = "music_artist"
     const val REQUEST_ID = "share_request_id"
     const val REQUEST_TIMEOUT_MS = 30_000L

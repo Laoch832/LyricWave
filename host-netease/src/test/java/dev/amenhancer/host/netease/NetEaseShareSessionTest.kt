@@ -42,6 +42,7 @@ class NetEaseShareSessionTest {
     }
     private fun request(id: String = "request-1", link: String = url) = Intent(Contract.OPEN)
         .putExtra(Contract.REQUEST_ID, id).putExtra(Contract.URL, link).putExtra(Contract.TITLE, "Song")
+        .putExtra(Contract.ARTWORK, "https://is1-ssl.mzstatic.com/image/thumb/cover/100x100bb.jpg")
     @Before fun setup() {
         now = 0
         activity = Robolectric.buildActivity(HostActivity::class.java).setup().get()
@@ -52,6 +53,8 @@ class NetEaseShareSessionTest {
         session.resume(activity)
         assertEquals(Contract.RESULT_PENDING, session.receive(request()).code)
         val panelIntent = shadowOf(activity).nextStartedActivity!!
+        assertEquals("https://is1-ssl.mzstatic.com/image/thumb/cover/100x100bb.jpg",
+            (panelIntent.getSerializableExtra("res_obj") as NetEaseShareContractTest.Resource).cover)
         repeat(5) { assertEquals(Contract.RESULT_PENDING, session.receive(request()).code) }
         assertNull(shadowOf(activity).nextStartedActivity)
         val panel = Robolectric.buildActivity(NetEaseShareContractTest.Panel::class.java, panelIntent).setup().get()

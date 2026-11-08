@@ -40,12 +40,21 @@ import org.robolectric.shadows.ShadowToast
 @Config(sdk = [34], manifest = Config.NONE, qualifiers = "en-rUS")
 @LooperMode(LooperMode.Mode.PAUSED)
 class MomentsShareActivityTest {
+    private val artwork = "https://is1-ssl.mzstatic.com/image/thumb/cover/100x100bb.jpg"
     private lateinit var app: Application
     private lateinit var activity: MomentsShareActivity
     private fun views(view: View): List<View> = listOf(view) + if (view is ViewGroup)
         (0 until view.childCount).flatMap { views(view.getChildAt(it)) } else emptyList()
     private fun texts() = views(activity.window.decorView).filterIsInstance<TextView>().map { it.text.toString() }
     private fun openButton() = views(activity.window.decorView).filterIsInstance<Button>().single { it.text == "Open NetEase sharing" }
+    private fun awaitMetadata() {
+        repeat(200) {
+            shadowOf(Looper.getMainLooper()).idle()
+            if (openButton().isEnabled) return
+            Thread.sleep(10)
+        }
+        fail("Metadata lookup did not finish")
+    }
     @Before fun setup() {
         app = RuntimeEnvironment.getApplication()
         val info = ApplicationInfo().apply { packageName = Contract.INTERMEDIARY_PACKAGE; uid = 12345 }
@@ -56,10 +65,14 @@ class MomentsShareActivityTest {
         shadowOf(app.packageManager).addResolveInfoForIntent(launcher, ResolveInfo().apply {
             activityInfo = ActivityInfo().apply { packageName = Contract.INTERMEDIARY_PACKAGE; name = "MainActivity"; applicationInfo = info; exported = true }
         })
-        activity = Robolectric.buildActivity(MomentsShareActivity::class.java,
+        val controller = Robolectric.buildActivity(MomentsShareActivity::class.java,
             Intent(Intent.ACTION_SEND).putExtra(Intent.EXTRA_TEXT, "https://music.apple.com/cn/song/123")
                 .putExtra(Contract.TITLE, "Despacito").putExtra(Contract.ARTIST, "Luis Fonsi")
-        ).setup().visible().get()
+        )
+        controller.get().metadataResolver = { MomentsSongMetadata("Fetched title", "Fetched artist", artwork) }
+        activity = controller.setup().visible().get()
+        awaitMetadata()
+
     }
     @Test fun `launching NetEase without its module receiver never reports success and shows scope diagnosis`() {
         openButton().performClick()
@@ -80,6 +93,7 @@ class MomentsShareActivityTest {
                 ids += intent.getStringExtra(Contract.REQUEST_ID)
                 assertEquals("Despacito", intent.getStringExtra(Contract.TITLE))
                 assertEquals("Luis Fonsi", intent.getStringExtra(Contract.ARTIST))
+                assertEquals(artwork, intent.getStringExtra(Contract.ARTWORK))
                 resultCode = response
             }
         }, IntentFilter(Contract.OPEN), Context.RECEIVER_EXPORTED)
@@ -102,7 +116,7 @@ class MomentsShareActivityTest {
         val responseGate = CountDownLatch(1)
         server.createContext("/lookup") { exchange ->
             responseGate.await()
-            val bytes = """{"results":[{"kind":"song","trackId":999,"trackName":"Wrong song","artistName":"Wrong artist"},{"kind":"song","trackId":123,"trackName":"Despacito","artistName":"Luis Fonsi"}]}""".toByteArray()
+            val bytes = """{"results":[{"kind":"song","trackId":999,"trackName":"Wrong song","artistName":"Wrong artist"},{"kind":"song","trackId":123,"trackName":"Despacito","artistName":"Luis Fonsi","artworkUrl100":"$artwork"}]}""".toByteArray()
             exchange.sendResponseHeaders(200, bytes.size.toLong())
             exchange.responseBody.use { it.write(bytes) }
         }
@@ -124,6 +138,7 @@ class MomentsShareActivityTest {
                 if (openButton().isEnabled) loaded = true else Thread.sleep(10)
             }
             assertTrue(loaded)
+            assertEquals(artwork, client.lookup("https://music.apple.com/cn/song/123")?.artworkUrl)
             assertTrue("id=123&country=cn" in lookupUrl)
             assertTrue(texts().contains("Despacito")); assertTrue(texts().contains("Luis Fonsi"))
             val fields = views(activity.window.decorView).filterIsInstance<EditText>()
@@ -154,4 +169,19 @@ class MomentsShareActivityTest {
         controller.pause().stop().destroy()
     }
 
+    @Test fun `known title waits for artwork lookup and a failed lookup permits link sharing`() {
+        val gate = CountDownLatch(1)
+        val controller = Robolectric.buildActivity(MomentsShareActivity::class.java,
+            Intent(Intent.ACTION_SEND).putExtra(Intent.EXTRA_TEXT, "https://music.apple.com/cn/song/123")
+                .putExtra(Contract.TITLE, "Manual title").putExtra(Contract.ARTIST, "Manual artist"))
+        controller.get().metadataResolver = { gate.await(2, TimeUnit.SECONDS); null }
+        activity = controller.setup().visible().get()
+        try {
+            assertFalse(openButton().isEnabled)
+            gate.countDown()
+            awaitMetadata()
+            assertTrue(texts().contains("Manual title")); assertTrue(texts().contains("Manual artist"))
+            assertTrue(texts().any { "without a cover" in it })
+        } finally { gate.countDown(); controller.pause().stop().destroy() }
+    }
 }

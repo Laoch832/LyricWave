@@ -30,6 +30,8 @@ class MomentsShareActivity : Activity() {
     private val handler = Handler(Looper.getMainLooper())
     private var pending = false
     private var shareStarted = false
+    private var artworkUrl: String? = null
+    private var metadataLoading = false
     private val metadataExecutor = Executors.newSingleThreadExecutor { Thread(it, "LyricWave-share-metadata").apply { isDaemon = true } }
     internal var metadataResolver: (String) -> MomentsSongMetadata? = AppleSongMetadataLookup()::lookup
     private lateinit var titleInput: EditText
@@ -37,6 +39,7 @@ class MomentsShareActivity : Activity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         val url = Contract.extract(intent.getCharSequenceExtra(Intent.EXTRA_TEXT)?.toString().orEmpty())
+        artworkUrl = MomentsSongMetadata.artwork(savedInstanceState?.getString(Contract.ARTWORK))
         val initialTitle = savedInstanceState?.getString(Contract.TITLE)
             ?: MomentsSongMetadata.title(intent.getStringExtra(Contract.TITLE))
             ?: MomentsSongMetadata.title(intent.getStringExtra(Intent.EXTRA_SUBJECT)).orEmpty()
@@ -59,7 +62,7 @@ class MomentsShareActivity : Activity() {
             override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) = Unit
             override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) = Unit
             override fun afterTextChanged(s: Editable?) {
-                open.isEnabled = !pending && url != null && MomentsSongMetadata.title(s?.toString()) != null
+                open.isEnabled = !metadataLoading && !pending && url != null && MomentsSongMetadata.title(s?.toString()) != null
             }
         })
         layout.addView(open)
@@ -67,7 +70,7 @@ class MomentsShareActivity : Activity() {
         setContentView(ScrollView(this).apply { addView(layout) })
         if (url == null) status.text = ModuleText.WECHAT_LINK_REQUIRED.text()
         open.setOnClickListener {
-            if (pending || url == null) return@setOnClickListener
+            if (metadataLoading || pending || url == null) return@setOnClickListener
             val title = MomentsSongMetadata.title(titleInput.text.toString()) ?: return@setOnClickListener
             val artist = MomentsSongMetadata.clean(artistInput.text.toString())
             val launch = packageManager.getLaunchIntentForPackage(Contract.INTERMEDIARY_PACKAGE)
@@ -77,30 +80,35 @@ class MomentsShareActivity : Activity() {
                 startActivity(launch)
                 val requestId = UUID.randomUUID().toString()
                 val deadline = SystemClock.elapsedRealtime() + Contract.REQUEST_TIMEOUT_MS
-                handler.postDelayed({ requestEditor(url, title, artist, requestId, deadline, status, open) }, 800)
+                handler.postDelayed({ requestEditor(url, title, artist, artworkUrl, requestId, deadline, status, open) }, 800)
             } catch (_: Exception) { pending = false; open.isEnabled = true; status.text = ModuleText.WECHAT_MISSING.text() }
         }
-        if (url != null && MomentsSongMetadata.songId(url) != null && (initialTitle.isBlank() || initialArtist.isBlank())) {
+        if (url != null && MomentsSongMetadata.songId(url) != null && (initialTitle.isBlank() || initialArtist.isBlank() || artworkUrl == null)) {
+            metadataLoading = true; open.isEnabled = false
             status.text = ModuleText.SHARE_METADATA_LOADING.text()
             metadataExecutor.execute {
                 val metadata = runCatching { metadataResolver(url) }.getOrNull()
                 handler.post {
                     if (isDestroyed || isFinishing || shareStarted) return@post
+                    metadataLoading = false
                     if (metadata != null) {
+                        artworkUrl = MomentsSongMetadata.artwork(metadata.artworkUrl)
                         if (initialTitle.isBlank() && titleInput.text.toString() == initialTitle) titleInput.setText(metadata.title)
                         if (initialArtist.isBlank() && artistInput.text.toString() == initialArtist) artistInput.setText(metadata.artist.orEmpty())
                     }
+                    open.isEnabled = !pending && MomentsSongMetadata.title(titleInput.text.toString()) != null
                     if (!pending) status.text = if (MomentsSongMetadata.title(titleInput.text.toString()) == null)
-                        ModuleText.SHARE_METADATA_MISSING.text() else ModuleText.WECHAT_SHARE_NOTICE.text()
+                        ModuleText.SHARE_METADATA_MISSING.text() else ModuleText.WECHAT_SHARE_NOTICE.text() +
+                            (if (artworkUrl == null) "\n" + ModuleText.SHARE_ARTWORK_MISSING.text() else "")
                 }
             }
         }
     }
     @Suppress("DEPRECATION")
-    private fun requestEditor(url: String, title: String, artist: String?, requestId: String, deadline: Long, status: TextView, button: Button) {
+    private fun requestEditor(url: String, title: String, artist: String?, artworkUrl: String?, requestId: String, deadline: Long, status: TextView, button: Button) {
         if (isDestroyed || isFinishing) return
         val request = Intent(Contract.OPEN).setPackage(Contract.INTERMEDIARY_PACKAGE)
-            .putExtra(Contract.URL, url).putExtra(Contract.TITLE, title).putExtra(Contract.ARTIST, artist).putExtra(Contract.REQUEST_ID, requestId)
+            .putExtra(Contract.URL, url).putExtra(Contract.TITLE, title).putExtra(Contract.ARTIST, artist).putExtra(Contract.ARTWORK, artworkUrl).putExtra(Contract.REQUEST_ID, requestId)
         sendOrderedBroadcast(request, null, object : BroadcastReceiver() {
             override fun onReceive(context: Context, intent: Intent?) {
                 if (isDestroyed || isFinishing) return
@@ -113,7 +121,7 @@ class MomentsShareActivity : Activity() {
                 if (SystemClock.elapsedRealtime() < deadline &&
                     code in listOf(0, Contract.RESULT_NOT_READY, Contract.RESULT_PENDING)) {
                     status.text = ModuleText.WECHAT_SHARE_WAITING.text()
-                    handler.postDelayed({ requestEditor(url, title, artist, requestId, deadline, status, button) }, 500)
+                    handler.postDelayed({ requestEditor(url, title, artist, artworkUrl, requestId, deadline, status, button) }, 500)
                 } else {
                     pending = false; button.isEnabled = true
                     val message = when (code) {
@@ -136,6 +144,7 @@ class MomentsShareActivity : Activity() {
         }, handler, 0, null, null)
     }
     override fun onSaveInstanceState(outState: Bundle) {
+        outState.putString(Contract.ARTWORK, artworkUrl)
         outState.putString(Contract.TITLE, titleInput.text.toString())
         outState.putString(Contract.ARTIST, artistInput.text.toString())
         super.onSaveInstanceState(outState)

@@ -27,7 +27,7 @@ internal class NetEaseShareContract private constructor(
     private val readUrl: Method, private val openPanel: Method,
     private val panelClass: Class<*>,
 ) {
-    fun open(activity: Activity, url: String, title: String?, artist: String? = null) {
+    fun open(activity: Activity, url: String, title: String?, artist: String? = null, artworkUrl: String? = null) {
         require(MomentsLinkContract.validate(url) != null)
         val resource = constructor.newInstance()
         fun set(name: String, value: String) { setters.getValue(name).invoke(resource, value) }
@@ -37,6 +37,7 @@ internal class NetEaseShareContract private constructor(
         set("setContent", url)
         set("setHeaderTitle", songTitle)
         set("setWebUrl", url)
+        MomentsSongMetadata.artwork(artworkUrl)?.let { set("setCover", it) }
         check(readUrl.invoke(resource) == url)
         // 19 is the inspected native web-resource type. It produces WXWebpageObject, not song/image data.
         // The host opens its own visible panel; the module never chooses a target or posts content.
@@ -58,7 +59,7 @@ internal class NetEaseShareContract private constructor(
             val resource = loader.loadClass(RESOURCE)
             check(Serializable::class.java.isAssignableFrom(resource))
             val constructor = resource.getConstructor()
-            val setters = listOf("setTitle", "setSubTitle", "setContent", "setHeaderTitle", "setWebUrl")
+            val setters = listOf("setTitle", "setSubTitle", "setContent", "setHeaderTitle", "setWebUrl", "setCover")
                 .associateWith { resource.getMethod(it, String::class.java).also { method ->
                     check(method.returnType == Void.TYPE && !Modifier.isStatic(method.modifiers))
                 } }
