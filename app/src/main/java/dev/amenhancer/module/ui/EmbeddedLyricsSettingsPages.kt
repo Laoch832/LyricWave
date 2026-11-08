@@ -918,7 +918,6 @@ private fun EmbeddedSettingsHost.showLyricsActionsDialog(
             }
         },
     ) { dismiss ->
-        EmbeddedAiLyricsSummary(activity, settings) { onOpenPage(EmbeddedSettingsPage.AI_LYRICS_ACTIVITY) }
         EmbeddedSettingsGroup {
             EmbeddedSettingLink(
                 title = localizedText(ModuleText.EDIT),
