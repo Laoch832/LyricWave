@@ -25,6 +25,7 @@
 
 - Follow `docs/ci-and-releases.md` for the CI, signing and personal-account release workflow.
 - Preserve the existing signing key and pinned certificate. Never regenerate it as a build fix.
+- User requires stable releases only: use numeric x.y.z versions without beta/rc/custom suffixes. A signed Actions Artifact alone is not release delivery; complete and verify the GitHub Release publication. Each release must have its own structured release-notes/x.y.z.json, never recycle a fixed historical feature list.
 - Bump both app version fields for each new release; do not overwrite an existing release.
 - Run Python release-policy tests and workflow lint when changing publishing or signing.
 
@@ -40,7 +41,7 @@
 # Sharing scope constraint
 
 - Never hook or inject code into WeChat (`com.tencent.mm`), even if the manager retains an old scope selection.
-- The user explicitly permits NetEase Cloud Music as the sharing intermediary. Reuse its actual native sharing flow, preserve the original clickable Apple Music URL, and never post automatically.
+- The user explicitly permits NetEase Cloud Music as the sharing intermediary. Reuse its actual native sharing flow, preserve the original clickable Apple Music URL by default; the user explicitly authorizes an optional Mainland China storefront setting that replaces only the country path segment with cn while retaining song/album IDs, encoded path and query parameters; and never post automatically.
 - Song metadata must match the shared track ID (album links use `i`); never borrow the playing song for another URL or overwrite manual edits. Use song title/artist in the native share resource, without fixed Apple Music branding as the title/subtitle.
 - NetEase sharing must bootstrap from actual foreground Activities, deduplicate each request and acknowledge only a resumed native panel carrying the original URL. Test real sender UI and receiver delivery; native helper return alone is not proof the panel appeared. Keep diagnostics free of URLs/content and distinguish missing scope from unsupported builds.
 

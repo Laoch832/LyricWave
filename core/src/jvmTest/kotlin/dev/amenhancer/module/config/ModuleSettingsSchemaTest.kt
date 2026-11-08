@@ -11,6 +11,15 @@ import org.junit.Assert.assertNull
 import org.junit.Test
 
 class ModuleSettingsSchemaTest {
+    @org.junit.Test fun feedbackDefaultAndStorefrontChoiceRoundTrip() {
+        val defaults = ModuleSettingsSchema.decode(emptyMap<String, Any>())
+        org.junit.Assert.assertTrue(defaults.automaticFeedbackEnabled)
+        org.junit.Assert.assertFalse(defaults.shareLinksUseChinaStorefront)
+        val restored = ModuleSettingsSchema.decodeOrdinarySettings(ModuleSettingsSchema.encodeOrdinarySettings(
+            defaults.copy(automaticFeedbackEnabled = false, shareLinksUseChinaStorefront = true)))
+        org.junit.Assert.assertFalse(restored.automaticFeedbackEnabled)
+        org.junit.Assert.assertTrue(restored.shareLinksUseChinaStorefront)
+    }
     @org.junit.Test fun automaticUpdatePreferenceDefaultsOnAndRoundTripsOff() {
         org.junit.Assert.assertTrue(ModuleSettingsSchema.decode(emptyMap<String, Any>()).automaticUpdateCheckEnabled)
         val stored = ModuleSettingsSchema.encodeOrdinarySettings(dev.amenhancer.module.model.ModuleSettings(automaticUpdateCheckEnabled = false))
@@ -126,11 +135,13 @@ class ModuleSettingsSchemaTest {
                 "phone_liquid_glass_expand_rebound_percent" to 100,
                 "phone_liquid_glass_mini_rebound_percent" to 100,
                 "phone_liquid_glass_mini_sink_bounce_dp" to 4,
+                "automatic_feedback_enabled" to true,
                 "automatic_update_check_enabled" to true,
                 "playback_stall_recovery_enabled" to true,
                 "lyrics_hdr_enabled" to false,
                 "lyrics_hdr_brightness_percent" to 200,
                 "lyrics_hdr_flashbang_enabled" to false,
+                "share_links_use_china_storefront" to false,
                 "wechat_moments_share_enabled" to false,
                 "future_blur_enabled" to false,
                 "cjk_karaoke_animation_enabled" to true,
@@ -190,11 +201,13 @@ class ModuleSettingsSchemaTest {
                 "phone_liquid_glass_expand_rebound_percent" to 100,
                 "phone_liquid_glass_mini_rebound_percent" to 100,
                 "phone_liquid_glass_mini_sink_bounce_dp" to 4,
+                "automatic_feedback_enabled" to true,
                 "automatic_update_check_enabled" to true,
                 "playback_stall_recovery_enabled" to true,
                 "lyrics_hdr_enabled" to false,
                 "lyrics_hdr_brightness_percent" to 200,
                 "lyrics_hdr_flashbang_enabled" to false,
+                "share_links_use_china_storefront" to false,
                 "wechat_moments_share_enabled" to false,
                 "future_blur_enabled" to true,
                 "cjk_karaoke_animation_enabled" to true,

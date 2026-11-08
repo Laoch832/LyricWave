@@ -29,6 +29,7 @@ import java.util.concurrent.Executors
 /** Runs under the module UID so APKs stay out of Apple Music's private storage. */
 class UpdateDownloadActivity : Activity() {
     private lateinit var session: UpdateDownloadSession
+    private lateinit var connections: android.widget.Spinner
     private lateinit var status: TextView
     private lateinit var progress: ProgressBar
     private lateinit var start: Button
@@ -53,6 +54,20 @@ class UpdateDownloadActivity : Activity() {
             insets
         }
         layout.addView(TextView(this).apply { text = ModuleText.UPDATE_DOWNLOADER.text(); textSize = 22f })
+        val preferences = getSharedPreferences("lyricwave_download_options", Context.MODE_PRIVATE)
+        val choices = listOf(1, 4, 8, 16, 32, 64, 128)
+        layout.addView(TextView(this).apply { text = ModuleText.UPDATE_CONNECTIONS.text() })
+        connections = android.widget.Spinner(this).apply {
+            adapter = android.widget.ArrayAdapter(this@UpdateDownloadActivity, android.R.layout.simple_spinner_dropdown_item, choices)
+            setSelection(choices.indexOf(preferences.getInt("connections", 8)).coerceAtLeast(0))
+            onItemSelectedListener = object : android.widget.AdapterView.OnItemSelectedListener {
+                override fun onItemSelected(parent: android.widget.AdapterView<*>?, view: View?, position: Int, id: Long) {
+                    preferences.edit().putInt("connections", choices[position]).apply()
+                }
+                override fun onNothingSelected(parent: android.widget.AdapterView<*>?) = Unit
+            }
+        }
+        layout.addView(connections)
         status = TextView(this).apply { textSize = 16f; setTextIsSelectable(true) }; layout.addView(status)
         progress = ProgressBar(this, null, android.R.attr.progressBarStyleHorizontal).apply { max = 1000 }; layout.addView(progress)
         start = Button(this).apply { text = ModuleText.UPDATE_START.text(); setOnClickListener { session.download(session.official) } }; layout.addView(start)
@@ -69,6 +84,7 @@ class UpdateDownloadActivity : Activity() {
         if (isFinishing || isDestroyed) return
         val state = session.state
         val running = state.phase == DownloadPhase.CHECKING || state.phase == DownloadPhase.DOWNLOADING
+        connections.isEnabled = !running
         progress.isIndeterminate = state.phase == DownloadPhase.CHECKING
         progress.progress = if (state.total > 0) (state.bytes * 1000 / state.total).toInt().coerceIn(0, 1000) else 0
         status.text = when (state.phase) {
@@ -124,7 +140,10 @@ internal class UpdateDownloadSession(
     private val context: Context, private val assetId: Long, val official: Boolean,
     private val check: () -> AppUpdateRelease = { AppUpdateClient().check(BuildConfig.VERSION_CODE.toLong(), BuildConfig.APPLICATION_ID) },
     private val fetch: (UpdateAsset, UpdateBuild, File, UpdateDownloadCancellation, Boolean, (UpdateDownloadProgress) -> Unit) -> File =
-        AppUpdateDownloader()::download,
+        { asset, build, directory, cancellation, official, progress ->
+            val count = context.getSharedPreferences("lyricwave_download_options", Context.MODE_PRIVATE).getInt("connections", 8).coerceIn(1, 128)
+            AppUpdateDownloader(parallelism = count).download(asset, build, directory, cancellation, official, progress)
+        },
     private val archiveCheck: ((File, UpdateBuild) -> Unit)? = null,
 ) {
     private val worker = Executors.newSingleThreadExecutor { Thread(it, "LyricWave-download").apply { isDaemon = true } }
@@ -146,6 +165,8 @@ internal class UpdateDownloadSession(
         publish(DownloadState())
         val latest = check()
         val build = latest.build ?: throw AppUpdateException("metadata")
+        if (BuildConfig.APPLICATION_ID == ModuleConstants.MODULE_PACKAGE && build.versionCode <= BuildConfig.VERSION_CODE)
+            throw AppUpdateException("already_current")
         val chosen = latest.apks.singleOrNull { it.id == assetId && it.name == build.apk } ?: throw AppUpdateException("asset")
         release = latest; asset = chosen
         publish(DownloadState(DownloadPhase.READY, chosen.name, total = chosen.size))

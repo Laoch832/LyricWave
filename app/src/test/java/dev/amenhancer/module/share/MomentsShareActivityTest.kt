@@ -74,6 +74,28 @@ class MomentsShareActivityTest {
         awaitMetadata()
 
     }
+    @Test fun `China switch updates preview clipboard and the exact link sent to NetEase`() {
+        val original = "https://music.apple.com/tr/album/%E6%AD%8C/111?i=123&ls=1"
+        val expected = original.replace("/tr/", "/cn/")
+        val controller = Robolectric.buildActivity(MomentsShareActivity::class.java,
+            Intent(Intent.ACTION_SEND).putExtra(Intent.EXTRA_TEXT, original)
+                .putExtra(Contract.TITLE, "Despacito").putExtra(Contract.ARTIST, "Luis Fonsi"))
+        controller.get().metadataResolver = { MomentsSongMetadata("Despacito", "Luis Fonsi", artwork) }
+        activity = controller.setup().visible().get(); awaitMetadata()
+        val toggle = views(activity.window.decorView).filterIsInstance<android.widget.Switch>().single()
+        assertFalse(toggle.isChecked); toggle.performClick(); assertTrue(texts().contains(expected))
+        views(activity.window.decorView).filterIsInstance<Button>().single { it.text == "Copy song link" }.performClick()
+        val clipboard = activity.getSystemService(Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
+        assertEquals(expected, clipboard.primaryClip?.getItemAt(0)?.text.toString())
+        var delivered: String? = null
+        val host = app.createPackageContext(Contract.INTERMEDIARY_PACKAGE, 0)
+        host.registerReceiver(object : BroadcastReceiver() {
+            override fun onReceive(context: Context, intent: Intent) { delivered = intent.getStringExtra(Contract.URL); resultCode = Contract.RESULT_OPENED }
+        }, IntentFilter(Contract.OPEN), Context.RECEIVER_EXPORTED)
+        openButton().performClick(); shadowOf(Looper.getMainLooper()).idleFor(Duration.ofSeconds(2))
+        assertEquals(expected, delivered)
+        controller.pause().stop().destroy()
+    }
     @Test fun `launching NetEase without its module receiver never reports success and shows scope diagnosis`() {
         openButton().performClick()
         assertEquals(Contract.INTERMEDIARY_PACKAGE, shadowOf(activity).nextStartedActivity?.component?.packageName)

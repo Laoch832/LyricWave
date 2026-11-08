@@ -526,6 +526,9 @@ private fun EmbeddedSettingsHost.EmbeddedSettingsCategory(
                     settings.wechatMomentsShareEnabled, EmbeddedSvgIcon.Document
                 ) { value -> onEdit { it.copy(wechatMomentsShareEnabled = value) } }
 
+                Setting(ModuleText.SHARE_CHINA_STOREFRONT, ModuleText.SHARE_CHINA_STOREFRONT_SUMMARY,
+                    settings.shareLinksUseChinaStorefront, EmbeddedSvgIcon.Document
+                ) { value -> onEdit { it.copy(shareLinksUseChinaStorefront = value) } }
                 Setting(ModuleText.TABLET_DUAL_PANE, ModuleText.TABLET_DUAL_PANE_SUMMARY,
                     settings.dualPaneEnabled, EmbeddedSvgIcon.TabletDualPane) { value -> onEdit { it.copy(dualPaneEnabled = value) } }
                 if (settings.dualPaneEnabled) Setting(
@@ -606,6 +609,7 @@ private fun EmbeddedSettingsHost.EmbeddedSettingsCategory(
             }
             }
             EmbeddedAppUpdates(activity, active, settings, onEdit)
+            EmbeddedFeedbackControls(activity, settings, onEdit)
         }
         else -> Unit
     }

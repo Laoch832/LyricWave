@@ -39,6 +39,7 @@ abstract class ModernMethodHook {
 }
 
 object ModernXposedRuntime {
+    @Volatile var errorObserver: ((String, Throwable?) -> Unit)? = null
     private const val TAG = "AppleMusicEnhancer"
 
     @Volatile
@@ -92,6 +93,8 @@ object ModernXposedRuntime {
     }
 
     fun log(message: String, error: Throwable? = null) {
+        if (error != null || listOf("failed", "failure", "unavailable", "error", "degraded", "exception").any { message.contains(it, true) })
+            runCatching { errorObserver?.invoke(message, error) }
         val activeModule = module
         if (activeModule != null) {
             if (error == null) {

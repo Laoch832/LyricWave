@@ -20,6 +20,7 @@
   "dependencies": {
     "@radix-ui/react-slot": "^1.5.0",
     "@tailwindcss/postcss": "^4.3.5",
+    "@vercel/blob": "2.8.2",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "fumadocs-core": "^16.18.1",

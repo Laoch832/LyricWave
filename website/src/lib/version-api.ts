@@ -107,6 +107,7 @@ export async function downloadResponse(
   assetId: string,
   load: () => Promise<ReleasesResult> = getReleases,
   fetcher: typeof fetch = fetch,
+  expectedName?: string,
 ) {
   if (
     !/^[1-9]\d{0,15}$/.test(assetId) ||
@@ -119,7 +120,7 @@ export async function downloadResponse(
   const asset = result.releases
     .flatMap((r) => r.assets)
     .find((a) => String(a.id) === assetId);
-  if (!asset) return apiError(404, "ASSET_NOT_FOUND");
+  if (!asset || (expectedName !== undefined && asset.name !== expectedName)) return apiError(404, "ASSET_NOT_FOUND");
   const range = request.headers.get("range");
   if (range && !/^bytes=(\d+-\d*|-\d+)$/.test(range))
     return apiError(400, "INVALID_RANGE");
@@ -167,6 +168,9 @@ export async function downloadResponse(
         upstream.headers.get("content-length") === String(asset.size) &&
         !upstream.headers.has("content-range") &&
         !upstream.headers.has("content-encoding");
+      const fallbackName = asset.name.replace(/[^\x20-\x7e]|["\\/]/g, "_").slice(0, 180) || "download.bin";
+      const contentType = /\.apk$/i.test(asset.name) ? "application/vnd.android.package-archive"
+        : /\.json$/i.test(asset.name) ? "application/json" : /\.txt$/i.test(asset.name) ? "text/plain; charset=utf-8" : "application/octet-stream";
       const output = new Headers({
         ...cors,
         "Cache-Control": cacheable
@@ -176,8 +180,8 @@ export async function downloadResponse(
         "Vercel-CDN-Cache-Control": "no-store",
         Vary: "Range, If-Range",
         "X-Content-Type-Options": "nosniff",
-        "Content-Type": "application/octet-stream",
-        "Content-Disposition": `attachment; filename="download"; filename*=UTF-8''${encodeURIComponent(asset.name).replace(/['()*]/g, (c) => `%${c.charCodeAt(0).toString(16)}`)}`,
+        "Content-Type": contentType,
+        "Content-Disposition": `attachment; filename="${fallbackName}"; filename*=UTF-8''${encodeURIComponent(asset.name).replace(/['()*]/g, (c) => `%${c.charCodeAt(0).toString(16)}`)}`,
       });
       for (const name of [
         "content-length",

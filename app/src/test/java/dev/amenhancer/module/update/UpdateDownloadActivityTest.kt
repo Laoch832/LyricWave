@@ -28,7 +28,7 @@ class UpdateDownloadActivityTest {
     private val originalFactory = UpdateDownloadActivity.createSession
     private val asset = UpdateAsset(42, "LyricWave-test.apk", 4, AppUpdateClient.ORIGIN + "/api/v1/download/42",
         "https://github.com/Laoch832/LyricWave/releases/download/vtest/LyricWave-test.apk")
-    private val build = UpdateBuild(130, "test", asset.name, "a".repeat(64))
+    private val build = UpdateBuild(999, "test", asset.name, "a".repeat(64))
     private val release = AppUpdateRelease("vtest", "test", "", "2026-11-08T00:00:00Z", true,
         AppUpdateClient.RELEASES_URL, listOf(asset), build, UpdateComparison.NEWER, 1)
     @After fun reset() { UpdateDownloadActivity.createSession = originalFactory }

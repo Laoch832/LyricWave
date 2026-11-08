@@ -55,12 +55,14 @@ data class ModuleSettings(
      */
     val phoneLiquidGlassMiniSinkBounceDp: Int = EnhancementDefaults.GLASS_MINI_SINK_BOUNCE_DP,
     /** Throttled public release checks when a supported host Activity enters the foreground. */
+    val automaticFeedbackEnabled: Boolean = true,
     val automaticUpdateCheckEnabled: Boolean = true,
     val playbackStallRecoveryEnabled: Boolean = true,
     /** HDR gainmap lyrics; system thermal and display limits always apply. */
     val lyricsHdrEnabled: Boolean = false,
     val lyricsHdrBrightnessPercent: Int = 200,
     val lyricsHdrFlashbangEnabled: Boolean = false,
+    val shareLinksUseChinaStorefront: Boolean = false,
     val wechatMomentsShareEnabled: Boolean = false,
     val futureBlurEnabled: Boolean = true,
     /** Enables the native rush-gradient adaptation for CJK karaoke lyrics. */

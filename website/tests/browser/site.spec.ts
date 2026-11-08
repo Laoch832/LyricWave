@@ -110,7 +110,7 @@ test("downloads have official assets or a usable official fallback", async ({
   for (const href of await page
     .locator(".asset-link")
     .evaluateAll((a) => a.map((el) => el.getAttribute("href"))))
-    expect(href).toMatch(/^\/api\/v1\/download\/[1-9]\d*$/);
+    expect(href).toMatch(/^\/api\/v1\/download\/[1-9]\d*\/[^/]+$/);
 });
 test("download integration links and mobile layout", async ({ page }) => {
   for (const locale of ["zh", "en"]) {
@@ -124,7 +124,7 @@ test("download integration links and mobile layout", async ({ page }) => {
     for (let i = 0; i < (await assets.count()); i++) {
       await expect(assets.nth(i).locator(".asset-link")).toHaveAttribute(
         "href",
-        /^\/api\/v1\/download\/\d+$/,
+        /^\/api\/v1\/download\/\d+\/[^/]+$/,
       );
       await expect(
         assets.nth(i).locator('a[href^="https://github.com/"]'),
@@ -216,4 +216,20 @@ test("reader code copy, pagination, progress and language switch", async ({
   await page.getByRole("button", { name: "English", exact: true }).click();
   await expect(page).toHaveURL("/docs/en/advanced/apple-music-ttml-format");
   await expect(page.locator("html")).toHaveAttribute("lang", "en");
+});
+
+test("browser download suggests an apk filename", async ({ page }) => {
+  await page.goto("/zh/download");
+  await page.route("**/api/v1/download/999/LyricWave-1.7.0.apk", route => route.fulfill({
+    status: 200, body: "test-apk", headers: {
+      "content-type": "application/vnd.android.package-archive",
+      "content-disposition": 'attachment; filename="LyricWave-1.7.0.apk"; filename*=UTF-8\'\'LyricWave-1.7.0.apk',
+    },
+  }));
+  await page.evaluate(() => {
+    const a = document.createElement("a"); a.href = "/api/v1/download/999/LyricWave-1.7.0.apk";
+    a.download = "LyricWave-1.7.0.apk"; a.textContent = "Filename verification"; document.body.append(a);
+  });
+  const result = page.waitForEvent("download"); await page.getByText("Filename verification").click();
+  expect((await result).suggestedFilename()).toBe("LyricWave-1.7.0.apk");
 });

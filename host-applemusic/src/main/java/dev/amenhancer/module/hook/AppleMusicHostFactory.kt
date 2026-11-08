@@ -30,6 +30,20 @@ object AppleMusicHostFactory {
         if (fragmentFamily(context)) { FragmentSettingsNativeFactory.install(context,loader,observer); Unit }
         else LegacySettingsEntryInstaller(context).install(loader,observer)
 
+    fun installEmbeddedShareRouting(enabled: () -> Boolean, show: (android.app.Activity, android.content.Intent) -> Boolean) {
+        val scope = HookRegistrationScope()
+        val method = android.app.Activity::class.java.getDeclaredMethod("startActivityForResult", android.content.Intent::class.java,
+            Int::class.javaPrimitiveType, android.os.Bundle::class.java)
+        check(ModernXposedRuntime.hookMethod(method, object : ModernMethodHook() {
+            override fun beforeHookedMethod(param: MethodHookParam) {
+                if (!enabled() || android.os.Looper.myLooper() !== android.os.Looper.getMainLooper()) return
+                val activity = param.thisObject as? android.app.Activity ?: return
+                val chooser = param.args.firstOrNull() as? android.content.Intent ?: return
+                if (show(activity, chooser)) param.result = null
+            }
+        }, scope))
+        scope.activate()
+    }
     fun bindChrome(activity: android.app.Activity): ChromeHostBinding = LegacyChromeHostBinding(activity)
     fun installChromeHooks(loader: ClassLoader, build: TargetBuild, observer: ChromeHookObserver): HostSubscription =
         LegacyChromeHookInstaller.install(loader, build, observer)
@@ -137,6 +151,7 @@ object AppleMusicHostFactory {
             wechatMoments = AppleMusicMomentsShareTarget(
                 enabled = { config.settings().wechatMomentsShareEnabled },
                 currentSong = { currentSong.current()?.details },
+                chinaStorefront = { config.settings().shareLinksUseChinaStorefront },
             ),
             lyricsTypeface = AppleMusicLyricsTypefaceTarget(
                 symbols = resolver,

@@ -82,6 +82,22 @@ class ReleasePolicyTest(unittest.TestCase):
                 with self.assertRaises(ValueError):
                     RELEASE.plan()
 
+    def test_new_publications_are_stable_only(self):
+        RELEASE.require_stable("1.7.0")
+        for name in ("1.7.0-beta.1", "1.7.0-rc.1", "1.7.0-custom.1"):
+            with self.subTest(name=name), self.assertRaises(ValueError):
+                RELEASE.require_stable(name)
+
+    def test_release_notes_are_per_version_not_historic_boilerplate(self):
+        content = RELEASE.release_content("1.7.0")
+        metadata = dict(versionName="1.7.0", versionCode=132, commit=self.commit)
+        text = RELEASE.render_release_notes(content, metadata, "42")
+        self.assertIn("128", text)
+        self.assertIn("中国大陆", text)
+        self.assertNotIn("新增 HDR 歌词", text)
+        other = dict(content, summary="Another release", changes=[dict(type="fix", title="Other bug", description="Other fix")])
+        self.assertNotEqual(text, RELEASE.render_release_notes(other, metadata, "43"))
+
     def signature(self, digest='a' * 64):
         return ('Verified using v2 scheme (APK Signature Scheme v2): true\n'
                 'Number of signers: 1\n'

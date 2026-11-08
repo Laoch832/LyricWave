@@ -44,17 +44,17 @@ class AppUpdateDownloaderTest {
     } }
     @Test fun `four ranges produce exact verified bytes`() {
         val states = Collections.synchronizedList(mutableListOf<UpdateDownloadProgress>())
-        val file = AppUpdateDownloader(transport(), 1).download(asset, build, temporary.root, UpdateDownloadCancellation(), progress = states::add)
+        val file = AppUpdateDownloader(transport(), 1, 4, 1).download(asset, build, temporary.root, UpdateDownloadCancellation(), progress = states::add)
         assertArrayEquals(body, file.readBytes())
         assertEquals(setOf("bytes=0-0", "bytes=0-1023", "bytes=1024-2047", "bytes=2048-3071", "bytes=3072-4095"), ranges.toSet())
         assertTrue(states.any { it.connections == 4 && it.bytes == asset.size })
     }
     @Test fun `ignored probe range streams the same response without another download`() {
-        val file = AppUpdateDownloader(transport(ignoreRange = true), 1).download(asset, build, temporary.root, UpdateDownloadCancellation())
+        val file = AppUpdateDownloader(transport(ignoreRange = true), 1, 4, 1).download(asset, build, temporary.root, UpdateDownloadCancellation())
         assertArrayEquals(body, file.readBytes()); assertEquals(listOf("bytes=0-0"), ranges)
     }
     @Test fun `range rejected mid-download restarts with a single complete response`() {
-        val file = AppUpdateDownloader(transport(brokenSegments = true), 1).download(asset, build, temporary.root, UpdateDownloadCancellation())
+        val file = AppUpdateDownloader(transport(brokenSegments = true), 1, 4, 1).download(asset, build, temporary.root, UpdateDownloadCancellation())
         assertArrayEquals(body, file.readBytes()); assertEquals(1, ranges.count { it == null })
     }
     @Test fun `hash failure never leaves an installable apk`() {
@@ -75,6 +75,12 @@ class AppUpdateDownloaderTest {
         val cancellation = UpdateDownloadCancellation()
         assertTrue(runCatching { AppUpdateDownloader(transport(ignoreRange = true, cancel = cancellation)).download(asset, build, temporary.root, cancellation) }.exceptionOrNull() is CancellationException)
         assertTrue(temporary.root.listFiles()!!.isEmpty())
+    }
+    @Test fun `128 connections are bounded and produce the exact verified file`() {
+        val file = AppUpdateDownloader(transport(), 1, 999, 1).download(asset, build, temporary.root, UpdateDownloadCancellation())
+        assertArrayEquals(body, file.readBytes())
+        assertEquals(129, ranges.size) // one probe plus at most 128 disjoint segments
+        assertEquals(129, ranges.distinct().size)
     }
     @Test fun `automatic schedule throttles success failure and clock rollback`() {
         val now = 100_000_000L

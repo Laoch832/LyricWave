@@ -2,13 +2,19 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
     <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC" />
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <uses-permission android:name="android.permission.REQUEST_PROMOTED_NOTIFICATIONS" />
     <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
     <permission android:name="dev.amenhancer.module.permission.SHARE_MOMENTS_LINK" android:protectionLevel="signature" />
     <uses-permission android:name="dev.amenhancer.module.permission.SHARE_MOMENTS_LINK" />
     <queries>
         <package android:name="com.netease.cloudmusic" />
+        <package android:name="com.apple.android.music" />
     </queries>
     <application
+        android:name=".LyricWaveApplication"
         android:allowBackup="false"
         android:description="@string/xposed_description"
         android:icon="@drawable/ic_module"
@@ -25,6 +31,8 @@
             android:grantUriPermissions="true">
             <meta-data android:name="android.support.FILE_PROVIDER_PATHS" android:resource="@xml/update_file_paths" />
         </provider>
+        <service android:name=".update.UpdateDownloadService" android:exported="false" android:foregroundServiceType="dataSync" />
+        <provider android:name=".update.UpdateControlProvider" android:authorities="${applicationId}.update-control" android:exported="true" />
     </application>
 
 </manifest>

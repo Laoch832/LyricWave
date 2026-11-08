@@ -209,3 +209,21 @@ test("only verified complete GET files permit outer CDN caching", async () => {
     assert.equal(response.headers.get("vercel-cdn-cache-control"), "no-store");
   }
 });
+
+test("browser downloads keep APK filename without RFC5987 support", async () => {
+ const apkLoad = async (): Promise<ReleasesResult> => { const data = await load(); if (data.ok) data.releases[0].assets[0].name = "LyricWave-1.7.0.apk"; return data; };
+ const fetcher = (async () => new Response("apk", { headers: { "Content-Length": "3" } })) as typeof fetch;
+ const response = await downloadResponse(new Request("https://x/api/v1/download/12/LyricWave-1.7.0.apk"), "12", apkLoad, fetcher, "LyricWave-1.7.0.apk");
+ assert.equal(response.status, 200); assert.equal(response.headers.get("content-type"), "application/vnd.android.package-archive");
+ assert.match(response.headers.get("content-disposition")!, /filename="LyricWave-1\.7\.0\.apk"/);
+ assert.match(response.headers.get("content-disposition")!, /filename\*=UTF-8''LyricWave-1\.7\.0\.apk/);
+ assert.equal((await downloadResponse(new Request("https://x/d/12/wrong.apk"), "12", apkLoad, fetcher, "wrong.apk")).status, 404);
+});
+
+test("verification JSON stays JSON instead of being renamed to an APK or bin", async () => {
+ const jsonLoad = async (): Promise<ReleasesResult> => { const data = await load(); if (data.ok) data.releases[0].assets[0].name = "build-metadata.json"; return data; };
+ const fetcher = (async () => new Response("{}", { headers: { "Content-Length": "2" } })) as typeof fetch;
+ const response = await downloadResponse(new Request("https://x/api/v1/download/12/build-metadata.json"), "12", jsonLoad, fetcher, "build-metadata.json");
+ assert.equal(response.headers.get("content-type"), "application/json");
+ assert.match(response.headers.get("content-disposition")!, /filename="build-metadata\.json"/);
+});

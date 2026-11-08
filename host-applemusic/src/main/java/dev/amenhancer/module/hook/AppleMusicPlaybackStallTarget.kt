@@ -127,6 +127,7 @@ internal class AppleMusicPlaybackStallTarget(
                     reportFault = WeakReference(fault)
                     val engine = player.get(host) ?: return@safely
                     PlaybackRecoveryStatus.nativeState = state.invoke(engine) as? Int
+                    runCatching { PlaybackRecoveryStatus.errorObserver?.invoke(observed, fault as? Throwable) }
                     reportItemKey = itemKey(host, engine)
                     PlaybackRecoveryStatus.currentFaultActive = errorNow.invoke(engine) === fault && reportItemKey != null
                     if (!PlaybackFailurePolicy.recoverable(observed.failure)) return@safely

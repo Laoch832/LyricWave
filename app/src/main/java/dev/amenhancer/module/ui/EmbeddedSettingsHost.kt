@@ -92,6 +92,10 @@ internal class EmbeddedSettingsHost private constructor(
         activityReference = WeakReference(activity)
         activeActivityId = activityKey(activity)
         activeActivityRole = role
+        if (activity.intent?.getBooleanExtra("lyricwave_show_download", false) == true) {
+            activity.intent.removeExtra("lyricwave_show_download")
+            showEmbeddedDownloadPanel(activity)
+        }
         when (role) {
             EmbeddedHostActivityRole.Player -> injectButtonIfNeeded(activity)
             EmbeddedHostActivityRole.MainContent -> installMainContentLayoutObserver(activity)

@@ -69,7 +69,7 @@ export async function getReleases(): Promise<ReleasesResult> {
             ? { Authorization: `Bearer ${process.env.GITHUB_TOKEN}` }
             : {}),
         },
-        next: { revalidate: 1800, tags: ["github-releases"] },
+        next: { revalidate: 60, tags: ["github-releases"] },
         signal: AbortSignal.timeout(8000),
       },
     );

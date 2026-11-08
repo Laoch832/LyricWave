@@ -170,6 +170,9 @@ class HookEntry : XposedModule() {
                         val config = embeddedConfig ?: return
                         if (!initializationStarted.compareAndSet(false, true)) return
                         val session = embeddedSession ?: return
+                        dev.amenhancer.module.feedback.FeedbackRuntime.initialize(application) { config.settings().automaticFeedbackEnabled }
+                        runCatching { application.contentResolver.call(android.net.Uri.parse("content://${dev.amenhancer.module.BuildConfig.APPLICATION_ID}.update-control"),
+                            "feedback_config", null, android.os.Bundle().apply { putBoolean("enabled", config.settings().automaticFeedbackEnabled) }) }
                         val currentSong = CurrentSongIdentityCache()
                         runCatching {
                             FeatureInstallation.installEmbedded(
@@ -194,6 +197,7 @@ class HookEntry : XposedModule() {
                             activityMatcher = AppleMusicHostFactory.settingsActivityMatcher(application, playerActivityClass),
                             nativeBridgeFactory = { onOpen -> AppleMusicHostFactory.settingsViewBridge(application, onOpen) },
                         )
+                        dev.amenhancer.module.ui.EmbeddedShareRuntime.install { config.settings().wechatMomentsShareEnabled }
                         settingsHost = host
                         AppleMusicHostFactory.installSettingsEntry(application, targetClassLoader, host)
                         runCatching {

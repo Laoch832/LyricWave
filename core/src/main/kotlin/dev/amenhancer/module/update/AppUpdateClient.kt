@@ -10,11 +10,13 @@ import org.json.JSONObject
 
 enum class UpdateComparison { NEWER, CURRENT, AHEAD, UNKNOWN }
 data class UpdateAsset(val id: Long, val name: String, val size: Long, val downloadUrl: String, val upstreamUrl: String)
+data class UpdateChange(val type: String, val title: String, val description: String)
 data class UpdateBuild(val versionCode: Long, val versionName: String, val apk: String, val sha256: String)
 data class AppUpdateRelease(
     val tag: String, val name: String, val notes: String, val publishedAt: String, val prerelease: Boolean,
     val htmlUrl: String, val apks: List<UpdateAsset>, val build: UpdateBuild?,
     val comparison: UpdateComparison, val checkedAt: Long,
+    val summary: String = "", val changes: List<UpdateChange> = emptyList(), val notices: List<String> = emptyList(),
 )
 class AppUpdateException(val reason: String, val httpStatus: Int? = null) : Exception(reason)
 
@@ -24,10 +26,14 @@ class AppUpdateClient(
     private val clock: () -> Long = System::currentTimeMillis,
 ) {
     fun check(localVersionCode: Long, localApplicationId: String = ModuleConstants.MODULE_PACKAGE): AppUpdateRelease {
-        val root = try { JSONObject(read(VERSION_URL, MAX_VERSION_BYTES).toString(Charsets.UTF_8)) }
+        val root = try {
+            val client = runCatching { JSONObject(read(CLIENT_URL, MAX_VERSION_BYTES).toString(Charsets.UTF_8)) }.getOrNull()
+            if (client?.optInt("clientSchemaVersion") == 1) client
+            else JSONObject(read(VERSION_URL, MAX_VERSION_BYTES).toString(Charsets.UTF_8))
+        }
             catch (error: AppUpdateException) { throw error }
             catch (_: Exception) { throw AppUpdateException("protocol") }
-        if (root.optInt("schemaVersion") != 1 || root.optString("repository") != REPOSITORY || root.optString("channel") != "latest")
+        if (root.optInt("schemaVersion") != 1 || root.optString("repository") != REPOSITORY || root.optString("channel") != "stable")
             throw AppUpdateException("protocol")
         val release = root.optJSONObject("release") ?: throw AppUpdateException("protocol")
         val tag = release.optString("tag").takeIf { it.isNotBlank() && it.length <= 300 } ?: throw AppUpdateException("protocol")
@@ -36,11 +42,12 @@ class AppUpdateClient(
         val published = release.optString("publishedAt")
         if (runCatching { Instant.parse(published) }.isFailure || release.opt("prerelease") !is Boolean)
             throw AppUpdateException("protocol")
+        if (release.optBoolean("prerelease")) throw AppUpdateException("prerelease")
         val assets = release.optJSONArray("assets") ?: throw AppUpdateException("protocol")
         val decoded = (0 until assets.length()).mapNotNull { index -> assets.optJSONObject(index)?.let(::asset) }
         val apks = decoded.filter { compatibleApk(it.name) }
         val manifest = decoded.singleOrNull { it.name == "build-metadata.json" }
-        val build = manifest?.let { entry ->
+        val build = release.optJSONObject("build")?.takeIf { root.optInt("clientSchemaVersion") == 1 }?.let { parseBuild(it, tag, apks) } ?: manifest?.let { entry ->
             // One proxy attempt and one official fallback, with no persistent signed redirect URLs.
             sequenceOf(entry.downloadUrl, entry.upstreamUrl).mapNotNull { url ->
                 runCatching { parseBuild(JSONObject(read(url, MAX_METADATA_BYTES).toString(Charsets.UTF_8)), tag, apks) }.getOrNull()
@@ -53,7 +60,17 @@ class AppUpdateClient(
             else -> UpdateComparison.AHEAD
         }
         return AppUpdateRelease(tag, release.optString("name").take(300).ifBlank { tag }, release.optString("notes").take(20_000),
-            published, release.optBoolean("prerelease"), htmlUrl, apks, build, comparison, clock())
+            published, false, htmlUrl, apks, build, comparison, clock(),
+            summary = release.optString("summary").take(500),
+            changes = release.optJSONArray("changes")?.let { rows -> (0 until minOf(rows.length(), 30)).mapNotNull { index ->
+                rows.optJSONObject(index)?.let { row ->
+                    val kind = row.optString("type"); val title = row.optString("title"); val text = row.optString("description")
+                    if (kind !in setOf("fix", "feature", "improvement") || title.length !in 1..100 || text.length !in 1..1000) null
+                    else UpdateChange(kind, title, text)
+                }
+            } }.orEmpty(), notices = release.optJSONArray("notices")?.let { rows ->
+                (0 until minOf(rows.length(), 20)).mapNotNull { rows.optString(it).takeIf { v -> v.isNotBlank() && v.length <= 1000 } }
+            }.orEmpty())
     }
 
     private fun asset(row: JSONObject): UpdateAsset? {
@@ -71,6 +88,7 @@ class AppUpdateClient(
 
     private fun parseBuild(row: JSONObject, tag: String, apks: List<UpdateAsset>): UpdateBuild? {
         val version = row.optString("versionName")
+        if (!version.matches(Regex("[0-9]+\\.[0-9]+\\.[0-9]+"))) return null
         if (tag != version && tag != "v$version") return null // association only, never version ordering
         if (row.optString("applicationId") != ModuleConstants.MODULE_PACKAGE ||
             row.optString("certificateSha256").lowercase(Locale.ROOT) != CERTIFICATE_SHA256) return null
@@ -85,7 +103,8 @@ class AppUpdateClient(
     companion object {
         const val ORIGIN = "https://lyricwave.canz-monkey.cn"
         const val REPOSITORY = "Laoch832/LyricWave"
-        const val VERSION_URL = "$ORIGIN/api/v1/version?channel=latest"
+        const val CLIENT_URL = "$ORIGIN/api/v1/client-update"
+        const val VERSION_URL = "$ORIGIN/api/v1/version?channel=stable"
         const val RELEASES_URL = "https://github.com/$REPOSITORY/releases"
         const val CERTIFICATE_SHA256 = "4ec2f441139585083e476b596a503db7e6c459ec1ca1d9bcf59d815b6981da53"
         const val MAX_VERSION_BYTES = 512 * 1024
@@ -151,3 +170,9 @@ class AppUpdateHttpTransport(private val connect: (URL) -> HttpURLConnection = {
         }
     }
 }
+
+/** Presentation never offers an older/same build as an update. */
+val AppUpdateRelease.updateAvailable: Boolean
+    get() = comparison == UpdateComparison.NEWER && build != null && apks.count { it.name == build.apk } == 1
+val AppUpdateRelease.upToDate: Boolean
+    get() = comparison == UpdateComparison.CURRENT || comparison == UpdateComparison.AHEAD

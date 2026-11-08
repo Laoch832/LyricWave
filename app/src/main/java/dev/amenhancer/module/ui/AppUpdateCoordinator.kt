@@ -28,7 +28,7 @@ internal object AppUpdateCoordinator {
         val app = context.applicationContext
         inFlight = true
         worker.execute {
-            val preferences = app.getSharedPreferences("lyricwave_update_cache_v1", Context.MODE_PRIVATE)
+            val preferences = app.getSharedPreferences("lyricwave_stable_updates_v2", Context.MODE_PRIVATE)
             try {
                 if (!loaded) {
                     loaded = true
@@ -66,6 +66,7 @@ internal object AppUpdateCoordinator {
                         }
                     }
                 }.onFailure { error ->
+                    dev.amenhancer.module.feedback.FeedbackRuntime.record("update", error)
                     mutable.value = mutable.value.copy(checking = false, completed = mutable.value.completed + 1,
                         failed = true, failureHttp = (error as? AppUpdateException)?.httpStatus)
                 }

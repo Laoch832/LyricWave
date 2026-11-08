@@ -75,8 +75,8 @@ export default async function DownloadPage({ params }: Props) {
                     </span>
                   </div>
                   <div className="assets">
-                    {r.assets.length ? (
-                      r.assets
+                    {r.assets.some((a) => /\.apk$/i.test(a.name)) ? (
+                      r.assets.filter((a) => /\.apk$/i.test(a.name))
                         .toSorted(
                           (a, b) =>
                             Number(/\.apk$/i.test(b.name)) -
@@ -86,7 +86,8 @@ export default async function DownloadPage({ params }: Props) {
                           <div key={a.id}>
                             <a
                               className={`asset-link ${/\.apk$/i.test(a.name) ? "asset-primary" : ""}`}
-                              href={`/api/v1/download/${a.id}`}
+                              href={`/api/v1/download/${a.id}/${encodeURIComponent(a.name)}`}
+                              download={a.name}
                             >
                               <Download size={15} />
                               <span>{a.name}</span>
@@ -113,6 +114,14 @@ export default async function DownloadPage({ params }: Props) {
                       </p>
                     )}
                   </div>
+                  {r.assets.some((a) => !/\.apk$/i.test(a.name)) && (
+                    <details className="release-notes">
+                      <summary>{zh ? "校验与配置文件（非安装包）" : "Verification and configuration files (not installers)"}</summary>
+                      {r.assets.filter((a) => !/\.apk$/i.test(a.name)).map((a) => (
+                        <p key={a.id}><a className="inline-link" href={`/api/v1/download/${a.id}/${encodeURIComponent(a.name)}`} download={a.name}>{a.name}</a></p>
+                      ))}
+                    </details>
+                  )}
                   <details className="release-notes" open={i === 0}>
                     <summary>{zh ? "发布说明" : "Release notes"}</summary>
                     <div className="prose">

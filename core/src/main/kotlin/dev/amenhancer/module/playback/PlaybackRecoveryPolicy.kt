@@ -10,6 +10,7 @@ enum class PlaybackRecoveryAction { OBSERVED, RETRY_REQUESTED, READY }
 data class PlaybackRecoveryReport(val failure: PlaybackFailure, val action: PlaybackRecoveryAction, val httpStatus: Int?, val diagnostic: String? = null,
     val nativeErrorCode: Int? = null, val componentErrorCode: Int? = null)
 object PlaybackRecoveryStatus {
+    @Volatile var errorObserver: ((PlaybackRecoveryReport, Throwable?) -> Unit)? = null
     @Volatile var rendererRefreshAvailable: Boolean? = null
     @Volatile var available: Boolean? = null
     @Volatile var latest: PlaybackRecoveryReport? = null

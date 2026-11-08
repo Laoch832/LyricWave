@@ -9,25 +9,26 @@ import org.junit.Assert.*
 import org.junit.Test
 
 class AppUpdateClientTest {
-    private val tag = "v1.0.0-beta.10"
-    private val apk = "LyricWave-1.0.0-beta.10.apk"
+    private val tag = "v1.7.0"
+    private val apk = "LyricWave-1.7.0.apk"
     private fun asset(id: Int, name: String, kind: String) = JSONObject().put("id", id).put("name", name).put("size", 12345)
         .put("kind", kind).put("downloadUrl", "/api/v1/download/$id")
         .put("upstreamUrl", "https://github.com/Laoch832/LyricWave/releases/download/$tag/$name")
-    private fun response() = JSONObject().put("schemaVersion", 1).put("repository", AppUpdateClient.REPOSITORY).put("channel", "latest")
+    private fun response() = JSONObject().put("schemaVersion", 1).put("repository", AppUpdateClient.REPOSITORY).put("channel", "stable")
         .put("release", JSONObject().put("tag", tag).put("name", "Release 10").put("notes", "Public notes")
-            .put("publishedAt", "2026-11-08T00:00:00Z").put("prerelease", true).put("versionCode", JSONObject.NULL)
+            .put("publishedAt", "2026-11-08T00:00:00Z").put("prerelease", false).put("versionCode", JSONObject.NULL)
             .put("htmlUrl", "https://github.com/Laoch832/LyricWave/releases/tag/$tag")
             .put("assets", JSONArray().put(asset(1, "SHA256SUMS.txt", "other"))
                 .put(asset(2, "build-metadata.json", "other")).put(asset(3, apk, "apk"))
-                .put(asset(4, "LyricWave-1.0.0-beta.10-debug.apk", "apk"))))
-    private fun manifest() = JSONObject().put("versionName", "1.0.0-beta.10").put("versionCode", 130)
+                .put(asset(4, "LyricWave-1.7.0-debug.apk", "apk"))))
+    private fun manifest() = JSONObject().put("versionName", "1.7.0").put("versionCode", 130)
         .put("applicationId", "dev.amenhancer.module").put("certificateSha256", AppUpdateClient.CERTIFICATE_SHA256)
         .put("apk", apk).put("apkSha256", "a".repeat(64)).put("commit", "b".repeat(40))
     private fun client(api: JSONObject = response(), metadata: JSONObject? = manifest(), calls: MutableList<String> = mutableListOf()) =
         AppUpdateClient(read = { url, _ ->
             calls += url
-            if (url == AppUpdateClient.VERSION_URL) api.toString().toByteArray()
+            if (url == AppUpdateClient.CLIENT_URL) throw AppUpdateException("http", 404)
+            else if (url == AppUpdateClient.VERSION_URL) api.toString().toByteArray()
             else metadata?.toString()?.toByteArray() ?: throw AppUpdateException("http", 503)
         }, clock = { 123L })
 
@@ -36,7 +37,7 @@ class AppUpdateClientTest {
         assertEquals(UpdateComparison.NEWER, result.comparison)
         assertEquals(130L, result.build?.versionCode)
         assertEquals(listOf(apk), result.apks.map { it.name })
-        assertTrue(result.prerelease)
+        assertFalse(result.prerelease)
         assertEquals(123L, result.checkedAt)
         assertEquals(UpdateComparison.CURRENT, client().check(130).comparison)
         assertEquals(UpdateComparison.AHEAD, client().check(131).comparison)
@@ -61,13 +62,14 @@ class AppUpdateClientTest {
         val instance = AppUpdateClient(read = { url, _ ->
             calls += url
             when {
+                url == AppUpdateClient.CLIENT_URL -> throw AppUpdateException("http", 404)
                 url == AppUpdateClient.VERSION_URL -> api.toString().toByteArray()
                 url.startsWith(AppUpdateClient.ORIGIN) -> throw AppUpdateException("http", 502)
                 else -> manifest().toString().toByteArray()
             }
         })
         assertEquals(UpdateComparison.NEWER, instance.check(129).comparison)
-        assertEquals(3, calls.size)
+        assertEquals(4, calls.size)
         assertTrue(calls.last().startsWith("https://github.com/Laoch832/LyricWave/releases/download/"))
     }
     @Test fun `unsafe links and unsupported protocols are rejected`() {
@@ -79,6 +81,15 @@ class AppUpdateClientTest {
             try { client(invalid).check(1); fail("Invalid protocol accepted") }
             catch (expected: AppUpdateException) { assertEquals("protocol", expected.reason) }
         }
+    }
+    @Test fun `same or newer installed builds are up to date and never offer a downgrade`() {
+        for (installed in listOf(130L, 131L, 999L)) {
+            val release = client().check(installed)
+            assertTrue(release.upToDate); assertFalse(release.updateAvailable)
+        }
+        assertTrue(client().check(129).updateAvailable)
+        val prerelease = response(); prerelease.getJSONObject("release").put("prerelease", true)
+        assertTrue(runCatching { client(prerelease).check(1) }.isFailure)
     }
     @Test fun `transport limits bodies and blocks redirects outside release hosts`() {
         var opened = 0

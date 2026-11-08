@@ -27,6 +27,8 @@ data class UpdateDownloadProgress(val bytes: Long, val total: Long, val connecti
 class AppUpdateDownloader(
     private val connect: (URL) -> HttpURLConnection = { it.openConnection() as HttpURLConnection },
     private val parallelThreshold: Long = 4L * 1024 * 1024,
+    private val parallelism: Int = 8,
+    private val minimumSegmentBytes: Long = 64 * 1024,
 ) {
     fun download(asset: UpdateAsset, build: UpdateBuild, directory: File,
         cancellation: UpdateDownloadCancellation, official: Boolean = false,
@@ -58,7 +60,8 @@ class AppUpdateDownloader(
                 }
             } finally { cancellation.remove(probe) }
             if (useRanges) {
-                val count = if (asset.size >= parallelThreshold) 4 else 1
+                val count = if (asset.size >= parallelThreshold) minOf(parallelism.coerceIn(1, 128),
+                    (asset.size / minimumSegmentBytes.coerceAtLeast(1)).coerceAtLeast(1).toInt()) else 1
                 val pool = Executors.newFixedThreadPool(count)
                 val segmentCancellation = UpdateDownloadCancellation()
                 // Parent cancellation is checked during every read; sockets also have finite timeouts.

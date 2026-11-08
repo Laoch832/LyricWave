@@ -10,7 +10,8 @@ import dev.amenhancer.module.ModuleConstants
 import dev.amenhancer.module.i18n.ModuleText
 
 /** Verified 6.5.2 share URL and lyrics paths both call Android Intent.createChooser. */
-internal class AppleMusicMomentsShareTarget(private val enabled: () -> Boolean, private val currentSong: () -> CurrentSongDetails? = { null }) : WechatMomentsTarget {
+internal class AppleMusicMomentsShareTarget(private val enabled: () -> Boolean, private val currentSong: () -> CurrentSongDetails? = { null },
+    private val chinaStorefront: () -> Boolean = { false }) : WechatMomentsTarget {
     private val scope = HookRegistrationScope()
     override fun install(): TargetCapabilityInstall {
         if (scope.isActive) return TargetCapabilityInstall.Active("Moments share-sheet destination already installed")
@@ -19,7 +20,7 @@ internal class AppleMusicMomentsShareTarget(private val enabled: () -> Boolean, 
                 override fun afterHookedMethod(param: MethodHookParam) {
                     if (param.throwable != null || !enabled()) return
                     val chooser = param.result as? Intent ?: return
-                    runCatching { MomentsShareIntents.addDestination(chooser, currentSong()) }.getOrNull()?.let { param.result = it }
+                    runCatching { MomentsShareIntents.addDestination(chooser, currentSong(), chinaStorefront()) }.getOrNull()?.let { param.result = it }
                 }
             }, scope).isNotEmpty())
             scope.activate()
@@ -35,7 +36,7 @@ internal object MomentsShareIntents {
     private const val MARKER = "dev.amenhancer.module.moments_added"
     const val RELAY_CLASS = "dev.amenhancer.module.share.MomentsShareActivity"
     @Suppress("DEPRECATION")
-    fun addDestination(chooser: Intent, currentSong: CurrentSongDetails? = null): Intent? {
+    fun addDestination(chooser: Intent, currentSong: CurrentSongDetails? = null, chinaStorefront: Boolean = false): Intent? {
         if (chooser.action != Intent.ACTION_CHOOSER || chooser.getBooleanExtra(MARKER, false)) return null
         val source = chooser.getParcelableExtra<Intent>(Intent.EXTRA_INTENT) ?: return null
         if (source.action != Intent.ACTION_SEND) return null
@@ -46,6 +47,7 @@ internal object MomentsShareIntents {
             component = ComponentName(ModuleConstants.MODULE_PACKAGE, RELAY_CLASS)
             type = "text/plain"
             putExtra(Intent.EXTRA_TEXT, url)
+            putExtra(MomentsLinkContract.CHINA_STOREFRONT, chinaStorefront)
             putExtra(Intent.EXTRA_SUBJECT, source.getStringExtra(Intent.EXTRA_SUBJECT)?.take(300))
             putExtra(MomentsLinkContract.TITLE, metadata?.title ?: MomentsSongMetadata.title(source.getStringExtra(Intent.EXTRA_SUBJECT)))
             putExtra(MomentsLinkContract.ARTIST, metadata?.artist)

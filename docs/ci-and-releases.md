@@ -22,7 +22,7 @@ PR 和普通开发分支没有签名步骤，也不会读取发布凭据。Debug
 
 | 附件 | 内容 | 保留时间 |
 | --- | --- | --- |
-| LyricWave-signed | 可安装 APK、SHA256SUMS.txt、SIGNATURE.txt、源码与版本元数据、发布说明 | 30 天 |
+| LyricWave-signed | 可安装 APK、SHA256SUMS.txt、SIGNATURE.txt、源码与版本元数据、client-update.json、发布说明 | 30 天 |
 | LyricWave-debug | Debug APK | 14 天 |
 | LyricWave-unsigned | 未签名构建与来源元数据，供同次运行的签名步骤使用 | 14 天 |
 | LyricWave-plugin-sdk-v1 | SDK JAR 与独立插件样例 | 30 天 |
@@ -32,12 +32,12 @@ Release 附件不按这些 Artifact 时限自动清理。
 
 ## 发布新版本
 
-先修改 `app/build.gradle.kts` 的 `versionName` 与递增的 `versionCode`，提交到新仓库，再选择一种方式：
+先修改 `app/build.gradle.kts` 的 `versionName` 与递增的 `versionCode`，并编写本版本 `release-notes/x.y.z.json`（摘要、分项变化、注意事项），提交并等待同一 SHA 的全部必要 CI 通过，再选择一种方式：
 
 - 在 Actions → **LyricWave CI** → **Run workflow** 中选择 `main`，勾选 `publish`；或
-- 为该提交推送与应用版本完全一致的标签，例如应用版本 `1.6.8-custom.2` 对应 `v1.6.8-custom.2`。
+- 为该提交推送与应用版本完全一致的标签，例如应用版本 `1.7.0` 对应 `v1.7.0`。
 
-普通 `main` 提交自动生成签名 Artifact，不会创建 Release。只有手动勾选发布或推送版本标签才会发布；包含 `-custom.*` 等后缀的版本标记为预发布，无后缀版本为正式发布。
+普通 `main` 提交自动生成签名 Artifact，不会创建 Release。只有手动勾选发布或推送版本标签才会发布；仅允许数字 x.y.z 正式版本，拒绝 beta、rc、custom 等后缀；发布必须 draft=false、prerelease=false，并设为最新正式版。签名 Artifact 不算正式交付。
 
 所有检查通过后，发布步骤使用个人账号凭据验证 GitHub 用户名、用户 ID、账号类型和触发者，再创建草稿、上传附件、核对 Release 作者，最后公开发布。默认的 `GITHUB_TOKEN` 仅有读权限，不用于发布。系统拒绝覆盖已存在的版本；手动发布所产生的标签事件会识别已有 Release 并跳过重复构建；失败后遗留的草稿需要在确认原因后处理，不能通过重跑悄悄替换附件。
 
@@ -83,3 +83,5 @@ Release 附件不按这些 Artifact 时限自动清理。
 ## 改名后的兼容约定
 
 对外名称为澜音（LyricWave），仓库与新发布附件使用 LyricWave。安装身份 `dev.amenhancer.module`、插件 API 的 Java 命名空间、既有存储路径和 `AMPP_*` 签名配置继续沿用，以便保留设置、翻译缓存、插件兼容性及覆盖升级关系。证书指纹保持不变。历史版本附件和上游来源记录保留当时名称。
+
+发布后必须核对 Release 作者 Laoch832、标签目标完整 SHA、latest 指向、draft=false/prerelease=false，以及 APK、SHA256SUMS.txt、SIGNATURE.txt、build-metadata.json、client-update.json 齐全；下载实际附件比对哈希与固定证书。签名步骤生成本版本结构化配置和 Markdown，不重复写入历史功能长文。客户端配置与私有反馈运维见 [版本 API](../website/VERSION_API.md)。
