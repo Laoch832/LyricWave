@@ -83,17 +83,28 @@ export default async function DownloadPage({ params }: Props) {
                             Number(/\.apk$/i.test(a.name)),
                         )
                         .map((a) => (
-                          <a
-                            className={`asset-link ${/\.apk$/i.test(a.name) ? "asset-primary" : ""}`}
-                            key={a.id}
-                            href={a.browser_download_url}
-                            rel="noopener noreferrer"
-                          >
-                            <Download size={15} />
-                            <span>{a.name}</span>
-                            <small>{formatAssetSize(a.size)}</small>
-                            <ArrowUpRight size={12} />
-                          </a>
+                          <div key={a.id}>
+                            <a
+                              className={`asset-link ${/\.apk$/i.test(a.name) ? "asset-primary" : ""}`}
+                              href={`/api/v1/download/${a.id}`}
+                              aria-label={`${zh ? "本站下载" : "Download via this site"}: ${a.name}`}
+                            >
+                              <Download size={15} />
+                              <span>{a.name}</span>
+                              <small>{formatAssetSize(a.size)}</small>
+                              <ArrowRight size={12} />
+                            </a>
+                            <a
+                              className="inline-link"
+                              href={a.browser_download_url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              aria-label={`GitHub: ${a.name}`}
+                            >
+                              {zh ? "GitHub 原始下载" : "Download from GitHub"}
+                              <ArrowUpRight size={12} />
+                            </a>
+                          </div>
                         ))
                     ) : (
                       <p className="release-origin">
@@ -190,6 +201,47 @@ export default async function DownloadPage({ params }: Props) {
             </p>
           </div>
           <aside className="download-aside">
+            <div className="install-note">
+              <h2>
+                <Download size={17} />
+                {zh ? "下载方式" : "Download options"}
+              </h2>
+              <p>
+                {zh
+                  ? "点击附件通过本站下载，支持断点续传（取决于上游）。如下载失败或中断，请使用对应的 GitHub 原始下载链接重试。"
+                  : "Download attachments through this site, with range requests when supported upstream. If a download fails or stops, retry using its original GitHub link."}
+              </p>
+            </div>
+            <div className="install-note">
+              <h2>
+                <PackageOpen size={17} />
+                {zh ? "版本 API 与集成" : "Version API & integration"}
+              </h2>
+              <p>
+                {zh
+                  ? "查询最新版本与附件，或为客户端接入本站下载接口。"
+                  : "Query releases and assets, or integrate the download endpoint into your client."}
+              </p>
+              <a
+                className="inline-link"
+                href="/api/v1/version"
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                {zh ? "查看版本 JSON" : "View version JSON"}
+                <ArrowUpRight size={12} />
+              </a>
+              <br />
+              <a
+                className="inline-link"
+                href="https://github.com/Laoch832/LyricWave/blob/main/website/VERSION_API.md"
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                {zh ? "技术接入文档" : "Integration documentation"}
+                <ArrowUpRight size={12} />
+              </a>
+            </div>
             <div className="install-note">
               <h2>
                 <ShieldCheck size={17} />

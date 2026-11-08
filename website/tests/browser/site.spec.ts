@@ -43,8 +43,12 @@ test("mobile menu, escape, document tabs and no horizontal overflow", async ({
     .click();
   await expect(page.locator("h1")).toContainText("项目文档");
   await page.goto("/docs/zh/start/scope");
-  await page.getByRole("tab", { name: "NetEase Cloud Music", exact: true }).click();
-  await expect(page.getByRole("tabpanel")).toContainText("com.netease.cloudmusic");
+  await page
+    .getByRole("tab", { name: "NetEase Cloud Music", exact: true })
+    .click();
+  await expect(page.getByRole("tabpanel")).toContainText(
+    "com.netease.cloudmusic",
+  );
   expect(
     await page.evaluate(
       () => document.documentElement.scrollWidth - innerWidth,
@@ -106,9 +110,32 @@ test("downloads have official assets or a usable official fallback", async ({
   for (const href of await page
     .locator(".asset-link")
     .evaluateAll((a) => a.map((el) => el.getAttribute("href"))))
-    expect(href).toMatch(
-      /^https:\/\/github.com\/Laoch832\/LyricWave\/releases\/download\//,
-    );
+    expect(href).toMatch(/^\/api\/v1\/download\/[1-9]\d*$/);
+});
+test("download integration links and mobile layout", async ({ page }) => {
+  for (const locale of ["zh", "en"]) {
+    await page.setViewportSize({ width: 375, height: 812 });
+    await page.goto(`/${locale}/download`);
+    await expect(page.locator('a[href="/api/v1/version"]')).toBeVisible();
+    await expect(
+      page.locator('a[href$="/website/VERSION_API.md"]'),
+    ).toBeVisible();
+    const assets = page.locator(".assets > div");
+    for (let i = 0; i < (await assets.count()); i++) {
+      await expect(assets.nth(i).locator(".asset-link")).toHaveAttribute(
+        "href",
+        /^\/api\/v1\/download\/\d+$/,
+      );
+      await expect(
+        assets.nth(i).locator('a[href^="https://github.com/"]'),
+      ).toHaveCount(1);
+    }
+    expect(
+      await page.evaluate(
+        () => document.documentElement.scrollWidth - innerWidth,
+      ),
+    ).toBeLessThanOrEqual(1);
+  }
 });
 test("main pages meet automated WCAG A/AA checks", async ({ page }) => {
   for (const route of [

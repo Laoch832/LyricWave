@@ -1765,7 +1765,7 @@ p {
     order: -1;
   }
   .download-aside .install-note:not(:first-child) {
-    display: none;
+    display: block;
   }
   .release {
     padding: 20px;
@@ -2247,7 +2247,7 @@ p {
     margin: 0;
   }
   .download-aside .install-note:nth-child(2) {
-    display: none;
+    display: block;
   }
 }
 @media (max-width: 767px) {
@@ -2645,4 +2645,12 @@ p {
 .ttml-study pre {
   max-width: 100%;
   overflow-x: auto;
+}
+
+/* Keep download guidance and integration links reachable on smaller screens. */
+@media (max-width: 1100px) {
+  .download-aside { order: 0; }
+}
+@media (max-width: 767px) {
+  .download-aside { grid-template-columns: minmax(0, 1fr); }
 }

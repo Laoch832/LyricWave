@@ -92,3 +92,7 @@ GitHub Pages and pure static CDNs cannot execute the live search API and cached 
 `check:repository` checks the current working tree for changes outside website files, the website workflow and the two README content sources, and scans non-ignored text files for common credential patterns. It prints locations only, never credential values. It is not an exhaustive secret-history audit and skips binary/large files. The only intended canonical-source edits in this audit correct translation-save wording in the Chinese and English READMEs; Android sources, `docs/`, licenses, signing and Android release workflows remain untouched.
 
 Before a real Vercel deployment, set the actual public HTTPS origin (without a path) and enable inclusion of files outside `website/` in the build step. Local production builds validate the Next.js application, but do not prove remote project configuration or real-device Android compatibility.
+
+## 版本查询与 Release 下载反代
+
+新增 `/api/v1/version` 和 `/api/v1/download/{assetId}`。完整协议、接入示例、频道选择、缓存与 EdgeOne 配置、错误处理及平台限制见 [VERSION_API.md](./VERSION_API.md)。下载页主入口使用代理下载，并保留每个附件的 GitHub 原始链接及版本 API、接入文档入口。接口不提供未经证实的 Android versionCode 或附件校验值。
