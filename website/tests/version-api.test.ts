@@ -182,3 +182,30 @@ test("HEAD has no body, upstream failures are explicit", async () => {
     502,
   );
 });
+
+test("only verified complete GET files permit outer CDN caching", async () => {
+  for (const [status, headers, cached] of [
+    [200, { "content-length": "3" }, true],
+    [200, {}, false],
+    [200, { "content-length": "2" }, false],
+    [206, { "content-length": "3", "content-range": "bytes 0-2/3" }, false],
+    [416, {}, false],
+  ] as const) {
+    const fetcher = (async () =>
+      new Response("apk", {
+        status,
+        headers: new Headers(headers as Record<string, string>),
+      })) as typeof fetch;
+    const response = await downloadResponse(
+      new Request("https://example.com/d/12"),
+      "12",
+      load,
+      fetcher,
+    );
+    assert.equal(
+      response.headers.get("cache-control")?.includes("s-maxage=86400"),
+      cached,
+    );
+    assert.equal(response.headers.get("vercel-cdn-cache-control"), "no-store");
+  }
+});

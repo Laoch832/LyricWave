@@ -157,9 +157,24 @@ export async function downloadResponse(
         await upstream.body?.cancel();
         return apiError(502, "DOWNLOAD_UNAVAILABLE");
       }
+      // Asset IDs identify public release files. Cache only complete, length-verified
+      // GET responses; never let a partial or failed transfer become a full object.
+      const cacheable =
+        request.method === "GET" &&
+        !range &&
+        upstream.status === 200 &&
+        asset.size > 0 &&
+        upstream.headers.get("content-length") === String(asset.size) &&
+        !upstream.headers.has("content-range") &&
+        !upstream.headers.has("content-encoding");
       const output = new Headers({
         ...cors,
-        "Cache-Control": "no-store, no-transform",
+        "Cache-Control": cacheable
+          ? "public, max-age=0, s-maxage=86400, no-transform"
+          : "no-store, no-transform",
+        // Leave shared file caching to the outer CDN, not the function platform.
+        "Vercel-CDN-Cache-Control": "no-store",
+        Vary: "Range, If-Range",
         "X-Content-Type-Options": "nosniff",
         "Content-Type": "application/octet-stream",
         "Content-Disposition": `attachment; filename="download"; filename*=UTF-8''${encodeURIComponent(asset.name).replace(/['()*]/g, (c) => `%${c.charCodeAt(0).toString(16)}`)}`,

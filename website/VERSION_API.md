@@ -63,7 +63,7 @@ const downloads = apks.map(asset => ({ ...asset, url: new URL(asset.downloadUrl,
 - 只转发必要的下载响应头；不转发客户端 Cookie/Authorization，也不向附件源发送 GITHUB_TOKEN。
 - GitHub 重定向只允许本项目 github.com 发布下载路径及精确的 release-assets.githubusercontent.com 域名，最多 5 次请求。源站策略改变时会安全失败。
 - 代理总超时 55 秒；Vercel 函数 maxDuration 配置为 60 秒，实际能力以账号套餐和平台限制为准。大文件/慢速连接可能在返回 200 后中断，客户端必须检测完成度并提供直链重试。
-- 所有下载响应 `Cache-Control: no-store, no-transform`，包括 Range；流量经过 Vercel，可能产生带宽/函数费用。EdgeOne 不能消除回源成本，也不能保证 GitHub 源站可用。
+- 仅无 Range 的完整 GET 200、Content-Length 与附件大小一致且无压缩/Content-Range 时，返回 `Cache-Control: public, max-age=0, s-maxage=86400, no-transform`，允许外层 CDN 缓存 24 小时。HEAD、206、416、错误及其他响应禁止缓存。Vercel 自身 CDN 设置 no-store；EdgeOne 需配置遵循源站 Cache-Control，首次回源仍经过 Vercel，不能保证免费额度或 GitHub 源站可用。删除附件后需同步清除 EdgeOne 缓存，避免继续提供缓存的已删除附件。
 
 ```bash
 curl -fsS 'https://lyricwave.canz-monkey.cn/api/v1/version?channel=latest'
@@ -93,6 +93,13 @@ curl -f -H 'Range: bytes=0-1023' -o first.bin \
 
 保留 Vercel Root Directory `website`、包含根目录外文件、Node 24、`npm ci`、`npm run build`。可选服务端 GITHUB_TOKEN 用于公开 Releases API 读取；不得用 NEXT_PUBLIC 前缀暴露。无需额外必填环境变量。
 
-EdgeOne 对 `/api/v1/*` 设置绕过缓存，不做 HTML/JS 挑战或响应转换（原生客户端无法完成浏览器挑战）。保留 Range/If-Range、查询参数、状态码、流式响应及 CORS 头；不要缓存 206、错误或重定向签名地址。首次上线保持源站缓存头，不添加全站“缓存所有内容”。结合套餐设置下载路径速率限制，避免误伤断点续传；先观察流量费用再决定独立对象存储方案。
+EdgeOne 缓存规则调整（覆盖此前全 API 绕过规则）：
+
+1. 高优先级规则匹配 `/api/v1/download/*`：遵循源站 Cache-Control，不强制缓存错误或所有状态码；缓存键保留完整路径和查询参数，不忽略附件 ID。确认规则优先级足以覆盖原有 `/api/v1/*` 绕过规则。
+2. 开启套餐支持的 Range 回源/分片能力（若控制台提供），不改写 Range/If-Range。206/416 响应仍遵循 no-store，禁止作为完整文件缓存。保留 Vary、Content-Length、Content-Range、状态码和 CORS。
+3. 其余 `/api/v1/*` 继续绕过 EdgeOne 缓存；下载路径不做 HTML/JS 挑战、响应压缩或内容转换。不要修改全站缓存规则。
+4. 新版本用真实附件 ID 做一次完整 GET 预热，完整成功后再次 GET，检查 EdgeOne 控制台/响应中的命中状态。不同边缘节点可能分别冷启动。下载完整文件比较 SHA-256；若总回源不能在函数限制内完成，缓存无法解决首次回源失败。
+5. 免费套餐的功能和流量额度以账号当前控制台为准，不能保证零费用或固定下载速度。此仓库更新不代表已修改 EdgeOne 控制台规则。
+
 
 部署后验收：真实版本 JSON、频道空状态、APK HEAD、前 1 KiB Range、一次完整文件下载并与 GitHub 原件 SHA-256 比对、无效 ID、跨域请求及 GitHub 失败回退。单元测试的模拟上游不替代线上完整 APK 比对。下载页面的附件主入口使用本站反代，每个附件保留对应的 GitHub 原始下载回退链接，并提供版本 JSON 与本文入口。
