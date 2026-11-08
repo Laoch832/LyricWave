@@ -131,7 +131,10 @@ object AppleMusicHostFactory {
                 )) },
             ),
             lyricsHdr = AppleMusicLyricsHdrTarget(resolver, config),
-            wechatMoments = AppleMusicMomentsShareTarget { config.settings().wechatMomentsShareEnabled },
+            wechatMoments = AppleMusicMomentsShareTarget(
+                enabled = { config.settings().wechatMomentsShareEnabled },
+                currentSong = { currentSong.current()?.details },
+            ),
             lyricsTypeface = AppleMusicLyricsTypefaceTarget(
                 symbols = resolver,
                 session = lyricsTypefaceSession as LyricsTypefaceSession,

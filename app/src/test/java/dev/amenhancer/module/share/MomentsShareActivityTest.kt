@@ -12,7 +12,15 @@ import android.content.pm.ResolveInfo
 import android.os.Looper
 import android.view.View
 import android.view.ViewGroup
+import android.widget.EditText
 import android.widget.Button
+import dev.amenhancer.module.MomentsSongMetadata
+import com.sun.net.httpserver.HttpServer
+import java.net.InetSocketAddress
+import java.net.URL
+import java.net.HttpURLConnection
+import java.util.concurrent.CountDownLatch
+import java.util.concurrent.TimeUnit
 import android.widget.TextView
 import dev.amenhancer.module.MomentsLinkContract as Contract
 import java.time.Duration
@@ -50,6 +58,7 @@ class MomentsShareActivityTest {
         })
         activity = Robolectric.buildActivity(MomentsShareActivity::class.java,
             Intent(Intent.ACTION_SEND).putExtra(Intent.EXTRA_TEXT, "https://music.apple.com/cn/song/123")
+                .putExtra(Contract.TITLE, "Despacito").putExtra(Contract.ARTIST, "Luis Fonsi")
         ).setup().visible().get()
     }
     @Test fun `launching NetEase without its module receiver never reports success and shows scope diagnosis`() {
@@ -69,6 +78,8 @@ class MomentsShareActivityTest {
         host.registerReceiver(object : BroadcastReceiver() {
             override fun onReceive(context: Context, intent: Intent) {
                 ids += intent.getStringExtra(Contract.REQUEST_ID)
+                assertEquals("Despacito", intent.getStringExtra(Contract.TITLE))
+                assertEquals("Luis Fonsi", intent.getStringExtra(Contract.ARTIST))
                 resultCode = response
             }
         }, IntentFilter(Contract.OPEN), Context.RECEIVER_EXPORTED)
@@ -85,4 +96,59 @@ class MomentsShareActivityTest {
         shadowOf(Looper.getMainLooper()).idleFor(Duration.ofSeconds(3))
         assertEquals(count, ids.size)
     }
+    @Test fun `URL-only share looks up the exact track and displays editable song title and artist`() {
+        val server = HttpServer.create(InetSocketAddress("127.0.0.1", 0), 0)
+        var lookupUrl = ""
+        server.createContext("/lookup") { exchange ->
+            val bytes = """{"results":[{"kind":"song","trackId":999,"trackName":"Wrong song","artistName":"Wrong artist"},{"kind":"song","trackId":123,"trackName":"Despacito","artistName":"Luis Fonsi"}]}""".toByteArray()
+            exchange.sendResponseHeaders(200, bytes.size.toLong())
+            exchange.responseBody.use { it.write(bytes) }
+        }
+        server.start()
+        val controller = Robolectric.buildActivity(MomentsShareActivity::class.java,
+            Intent(Intent.ACTION_SEND).putExtra(Intent.EXTRA_TEXT, "https://music.apple.com/cn/album/album-name/111?i=123"))
+        val client = AppleSongMetadataLookup { requested ->
+            lookupUrl = requested.toString()
+            URL("http://127.0.0.1:${server.address.port}/lookup").openConnection() as HttpURLConnection
+        }
+        controller.get().metadataResolver = client::lookup
+        try {
+            activity = controller.setup().visible().get()
+            assertFalse(openButton().isEnabled)
+            var loaded = false
+            repeat(200) {
+                shadowOf(Looper.getMainLooper()).idle()
+                if (openButton().isEnabled) loaded = true else Thread.sleep(10)
+            }
+            assertTrue(loaded)
+            assertTrue("id=123&country=cn" in lookupUrl)
+            assertTrue(texts().contains("Despacito")); assertTrue(texts().contains("Luis Fonsi"))
+            val fields = views(activity.window.decorView).filterIsInstance<EditText>()
+            fields.first().setText("My title")
+            assertTrue(texts().contains("My title"))
+        } finally { controller.pause().stop().destroy(); server.stop(0) }
+    }
+    @Test fun `missing metadata permits manual entry and a late lookup cannot overwrite edits`() {
+        val gate = CountDownLatch(1)
+        val controller = Robolectric.buildActivity(MomentsShareActivity::class.java,
+            Intent(Intent.ACTION_SEND).putExtra(Intent.EXTRA_TEXT, "https://music.apple.com/cn/song/123"))
+        controller.get().metadataResolver = {
+            gate.await(2, TimeUnit.SECONDS)
+            MomentsSongMetadata("Fetched title", "Fetched artist")
+        }
+        activity = controller.setup().visible().get()
+        val fields = views(activity.window.decorView).filterIsInstance<EditText>()
+        fields[0].setText("User title"); fields[1].setText("User artist")
+        gate.countDown()
+        for (attempt in 0 until 200) {
+            shadowOf(Looper.getMainLooper()).idle()
+            if (texts().none { it.startsWith("Loading song title") }) break
+            Thread.sleep(10)
+        }
+        assertFalse(texts().any { it.startsWith("Loading song title") })
+        assertTrue(texts().contains("User title")); assertTrue(texts().contains("User artist"))
+        assertTrue(openButton().isEnabled)
+        controller.pause().stop().destroy()
+    }
+
 }

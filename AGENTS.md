@@ -41,6 +41,7 @@
 
 - Never hook or inject code into WeChat (`com.tencent.mm`), even if the manager retains an old scope selection.
 - The user explicitly permits NetEase Cloud Music as the sharing intermediary. Reuse its actual native sharing flow, preserve the original clickable Apple Music URL, and never post automatically.
+- Song metadata must match the shared track ID (album links use `i`); never borrow the playing song for another URL or overwrite manual edits. Use song title/artist in the native share resource, without fixed Apple Music branding as the title/subtitle.
 - NetEase sharing must bootstrap from actual foreground Activities, deduplicate each request and acknowledge only a resumed native panel carrying the original URL. Test real sender UI and receiver delivery; native helper return alone is not proof the panel appeared. Keep diagnostics free of URLs/content and distinguish missing scope from unsupported builds.
 
 # Playback recovery

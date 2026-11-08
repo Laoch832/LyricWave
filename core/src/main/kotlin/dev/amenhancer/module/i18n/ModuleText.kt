@@ -556,6 +556,10 @@ enum class ModuleText(internal val english: String, internal val chinese: String
     WECHAT_PANEL_LAUNCH_FAILED("NetEase's native share entry failed to launch. Send this code and the displayed version.", "调用网易云原生分享入口失败，请反馈此错误码与显示的版本。"),
     WECHAT_SHARE_BUSY("Another link is still opening. Wait briefly before retrying.", "另一个链接正在打开，请稍候再试。"),
     WECHAT_SHARE_OPEN("Open NetEase sharing", "打开网易云分享面板"),
+    SHARE_SONG_TITLE("Song title", "歌曲名称"),
+    SHARE_SONG_ARTIST("Artist (optional)", "歌手（可选）"),
+    SHARE_METADATA_LOADING("Loading song title and artist from Apple… You can also edit them below.", "正在从 Apple 获取歌名和歌手，也可以直接修改上方信息。"),
+    SHARE_METADATA_MISSING("Song details unavailable. Enter the song title above before sharing.", "暂未获取到歌曲信息，请在上方填写歌名后分享。"),
     COPY_SONG_LINK("Copy song link", "复制歌曲链接"),
     AI_LOADING("Loading local statistics…", "正在读取本地统计…");
 

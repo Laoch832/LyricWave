@@ -38,12 +38,14 @@ class NetEaseShareContractTest {
         val activity = Robolectric.buildActivity(Activity::class.java).setup().get()
         val profile = NetEaseShareProfiles.find("9.5.81", 9005081)!!
         val url = "https://music.apple.com/cn/album/song/123?i=456"
-        NetEaseShareContract.resolve(loader(), profile).open(activity, url, "Song")
+        NetEaseShareContract.resolve(loader(), profile).open(activity, url, "Despacito", "Luis Fonsi")
         val intent = shadowOf(activity).nextStartedActivity
         assertEquals(Panel::class.java.name, intent.component?.className)
         assertEquals(19, intent.getIntExtra("res_type", -1))
         val nativeResource = intent.getSerializableExtra("res_obj") as Resource
-        assertEquals(url, nativeResource.webUrl); assertEquals("Song", nativeResource.title)
+        assertEquals(url, nativeResource.webUrl); assertEquals("Despacito", nativeResource.title)
+        assertEquals("Luis Fonsi", nativeResource.subTitle)
+        assertEquals("Despacito", nativeResource.headerTitle)
         assertFalse(intent.hasExtra(Intent.EXTRA_STREAM))
         assertNotEquals("com.tencent.mm", intent.component?.packageName)
     }

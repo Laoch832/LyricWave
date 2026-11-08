@@ -125,7 +125,7 @@ internal class NetEaseShareSession(
         }
         pending = Pending(id, url, clock())
         return try {
-            resolved.open(activity, url, request.getStringExtra(Contract.TITLE))
+            resolved.open(activity, url, request.getStringExtra(Contract.TITLE), request.getStringExtra(Contract.ARTIST))
             NetEaseShareReply(Contract.RESULT_PENDING)
         } catch (error: Throwable) {
             pending = null

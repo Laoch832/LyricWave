@@ -2,6 +2,8 @@ package dev.amenhancer.module.hook
 
 import android.content.Intent
 import dev.amenhancer.module.ModuleConstants
+import dev.amenhancer.module.CurrentSongDetails
+import dev.amenhancer.module.MomentsLinkContract
 import org.junit.Assert.*
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -26,6 +28,21 @@ class MomentsShareIntentsTest {
         assertEquals(2, targets.size)
         assertNull(MomentsShareIntents.addDestination(changed))
         assertFalse(chooser.getBooleanExtra("dev.amenhancer.module.moments_added", false))
+    }
+    @Suppress("DEPRECATION")
+    @Test fun `URL-only native sharing carries song metadata only for the matching song`() {
+        val url = "https://music.apple.com/cn/album/album-name/123?i=456"
+        val source = Intent(Intent.ACTION_SEND).putExtra(Intent.EXTRA_TEXT, url)
+        fun relay(id: Long): Intent {
+            val changed = MomentsShareIntents.addDestination(Intent.createChooser(source, "Share"),
+                CurrentSongDetails(id, "Despacito", "Luis Fonsi"))!!
+            return changed.getParcelableArrayExtra(Intent.EXTRA_INITIAL_INTENTS)!!.first() as Intent
+        }
+        assertEquals("Despacito", relay(456).getStringExtra(MomentsLinkContract.TITLE))
+        assertEquals("Luis Fonsi", relay(456).getStringExtra(MomentsLinkContract.ARTIST))
+        assertNull(relay(789).getStringExtra(MomentsLinkContract.TITLE))
+        assertEquals(url, relay(456).getStringExtra(Intent.EXTRA_TEXT))
+        assertFalse(source.hasExtra(MomentsLinkContract.TITLE))
     }
     @Test fun `image-only shares never masquerade as clickable link sharing`() {
         val image = Intent(Intent.ACTION_SEND).setType("image/jpeg").putExtra(Intent.EXTRA_STREAM, android.net.Uri.parse("content://image/1"))

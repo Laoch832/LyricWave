@@ -2,6 +2,7 @@ package dev.amenhancer.host.netease
 
 import android.app.Activity
 import android.content.Context
+import dev.amenhancer.module.MomentsSongMetadata
 import dev.amenhancer.module.MomentsLinkContract
 import java.io.Serializable
 import java.lang.reflect.Constructor
@@ -26,14 +27,15 @@ internal class NetEaseShareContract private constructor(
     private val readUrl: Method, private val openPanel: Method,
     private val panelClass: Class<*>,
 ) {
-    fun open(activity: Activity, url: String, title: String?) {
+    fun open(activity: Activity, url: String, title: String?, artist: String? = null) {
         require(MomentsLinkContract.validate(url) != null)
         val resource = constructor.newInstance()
         fun set(name: String, value: String) { setters.getValue(name).invoke(resource, value) }
-        set("setTitle", title?.filterNot(Char::isISOControl)?.take(100)?.takeIf(String::isNotBlank) ?: "Apple Music")
-        set("setSubTitle", "Apple Music")
+        val songTitle = requireNotNull(MomentsSongMetadata.title(title))
+        set("setTitle", songTitle)
+        set("setSubTitle", MomentsSongMetadata.clean(artist).orEmpty())
         set("setContent", url)
-        set("setHeaderTitle", "Apple Music")
+        set("setHeaderTitle", songTitle)
         set("setWebUrl", url)
         check(readUrl.invoke(resource) == url)
         // 19 is the inspected native web-resource type. It produces WXWebpageObject, not song/image data.
