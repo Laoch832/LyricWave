@@ -2,6 +2,8 @@
 
 # 澜音 · LyricWave
 
+[WEBSITE](https://lyricwave.canz-monkey.cn/zh)
+
 由 [Laoch832](https://github.com/Laoch832) 维护的 Apple Music Android 增强项目，重点完善 AI 歌词翻译、缓存复用与原歌词更新校验，并保留歌词定制、平板播放器和液态玻璃等功能。
 
 [下载安装包](https://github.com/Laoch832/LyricWave/releases) · [云端构建](https://github.com/Laoch832/LyricWave/actions/workflows/build.yml) · [反馈问题](https://github.com/Laoch832/LyricWave/issues) · [文档目录](docs/README.md) · [English](README.en.md)
