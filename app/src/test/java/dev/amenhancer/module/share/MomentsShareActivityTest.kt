@@ -99,7 +99,9 @@ class MomentsShareActivityTest {
     @Test fun `URL-only share looks up the exact track and displays editable song title and artist`() {
         val server = HttpServer.create(InetSocketAddress("127.0.0.1", 0), 0)
         var lookupUrl = ""
+        val responseGate = CountDownLatch(1)
         server.createContext("/lookup") { exchange ->
+            responseGate.await()
             val bytes = """{"results":[{"kind":"song","trackId":999,"trackName":"Wrong song","artistName":"Wrong artist"},{"kind":"song","trackId":123,"trackName":"Despacito","artistName":"Luis Fonsi"}]}""".toByteArray()
             exchange.sendResponseHeaders(200, bytes.size.toLong())
             exchange.responseBody.use { it.write(bytes) }
@@ -115,6 +117,7 @@ class MomentsShareActivityTest {
         try {
             activity = controller.setup().visible().get()
             assertFalse(openButton().isEnabled)
+            responseGate.countDown()
             var loaded = false
             repeat(200) {
                 shadowOf(Looper.getMainLooper()).idle()
@@ -126,7 +129,7 @@ class MomentsShareActivityTest {
             val fields = views(activity.window.decorView).filterIsInstance<EditText>()
             fields.first().setText("My title")
             assertTrue(texts().contains("My title"))
-        } finally { controller.pause().stop().destroy(); server.stop(0) }
+        } finally { responseGate.countDown(); controller.pause().stop().destroy(); server.stop(0) }
     }
     @Test fun `missing metadata permits manual entry and a late lookup cannot overwrite edits`() {
         val gate = CountDownLatch(1)

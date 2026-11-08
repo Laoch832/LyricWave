@@ -44,9 +44,9 @@
 
 `host-netease` 仅在网易云主进程注册受模块签名权限保护的接收器，且只接受 Apple Music 链接。用户点击后唤起网易云，从实际 Activity 的 `onResume` 接管前台页面并注册桥接，不依赖启动 Application 的生命周期回调；从该 Activity 的 ClassLoader 解析上述原生 helper。模块不读取网易云或微信的账号、聊天或数据库，也不替用户发布。
 
-### beta.7：歌曲名称与歌手
+### beta.8：歌曲名称与歌手
 
-Apple Music 6.5.2 的原生网页分享只传 URL，不提供 `EXTRA_SUBJECT`。beta.7 从已核验的当前歌曲状态补入歌名和歌手，且歌曲 ID 必须与链接匹配；专辑链接使用 `?i=` 的曲目 ID，不能用专辑 ID 或专辑名。没有本机信息时，在澜音分享确认页通过 Apple 的公开 `itunes.apple.com/lookup` 按原链接地区、曲目 ID 查询；只有返回的 `trackId` 匹配时才接受，原始分享链接保持不变。
+Apple Music 6.5.2 的原生网页分享只传 URL，不提供 `EXTRA_SUBJECT`。beta.8 从已核验的当前歌曲状态补入歌名和歌手，且歌曲 ID 必须与链接匹配；专辑链接使用 `?i=` 的曲目 ID，不能用专辑 ID 或专辑名。没有本机信息时，在澜音分享确认页通过 Apple 的公开 `itunes.apple.com/lookup` 按原链接地区、曲目 ID 查询；只有返回的 `trackId` 匹配时才接受，原始分享链接保持不变。
 
 确认页可核对、修改歌名和歌手；异步查询不覆盖已有信息或用户编辑。查询失败时允许手动填写，歌名为空时不打开分享页。网易云的 GeneralResource 分别填入歌名、歌手和歌名页头，朋友圈沿用其原生“歌名 - 歌手”格式；没有歌手时仅显示歌名，不再回退成“Apple Music - Apple Music”。本次不添加封面，也不 Hook 微信。
 
