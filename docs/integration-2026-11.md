@@ -52,10 +52,22 @@
 
 beta.11 本地最终检查：1323 项 Gradle 测试通过，无失败/跳过；应用及库 Lint、Debug/Release 构建、架构、profile 数据、玻璃参考检查、27 项 Python 策略测试与工作流语法检查通过。9 项 renderer refresh 定向测试覆盖正确线程/同一对象/单次执行、seek/切源/重建失效、不同渲染器隔离、关闭设置、投递失败与错误契约。APK 内核对版本 `1.0.0-beta.11` / 131 及新增 target/契约均存在。网站生产构建及 62 篇文档链接检查通过。以上不替代真机长时间播放验收。
 
-## 1.7.0 正式版待发布验证
+## 1.7.0 正式版发布与验证
 
 验收：本机版本 >= 云端时只显示已是最新；新版本有专有结构化说明；分享可选 cn 且 ID/查询不变；宿主内分享/下载无需打开模块页；下载可选最高 128 线程、后台通知、取消和完整签名验证；默认脱敏反馈可关闭并私有上传；浏览器主按钮下载 .apk，校验文件分开展示。
 
-每日维护已在当前聊天恢复为北京时间每天 03:00，从 2026-11-09 开始，并新增私有反馈检查。首次三天大功能周期仍以 11 月 9 日为第一天；本次人工修复不冒充计划日交付。私有 Blob 与管理员环境配置已准备，正式部署后需验证接收与鉴权读取。真机 DRM 长播、朋友圈最终封面和厂商焦点通知仍待验证。最终提交、CI 和正式发布核验将在完成后补充。
+每日维护已在当前聊天恢复为北京时间每天 03:00，从 2026-11-09 开始，并新增私有反馈检查。首次三天大功能周期仍以 11 月 9 日为第一天；本次人工修复不冒充计划日交付。私有 Blob 与管理员环境配置已部署，接收与鉴权读取均已通过线上验证。真机 DRM 长播、朋友圈最终封面和厂商焦点通知仍待验证。正式交付证据见下。
 
-本地验证：1335 项 Gradle 单元测试全部通过；架构、精确 profile 数据、玻璃参考检查及 29 项 Python 发布策略测试通过。网站 25 项接口测试、类型、Lint、生产构建、62 篇文档链接和 20 项浏览器测试通过；1 项按配置仅截图导出的测试未启用。浏览器覆盖 .apk 建议文件名，Android 16 测试覆盖标准实时进度请求。Release Lint、打包、云端 CI 和线上私有反馈/正式发布仍在验证中。
+本地验证：1335 项 Gradle 单元测试全部通过；架构、精确 profile 数据、玻璃参考检查及 29 项 Python 发布策略测试通过。网站 25 项接口测试、类型、Lint、生产构建、62 篇文档链接和 20 项浏览器测试通过；1 项按配置仅截图导出的测试未启用。浏览器覆盖 .apk 建议文件名，Android 16 测试覆盖标准实时进度请求。Release Lint、Debug/Release 打包、云端 CI、私有反馈服务及正式发布均已完成验证。
+
+### 正式发布核验（北京时间 2026-11-09，人工修复）
+
+- 发布源码：[820772cf7776231fd4525032509b6f1057465c9a](https://github.com/Laoch832/LyricWave/commit/820772cf7776231fd4525032509b6f1057465c9a)；版本 `1.7.0` / `132`。
+- [完整 CI](https://github.com/Laoch832/LyricWave/actions/runs/42499194277)、[网站 CI](https://github.com/Laoch832/LyricWave/actions/runs/42499194298)、[正式发布工作流](https://github.com/Laoch832/LyricWave/actions/runs/42499900159) 均成功，包含完整测试、Lint、构建与固定签名；首次提交的依赖安全更新任务发现旧版间接 Zod，已用 scoped override 修复，最终 npm audit 为 0 个漏洞。
+- [GitHub Release v1.7.0](https://github.com/Laoch832/LyricWave/releases/tag/v1.7.0)：作者 Laoch832 / 173591322，`draft=false`、`prerelease=false`，GitHub latest 指向本版。标签与 target_commitish 均是上述完整 SHA。APK、SHA256SUMS.txt、SIGNATURE.txt、build-metadata.json、client-update.json 五个附件齐全。
+- 实际线上 APK `11854246` 字节，用客户端同一实现请求 128 线程，实际 128 个连接完整下载，分段未降级；完整哈希 `412afaca3aa0cdafd3b6bec7d14cc7e1d4dc3249d5e7768ab01f39107f317f38`，与发布清单一致。apksigner 验证 v2/v3 签名通过，证书仍是 `4ec2f441139585083e476b596a503db7e6c459ec1ca1d9bcf59d815b6981da53`；实际包名和版本与清单一致。连接数不是对用户网络速度的保证。
+- 客户端真实查询验证：本机 code 131 为 NEWER，132/133 均 upToDate=true、updateAvailable=false；专用接口已返回本版摘要与 10 项结构化变化。`client-update.json` 与同一发布的构建元数据、源发布说明逐字段匹配。发布后有约 60 秒数据源缓存窗口，不把请求失败标成最新。
+- 线上新 APK 的带文件名下载路径 HEAD 返回 `application/vnd.android.package-archive`，普通 filename 和 UTF-8 filename* 均为 `LyricWave-1.7.0.apk`。网页主按钮仅放 APK，JSON/证书清单单独收起。
+- Vercel 部署 `dpl_1kBTt87vstN9wdENesPMps4muCJs` READY，git SHA 与发布源码一致。反馈实测 POST 202 与匹配批次确认、重复发送不重复存储、Bearer 私有读取 200、匿名读取 401；依赖修复后再次读取与重发均成功。唯一人工验证记录异常类名是 `dev.amenhancer.feedback.VerificationProbe`，不是用户故障，后续维护应忽略。凭据和原始日志不入库。
+- 每日 03:00 任务仍在当前聊天，计划从 2026-11-09 开始，加入私有反馈检查；本次人工修复不抵扣计划日的小任务或三天周期任务。沿用已合并上游基线 `388164c`、Apple Music 7.0.0 / 1614 的既有核验范围，本次未声称发现或适配新宿主版本。
+- 尚未完成真机验收：DRM 偶发无声长期复现、朋友圈最终封面、厂商焦点通知样式、系统安装确认。上述单元测试、浏览器与服务器实测不能替代这些结果。
