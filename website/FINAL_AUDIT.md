@@ -96,3 +96,7 @@
 用户已明确授权 Vercel 全量生产发布。通过已连接的 Vercel 账号查询，唯一可用团队为 `cancarls-projects`，没有名称匹配 LyricWave 的项目。尝试创建独立 `lyricwave` 项目（Next.js、Root Directory `website`、`npm ci`、`npm run build`）时，Vercel API 返回 `403 forbidden: You don't have permission to create the project`。没有创建项目或部署，没有影响其他线上项目。本地未安装 Vercel CLI，且不存在 CLI 登录配置或 VERCEL_TOKEN，无法用独立 CLI 凭据执行同一操作。
 
 当前阻塞是连接账号的项目创建权限，而不是缺少用户发布授权。需在 Vercel 为连接授予创建项目权限，或提供此团队中已创建的 LyricWave 项目，再继续上传当前本地源码、生产构建与线上回归。网站源码尚未推送，不能直接使用远程 Git HEAD 替代本地交付内容。
+
+## 推送前远程同步补充
+
+收到用户推送授权后，合入远程 `7570bc0`，保留其 Android、网易云分享与发布相关变更。网站新增 `docs/playback-recovery.md` 的双语路由映射，系统要求、安装及作用域说明跟随最新来源改为网易云音乐分享流程，并明确取消微信作用域。对应浏览器断言更新为网易云音乐和 66 条 sitemap 路由。此前 18 项浏览器与 Lighthouse 结果对应前次审计版本，不代表这次内容更新后的重新测量。推送前重新执行生产构建、ESLint、11 项单元测试与内部链接校验；生成文档现为 60 篇。历史段落中的“尚未推送”描述为当时状态，后续 Git 提交与远程状态为准。

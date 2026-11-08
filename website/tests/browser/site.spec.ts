@@ -43,8 +43,8 @@ test("mobile menu, escape, document tabs and no horizontal overflow", async ({
     .click();
   await expect(page.locator("h1")).toContainText("项目文档");
   await page.goto("/docs/zh/start/scope");
-  await page.getByRole("tab", { name: "WeChat", exact: true }).click();
-  await expect(page.getByRole("tabpanel")).toContainText("com.tencent.mm");
+  await page.getByRole("tab", { name: "NetEase Cloud Music", exact: true }).click();
+  await expect(page.getByRole("tabpanel")).toContainText("com.netease.cloudmusic");
   expect(
     await page.evaluate(
       () => document.documentElement.scrollWidth - innerWidth,

@@ -75,7 +75,7 @@ test("localized SEO, social previews, security headers and discovery routes are 
   const sitemap = await request.get("/sitemap.xml");
   const xml = await sitemap.text();
   expect(xml).toContain("/docs/zh");
-  expect(xml.match(/<url>/g)).toHaveLength(64);
+  expect(xml.match(/<url>/g)).toHaveLength(66);
   const robots = await request.get("/robots.txt");
   expect(await robots.text()).toContain("/sitemap.xml");
   const search = await request.get("/api/search?query=cache&locale=en");
