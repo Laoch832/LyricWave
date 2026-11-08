@@ -68,7 +68,7 @@ private fun EmbeddedSettingsHost.addAiActivityPanel(
         text = value
         textSize = if (heading) 16f else 13f
         setPadding(dp(activity, 10), dp(activity, 8), dp(activity, 10), dp(activity, 8))
-        setEmbeddedTextColor(activity) { colors -> if (heading) colors.onSurface else colors.muted }
+        setEmbeddedTextColor(activity) { colors -> if (heading) colors.onSurface else colors.onSurfaceVariant }
     }
     body.addView(text(localizedText(ModuleText.AI_LOADING)))
     fun alive() = !cancelled.get() && card.isAttachedToWindow && !activity.isFinishing && !activity.isDestroyed
