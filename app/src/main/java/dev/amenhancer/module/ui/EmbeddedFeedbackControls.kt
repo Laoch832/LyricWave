@@ -23,6 +23,15 @@ internal fun EmbeddedSettingsHost.EmbeddedFeedbackControls(activity: Activity, s
                 scope.launch { runCatching { updateTransferCommand(activity, "feedback_config", Bundle().apply { putBoolean("enabled", enabled) }) } }
             })
         EmbeddedSettingsNotice(localizedText(ModuleText.FEEDBACK_QUEUED, state.count))
+        if (state.outsideWindow > 0) EmbeddedSettingsNotice(localizedText(ModuleText.FEEDBACK_OUTSIDE_WINDOW, state.outsideWindow))
+        if (state.lastSuccess > 0) EmbeddedSettingsNotice(localizedText(ModuleText.FEEDBACK_ACKNOWLEDGED,
+            java.text.DateFormat.getDateTimeInstance().format(java.util.Date(state.lastSuccess))))
+        state.receipt?.let { receipt ->
+            TextButton(localizedText(ModuleText.FEEDBACK_COPY_RECEIPT), onClick = {
+                (activity.getSystemService(android.content.Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager)
+                    .setPrimaryClip(android.content.ClipData.newPlainText("LyricWave feedback receipt", receipt.json()))
+            })
+        }
         if (state.failed) EmbeddedSettingsNotice(localizedText(ModuleText.FEEDBACK_FAILED))
         TextButton(localizedText(if (state.sending) ModuleText.FEEDBACK_SENDING else ModuleText.FEEDBACK_SEND), enabled = !state.sending && state.count > 0,
             onClick = { FeedbackRuntime.sendNow() })

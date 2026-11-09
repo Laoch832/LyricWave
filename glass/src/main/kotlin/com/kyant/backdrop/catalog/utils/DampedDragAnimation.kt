@@ -71,6 +71,7 @@ class DampedDragAnimation(
     private var velocityGeneration = 0
 
     private val velocityTracker = VelocityTracker()
+    internal var sampleTimeMillis: (() -> Long)? = null
 
     val value: Float get() = valueAnimation.value
     val progress: Float get() = (value - valueRange.start) / (valueRange.endInclusive - valueRange.start)
@@ -190,7 +191,7 @@ class DampedDragAnimation(
     private fun updateVelocity(generation: Int) {
         if (generation != velocityGeneration) return
         velocityTracker.addPosition(
-            Clock.System.now().toEpochMilliseconds(),
+            sampleTimeMillis?.invoke() ?: Clock.System.now().toEpochMilliseconds(),
             Offset(value, 0f)
         )
         val targetVelocity = velocityTracker.calculateVelocity().x / (valueRange.endInclusive - valueRange.start)

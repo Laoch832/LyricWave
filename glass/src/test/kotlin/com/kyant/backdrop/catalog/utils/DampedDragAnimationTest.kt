@@ -91,14 +91,14 @@ class DampedDragAnimationTest {
         private var timeNanos = 0L
         val animation = DampedDragAnimation(scope, initialValue = 0f, valueRange = 0f..4f,
             visibilityThreshold = .001f, initialScale = 1f, pressedScale = 1.5f,
-            pressedScaleY = 1.45f, onDragStarted = {}, onDragStopped = {}, onDrag = { _, _ -> })
+            pressedScaleY = 1.45f, onDragStarted = {}, onDragStopped = {}, onDrag = { _, _ -> }).apply {
+                sampleTimeMillis = { timeNanos / 1_000_000 }
+            }
 
         fun startDrag() {
             animation.press()
             animation.updateValue(3.4f)
             repeat(6) {
-                // The production velocity tracker samples wall-clock timestamps.
-                Thread.sleep(5)
                 frame()
             }
         }

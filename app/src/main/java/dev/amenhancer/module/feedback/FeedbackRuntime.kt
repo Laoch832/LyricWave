@@ -18,7 +18,8 @@ import kotlinx.coroutines.flow.asStateFlow
 import org.json.JSONArray
 import org.json.JSONObject
 
-internal data class FeedbackStatus(val count: Int = 0, val total: Int = 0, val sending: Boolean = false, val lastSuccess: Long = 0, val failed: Boolean = false)
+internal data class FeedbackStatus(val count: Int = 0, val total: Int = 0, val sending: Boolean = false,
+    val lastSuccess: Long = 0, val failed: Boolean = false, val outsideWindow: Int = 0, val receipt: FeedbackReceipt? = null)
 
 /** Structured diagnostics only. Exception messages, URLs, request bodies, account details and lyrics never enter the journal. */
 internal object FeedbackRuntime {
@@ -29,8 +30,12 @@ internal object FeedbackRuntime {
     @Volatile private var consent: () -> Boolean = { true }
     @Volatile private var overrideConsent: Boolean? = null
     @Volatile private var connection: HttpURLConnection? = null
+    internal var openConnection: (URL) -> HttpURLConnection = { it.openConnection() as HttpURLConnection }
     private var scheduled: ScheduledFuture<*>? = null
     private val identifier = Regex("[A-Za-z0-9_.$<>-]{1,180}")
+    internal fun pendingRecords(rows: JSONArray, now: Long): List<JSONObject> = (0 until rows.length())
+        .map { rows.getJSONObject(it) }.filter { !it.optBoolean("_sent") &&
+            it.optLong("at") in (now - 30 * 86_400_000L)..(now + 86_400_000L) }
     @Synchronized fun initialize(context: Context, enabled: () -> Boolean = { true }) {
         consent = enabled
         if (application != null) return
@@ -120,7 +125,10 @@ internal object FeedbackRuntime {
         val app = application ?: return
         val preferences = app.getSharedPreferences("lyricwave_feedback_state", Context.MODE_PRIVATE)
         val rows = read()
-        mutable.value = mutable.value.copy(count = (0 until rows.length()).count { !rows.getJSONObject(it).optBoolean("_sent") }, total = rows.length(), lastSuccess = preferences.getLong("success", 0))
+        val pending = pendingRecords(rows, System.currentTimeMillis()).size
+        val unsent = (0 until rows.length()).count { !rows.getJSONObject(it).optBoolean("_sent") }
+        mutable.value = mutable.value.copy(count = pending, total = rows.length(), outsideWindow = unsent - pending,
+            lastSuccess = preferences.getLong("success", 0), receipt = FeedbackReceipt.parse(preferences.getString("receipt", null)))
     }
     private fun upload(manual: Boolean) {
         val app = application ?: return
@@ -129,8 +137,8 @@ internal object FeedbackRuntime {
         val now = System.currentTimeMillis(); val next = preferences.getLong("next", 0)
         if (!manual && next > now && next - now < 24 * 60 * 60 * 1000L) { schedule(((next - now) / 1000).coerceAtLeast(1)); return }
         val all = read(); if (all.length() == 0) return
-        var selected = (0 until all.length()).map { all.getJSONObject(it) }.filterNot { it.optBoolean("_sent") }.take(20)
-        if (selected.isEmpty()) return
+        var selected = pendingRecords(all, now).take(20)
+        if (selected.isEmpty()) { refresh(); return }
         fun body(): JSONObject {
             val id = UUID.nameUUIDFromBytes(selected.joinToString { it.getString("id") }.toByteArray()).toString()
             return JSONObject().put("schemaVersion", 1).put("batchId", id).put("records", JSONArray(selected.map { JSONObject(it.toString()).apply { remove("_sent") } }))
@@ -140,7 +148,7 @@ internal object FeedbackRuntime {
         mutable.value = mutable.value.copy(sending = true, failed = false)
         var retry = 15 * 60L
         try {
-            val active = URL("https://lyricwave.canz-monkey.cn/api/v1/feedback").openConnection() as HttpURLConnection
+            val active = openConnection(URL("https://lyricwave.canz-monkey.cn/api/v1/feedback"))
             connection = active
             active.requestMethod = "POST"; active.instanceFollowRedirects = false
             active.connectTimeout = 5000; active.readTimeout = 8000; active.doOutput = true
@@ -156,16 +164,18 @@ internal object FeedbackRuntime {
                 require(output.size() <= 8192); JSONObject(output.toString("UTF-8"))
             }
             require(response.optBoolean("accepted") && response.optString("batchId") == payload.getString("batchId"))
+            val receipt = FeedbackReceipt(payload.getString("batchId"), System.currentTimeMillis(), selected.size, BuildConfig.VERSION_NAME)
             val ids = selected.map { it.getString("id") }.toSet()
             val remaining = (0 until all.length()).map { all.getJSONObject(it).apply { if (getString("id") in ids) put("_sent", true) } }
-            write(JSONArray(remaining)); preferences.edit().putLong("success", now).putLong("next", now + 60_000).apply()
-            mutable.value = mutable.value.copy(lastSuccess = now, failed = false)
+            write(JSONArray(remaining)); preferences.edit().putLong("success", receipt.acknowledgedAt)
+                .putString("receipt", receipt.json()).putLong("next", receipt.acknowledgedAt + 60_000).apply()
+            mutable.value = mutable.value.copy(lastSuccess = receipt.acknowledgedAt, failed = false)
             retry = 60
         } catch (_: Exception) {
             preferences.edit().putLong("next", now + retry * 1000).apply()
             mutable.value = mutable.value.copy(failed = true)
         } finally { connection?.disconnect(); connection = null; mutable.value = mutable.value.copy(sending = false); refresh() }
         val remaining = read()
-        if ((0 until remaining.length()).any { !remaining.getJSONObject(it).optBoolean("_sent") }) schedule(retry)
+        if (pendingRecords(remaining, System.currentTimeMillis()).isNotEmpty()) schedule(retry)
     }
 }
