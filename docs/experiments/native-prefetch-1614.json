@@ -1,0 +1,80 @@
+{
+  "schemaVersion": 1,
+  "status": "candidate-not-enabled",
+  "packageName": "com.apple.android.music",
+  "versionName": "7.0.0",
+  "versionCode": 1614,
+  "classes": {
+    "Lcom/apple/android/music/playback/player/ExoMediaPlayer;": {
+      "methods": {
+        "getNextItemIndex()I": 1,
+        "getQueueItemAtIndex(I)Lcom/apple/android/music/playback/model/PlayerQueueItem;": 1,
+        "getCurrentItem()Lcom/apple/android/music/playback/model/PlayerQueueItem;": 1
+      },
+      "fields": {}
+    },
+    "Lcom/apple/android/music/playback/model/PlayerQueueItem;": {
+      "methods": {
+        "getItem()Lcom/apple/android/music/playback/model/PlayerMediaItem;": 1025,
+        "getPlaybackQueueId()J": 1025
+      },
+      "fields": {}
+    },
+    "Lcom/apple/android/music/playback/model/PlayerMediaItem;": {
+      "methods": {
+        "getSubscriptionStoreId()Ljava/lang/String;": 1025
+      },
+      "fields": {}
+    },
+    "Lcom/apple/android/music/playback/player/mediasource/PlaybackQueueMediaSource;": {
+      "methods": {
+        "prepareMediaSourceUpstream(Lcom/apple/android/music/playback/model/PlayerQueueItem;)V": 2,
+        "releaseSourceInternal()V": 1,
+        "releasePeriod(Lcom/google/android/exoplayer2/source/MediaPeriod;)V": 1
+      },
+      "fields": {
+        "playbackHandler": {
+          "descriptor": "Landroid/os/Handler;",
+          "access": 2
+        },
+        "playbackQueueManager": {
+          "descriptor": "Lcom/apple/android/music/playback/queue/PlaybackQueueManager;",
+          "access": 18
+        },
+        "drmManager": {
+          "descriptor": "Lcom/google/android/exoplayer2/drm/appledrm/DrmManager;",
+          "access": 18
+        },
+        "sourceHolders": {
+          "descriptor": "Ljava/util/Map;",
+          "access": 18
+        },
+        "sourceCallers": {
+          "descriptor": "Ljava/util/Map;",
+          "access": 18
+        },
+        "mediaSourceByMediaPeriod": {
+          "descriptor": "Ljava/util/Map;",
+          "access": 18
+        },
+        "itemPositionProvider": {
+          "descriptor": "Lcom/apple/android/music/playback/player/PlayerMediaItemPositionProvider;",
+          "access": 2
+        }
+      }
+    },
+    "Lcom/apple/android/music/playback/player/mediasource/PlaybackQueueMediaSource$MediaSourceHolder;": {
+      "methods": {},
+      "fields": {
+        "activeMediaPeriods": {
+          "descriptor": "Ljava/util/List;",
+          "access": 17
+        },
+        "mediaSource": {
+          "descriptor": "Lcom/google/android/exoplayer2/source/MediaSource;",
+          "access": 17
+        }
+      }
+    }
+  }
+}
