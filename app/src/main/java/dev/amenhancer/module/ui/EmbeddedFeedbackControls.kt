@@ -29,6 +29,10 @@ internal fun EmbeddedSettingsHost.EmbeddedFeedbackControls(activity: Activity, s
         TextButton(localizedText(ModuleText.FEEDBACK_VIEW), onClick = {
             val rows = FeedbackRuntime.recent()
             showEmbeddedMiuixDialog(activity, localizedText(ModuleText.FEEDBACK_VIEW)) { dismiss ->
+                TextButton(localizedText(ModuleText.FEEDBACK_COPY), enabled = rows.isNotEmpty(), onClick = {
+                    (activity.getSystemService(android.content.Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager)
+                        .setPrimaryClip(android.content.ClipData.newPlainText("LyricWave diagnostics", FeedbackRuntime.exportRecords(rows)))
+                })
                 rows.forEach { row ->
                     Text("${java.text.DateFormat.getDateTimeInstance().format(java.util.Date(row.optLong("at")))} · ${row.optString("category")}")
                     Text("${row.optString("hostVersion")} · ${row.optJSONObject("codes")}\n${row.optJSONArray("exceptions")}")

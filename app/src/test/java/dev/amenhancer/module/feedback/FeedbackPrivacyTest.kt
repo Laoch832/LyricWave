@@ -20,4 +20,18 @@ class FeedbackPrivacyTest {
         assertEquals(42, record.getJSONArray("frames").getJSONObject(0).getInt("line"))
         assertEquals("java.lang.IllegalStateException", record.getJSONArray("exceptions").getString(0))
     }
+
+    @Test fun `root cause frames survive long wrapper stacks and copied diagnostics stay sanitized`() {
+        val root = RuntimeException("secret-license-token")
+        root.stackTrace = arrayOf(StackTraceElement("LicenseEngine", "openSession", "private.java", 27))
+        val error = IllegalStateException("secret-account", root)
+        error.stackTrace = (0 until 80).map { StackTraceElement("ExoWrapper", "frame$it", "private.java", it) }.toTypedArray()
+        val record = FeedbackRuntime.sanitizedRecord("playback", error, mapOf("state" to 1), "com.apple.android.music", "7.0.0")
+        assertEquals("LicenseEngine", record.getJSONArray("frames").getJSONObject(0).getString("owner"))
+        assertTrue(record.getJSONArray("frames").length() <= 32)
+        record.put("_sent", true).put("message", "secret-journal-metadata")
+        val copy = FeedbackRuntime.exportRecords(listOf(record))
+        for (secret in listOf("secret-license-token", "secret-account", "private.java", "_sent", "secret-journal-metadata")) assertFalse(copy.contains(secret))
+        assertEquals(1, org.json.JSONObject(copy).getJSONArray("records").getJSONObject(0).getJSONObject("codes").getInt("state"))
+    }
 }

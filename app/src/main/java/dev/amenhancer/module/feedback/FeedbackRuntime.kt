@@ -75,7 +75,8 @@ internal object FeedbackRuntime {
         hostPackage: String, hostVersion: String?, hostCode: Long = 0): JSONObject {
         val chain = generateSequence(error) { it.cause }.take(8).toList()
         val frames = JSONArray()
-        chain.flatMap { it.stackTrace.toList() }.distinct().take(32).forEach { frame ->
+        // Root causes must survive even when ExoPlayer adds a long outer stack.
+        chain.asReversed().flatMap { it.stackTrace.take(8) }.distinct().take(32).forEach { frame ->
             if (identifier.matches(frame.className) && identifier.matches(frame.methodName)) frames.put(JSONObject()
                 .put("owner", frame.className).put("method", frame.methodName).put("line", frame.lineNumber))
         }
@@ -94,6 +95,17 @@ internal object FeedbackRuntime {
     fun sendNow() { worker.execute { upload(true) } }
     fun clear() { worker.execute { write(JSONArray()); refresh() } }
     fun recent(): List<JSONObject> = synchronized(this) { val rows = read(); (0 until rows.length()).map { rows.getJSONObject(it) }.takeLast(30).reversed() }
+    fun exportRecent(): String = exportRecords(recent())
+    internal fun exportRecords(records: List<JSONObject>): String {
+        val allowed = listOf("id", "at", "category", "appVersion", "appVersionCode", "hostPackage", "hostVersion",
+            "hostVersionCode", "sdk", "codes", "exceptions", "frames")
+        var selected = records.take(20).map { row -> JSONObject().apply {
+            allowed.forEach { key -> if (row.has(key)) put(key, row.get(key)) }
+        } }
+        fun encode() = JSONObject().put("schemaVersion", 1).put("records", JSONArray(selected)).toString(2)
+        while (encode().toByteArray(Charsets.UTF_8).size > 60 * 1024 && selected.isNotEmpty()) selected = selected.dropLast(1)
+        return encode()
+    }
     private fun journal() = AtomicFile(File(requireNotNull(application).filesDir, "lyricwave-errors-v1.json"))
     @Synchronized private fun read(): JSONArray = runCatching {
         val file = journal(); if (!file.baseFile.exists() || file.baseFile.length() > 512 * 1024) JSONArray()

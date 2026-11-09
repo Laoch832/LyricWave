@@ -23,6 +23,8 @@ object MomentsLinkContract {
     const val RESULT_CONTRACT = 6
     const val RESULT_LAUNCH = 7
     const val RESULT_BUSY = 8
+    const val RESULT_RELAY = 9
+    const val RESULT_MISSING = 10
     /** Opt-in replacement of the country segment; preserve the exact encoded path, IDs and query. */
     fun withChinaStorefront(value: String?, enabled: Boolean): String? = validate(value)?.let { original ->
         if (!enabled) return@let original
