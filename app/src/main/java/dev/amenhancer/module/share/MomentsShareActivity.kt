@@ -47,6 +47,13 @@ internal class MomentsSharePanel(private val owner: Activity, private val intent
     private var attempt: ShareAttempt? = null
     private var pending = false
     private var shareStarted = false
+    private var draftEditsProtected = false
+    private var draftRevision = 0
+    private var savedDraft: ShareDraft? = null
+    private val draftStore by lazy { ShareDraftStore(applicationContext) }
+    private val draftExecutor = Executors.newSingleThreadExecutor { Thread(it, "LyricWave-share-draft").apply { isDaemon = true } }
+    private val bridgeExecutor = Executors.newSingleThreadExecutor { Thread(it, "LyricWave-share-bridge").apply { isDaemon = true } }
+    private var refreshDraftActions: () -> Unit = {}
     private var artworkUrl: String? = null
     private var metadataLoading = false
     private val metadataExecutor = Executors.newSingleThreadExecutor { Thread(it, "LyricWave-share-metadata").apply { isDaemon = true } }
@@ -90,8 +97,78 @@ internal class MomentsSharePanel(private val owner: Activity, private val intent
             override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) = Unit
             override fun afterTextChanged(s: Editable?) {
                 open.isEnabled = !metadataLoading && !pending && url != null && MomentsSongMetadata.title(s?.toString()) != null
+                refreshDraftActions()
             }
         })
+        val draftActions = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
+        val saveDraft = Button(this).apply { text = ModuleText.SHARE_DRAFT_SAVE.text() }
+        val restoreDraft = Button(this).apply { text = ModuleText.SHARE_DRAFT_RESTORE.text(); visibility = android.view.View.GONE }
+        val clearDraft = Button(this).apply { text = ModuleText.SHARE_DRAFT_CLEAR.text() }
+        listOf(saveDraft, restoreDraft, clearDraft).forEach { draftActions.addView(it) }
+        layout.addView(draftActions)
+        refreshDraftActions = {
+            saveDraft.isEnabled = !pending && url != null && MomentsSongMetadata.title(titleInput.text.toString()) != null
+            restoreDraft.isEnabled = !pending && savedDraft != null
+            restoreDraft.visibility = if (savedDraft != null) android.view.View.VISIBLE else android.view.View.GONE
+            clearDraft.isEnabled = !pending && url != null
+        }
+        saveDraft.setOnClickListener {
+            if (!pending && url != null) {
+                val title = MomentsSongMetadata.title(titleInput.text.toString())
+                if (title != null) {
+                    val snapshot = ShareDraft(url, title, MomentsSongMetadata.clean(artistInput.text.toString()), artworkUrl, chinaStorefront, System.currentTimeMillis())
+                    val revision = ++draftRevision
+                    draftExecutor.execute {
+                        val success = runCatching { draftStore.save(snapshot) }.isSuccess
+                        handler.post {
+                            if (!isDestroyed && revision == draftRevision) {
+                                if (success) savedDraft = snapshot
+                                if (!pending) status.text = (if (success) ModuleText.SHARE_DRAFT_SAVED else ModuleText.SHARE_DRAFT_FAILED).text()
+                                refreshDraftActions()
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        restoreDraft.setOnClickListener {
+            val draft = savedDraft
+            if (!pending && draft != null) {
+                draftEditsProtected = true; metadataLoading = false
+                titleInput.setText(draft.title); artistInput.setText(draft.artist.orEmpty()); artworkUrl = draft.artwork
+                regionSwitch.isChecked = draft.chinaStorefront
+                status.text = ModuleText.SHARE_DRAFT_RESTORED.text(); refreshDraftActions()
+            }
+        }
+        clearDraft.setOnClickListener {
+            if (!pending) {
+                val revision = ++draftRevision
+                draftExecutor.execute {
+                    val success = runCatching { draftStore.clear() }.isSuccess
+                    handler.post {
+                        if (!isDestroyed && revision == draftRevision) {
+                            if (success) savedDraft = null
+                            if (!pending) status.text = (if (success) ModuleText.SHARE_DRAFT_CLEARED else ModuleText.SHARE_DRAFT_FAILED).text()
+                            refreshDraftActions()
+                        }
+                    }
+                }
+            }
+        }
+        if (url != null) {
+            val revision = draftRevision
+            draftExecutor.execute {
+                val draft = draftStore.load(url)
+                handler.post {
+                    if (!isDestroyed && revision == draftRevision) {
+                        savedDraft = draft
+                        if (draft != null && !pending) status.text = ModuleText.SHARE_DRAFT_AVAILABLE.text()
+                        refreshDraftActions()
+                    }
+                }
+            }
+        }
+        refreshDraftActions()
         layout.addView(open)
         val stop = Button(this).apply { text = ModuleText.SHARE_STOP_WAITING.text(); visibility = android.view.View.GONE }
         layout.addView(stop)
@@ -104,6 +181,7 @@ internal class MomentsSharePanel(private val owner: Activity, private val intent
             val artist = MomentsSongMetadata.clean(artistInput.text.toString())
             val sharedUrl = Contract.withChinaStorefront(url, chinaStorefront) ?: return@setOnClickListener
             shareStarted = true; pending = true; open.isEnabled = false; regionSwitch.isEnabled = false
+            refreshDraftActions()
             val current = ShareAttempt(sharedUrl, title, artist, artworkUrl, status, open, regionSwitch, stop)
             attempt = current
             current.start()
@@ -116,12 +194,13 @@ internal class MomentsSharePanel(private val owner: Activity, private val intent
                 handler.post {
                     if (isDestroyed || isFinishing || shareStarted) return@post
                     metadataLoading = false
-                    if (metadata != null) {
+                    if (metadata != null && !draftEditsProtected) {
                         artworkUrl = MomentsSongMetadata.artwork(metadata.artworkUrl)
                         if (initialTitle.isBlank() && titleInput.text.toString() == initialTitle) titleInput.setText(metadata.title)
                         if (initialArtist.isBlank() && artistInput.text.toString() == initialArtist) artistInput.setText(metadata.artist.orEmpty())
                     }
                     open.isEnabled = !pending && MomentsSongMetadata.title(titleInput.text.toString()) != null
+                    refreshDraftActions()
                     if (!pending) status.text = if (MomentsSongMetadata.title(titleInput.text.toString()) == null)
                         ModuleText.SHARE_METADATA_MISSING.text() else ModuleText.WECHAT_SHARE_NOTICE.text() +
                             (if (artworkUrl == null) "\n" + ModuleText.SHARE_ARTWORK_MISSING.text() else "")
@@ -161,7 +240,7 @@ internal class MomentsSharePanel(private val owner: Activity, private val intent
                     if (launch == null) fail(Contract.RESULT_MISSING)
                     else { startActivity(launch); handler.postDelayed(poll, 800) }
                 } catch (_: Exception) { fail(Contract.RESULT_LAUNCH) }
-            } else metadataExecutor.execute {
+            } else bridgeExecutor.execute {
                 try {
                     val result = owner.contentResolver.call(android.net.Uri.parse("content://${dev.amenhancer.module.BuildConfig.APPLICATION_ID}.update-control"),
                         "share_prepare", null, null) ?: throw IllegalStateException("Missing relay")
@@ -191,6 +270,7 @@ internal class MomentsSharePanel(private val owner: Activity, private val intent
             dispose(); attempt = null; pending = false
             button.isEnabled = true; region.isEnabled = true; stop.visibility = android.view.View.GONE
             status.text = message
+            refreshDraftActions()
         }
         private fun send() {
             val callback = object : android.os.ResultReceiver(handler) {
@@ -213,7 +293,7 @@ internal class MomentsSharePanel(private val owner: Activity, private val intent
                 putParcelable(MomentsShareRelay.CALLBACK, callback)
             }
             if (owner is MomentsShareActivity) MomentsShareRelay.dispatch(this@MomentsSharePanel, input)
-            else metadataExecutor.execute {
+            else bridgeExecutor.execute {
                 try {
                     val accepted = owner.contentResolver.call(android.net.Uri.parse("content://${dev.amenhancer.module.BuildConfig.APPLICATION_ID}.update-control"),
                         "share_request", null, input)?.getBoolean("accepted") == true
@@ -248,5 +328,5 @@ internal class MomentsSharePanel(private val owner: Activity, private val intent
         outState.putString(Contract.TITLE, titleInput.text.toString())
         outState.putString(Contract.ARTIST, artistInput.text.toString())
     }
-    fun close() { attempt?.dispose(); attempt = null; closed = true; metadataExecutor.shutdownNow(); handler.removeCallbacksAndMessages(null) }
+    fun close() { attempt?.dispose(); attempt = null; closed = true; draftRevision++; draftExecutor.shutdown(); bridgeExecutor.shutdownNow(); metadataExecutor.shutdownNow(); handler.removeCallbacksAndMessages(null) }
 }
