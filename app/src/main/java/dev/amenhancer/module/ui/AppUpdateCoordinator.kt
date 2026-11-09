@@ -13,7 +13,8 @@ import kotlinx.coroutines.flow.asStateFlow
 import org.json.JSONObject
 
 internal data class AppUpdateSnapshot(val release: AppUpdateRelease? = null, val checking: Boolean = false,
-    val completed: Long = 0, val failureHttp: Int? = null, val failed: Boolean = false)
+    val completed: Long = 0, val failureHttp: Int? = null, val failed: Boolean = false,
+    val installed: InstalledModuleVersion = InstalledModuleVersion(BuildConfig.VERSION_CODE.toLong(), BuildConfig.VERSION_NAME))
 
 /** Per host-process coordinator: one check in flight, private bounded cache, foreground-only triggers. */
 internal object AppUpdateCoordinator {
@@ -28,6 +29,9 @@ internal object AppUpdateCoordinator {
         val app = context.applicationContext
         inFlight = true
         worker.execute {
+            val installed = installedModuleVersion(app)
+            mutable.value = mutable.value.copy(installed = installed,
+                release = mutable.value.release?.let { compareInstalledVersion(it, installed.code) })
             val preferences = app.getSharedPreferences("lyricwave_stable_updates_v2", Context.MODE_PRIVATE)
             try {
                 if (!loaded) {
@@ -41,7 +45,7 @@ internal object AppUpdateCoordinator {
                                     if (it.size > max) throw AppUpdateException("size")
                                 }
                             }, clock = { preferences.getLong("success", 0) })
-                                .check(BuildConfig.VERSION_CODE.toLong(), BuildConfig.APPLICATION_ID)
+                                .check(installed.code, BuildConfig.APPLICATION_ID)
                             mutable.value = mutable.value.copy(release = cached)
                         }
                     }
@@ -55,10 +59,10 @@ internal object AppUpdateCoordinator {
                 val transport = AppUpdateHttpTransport()
                 val result = runCatching { AppUpdateClient(read = { url, max ->
                     transport.get(url, max).also { captured.put(url, it.toString(Charsets.UTF_8)) }
-                }, clock = { now }).check(BuildConfig.VERSION_CODE.toLong(), BuildConfig.APPLICATION_ID) }
+                }, clock = { now }).check(installed.code, BuildConfig.APPLICATION_ID) }
                 result.onSuccess { release ->
                     preferences.edit().putString("responses", captured.toString()).putLong("success", now).apply()
-                    mutable.value = AppUpdateSnapshot(release, completed = mutable.value.completed + 1)
+                    mutable.value = AppUpdateSnapshot(release, completed = mutable.value.completed + 1, installed = installed)
                     if (!manual && release.comparison == UpdateComparison.NEWER && preferences.getString("noticed", "") != release.tag) {
                         preferences.edit().putString("noticed", release.tag).apply()
                         Handler(Looper.getMainLooper()).post {

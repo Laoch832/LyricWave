@@ -62,8 +62,9 @@ internal fun EmbeddedSettingsHost.EmbeddedAppUpdates(activity: Activity, active:
             })
         Column(Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Text("LyricWave", fontSize = 24.sp, fontWeight = FontWeight.Bold)
-            Text(localizedText(ModuleText.UPDATE_INSTALLED, BuildConfig.VERSION_NAME))
+            Text(localizedText(ModuleText.UPDATE_INSTALLED, snapshot.installed.name))
             Text(localizedText(ModuleText.UPDATE_STABLE_CHANNEL), color = MiuixTheme.colorScheme.primary)
+            if (snapshot.installed.code > BuildConfig.VERSION_CODE) EmbeddedSettingsNotice(localizedText(ModuleText.UPDATE_RESTART_HOST, snapshot.installed.name))
             TextButton(text = localizedText(if (snapshot.checking) ModuleText.UPDATE_CHECKING else ModuleText.UPDATE_CHECK),
                 enabled = !snapshot.checking, onClick = {
                     if (active) { waiting = true; AppUpdateCoordinator.request(activity.applicationContext, true) }
@@ -102,9 +103,10 @@ private fun EmbeddedSettingsHost.updateStatus(release: AppUpdateRelease): String
 private fun EmbeddedSettingsHost.showAppRelease(activity: Activity, release: AppUpdateRelease) {
     if (!release.updateAvailable) return
     showEmbeddedMiuixDialog(activity, localizedText(ModuleText.UPDATE_AVAILABLE, release.build?.versionName ?: release.tag)) { dismiss ->
+        val snapshot by AppUpdateCoordinator.state.collectAsState()
         val locale = LocalConfiguration.current.locales[0]
         EmbeddedSettingsNotice(updateStatus(release))
-        EmbeddedSettingsNotice(localizedText(ModuleText.UPDATE_INSTALLED, BuildConfig.VERSION_NAME))
+        EmbeddedSettingsNotice(localizedText(ModuleText.UPDATE_INSTALLED, snapshot.installed.name))
         if (release.summary.isNotBlank()) Text(release.summary)
         release.changes.forEach { change ->
             Text(change.title, fontWeight = FontWeight.Bold)

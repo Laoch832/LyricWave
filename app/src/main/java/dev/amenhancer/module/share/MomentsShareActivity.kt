@@ -48,8 +48,8 @@ internal class MomentsSharePanel(private val owner: Activity, private val intent
     private var pending = false
     private var shareStarted = false
     private var artworkUrl: String? = null
-    private var metadataLoading = false
     private val metadataExecutor = Executors.newSingleThreadExecutor { Thread(it, "LyricWave-share-metadata").apply { isDaemon = true } }
+    private val bridgeExecutor = Executors.newSingleThreadExecutor { Thread(it, "LyricWave-share-bridge").apply { isDaemon = true } }
     internal var metadataResolver: (String) -> MomentsSongMetadata? = AppleSongMetadataLookup()::lookup
     private lateinit var titleInput: EditText
     private lateinit var artistInput: EditText
@@ -58,7 +58,7 @@ internal class MomentsSharePanel(private val owner: Activity, private val intent
         chinaStorefront = savedInstanceState?.getBoolean(Contract.CHINA_STOREFRONT)
             ?: intent.getBooleanExtra(Contract.CHINA_STOREFRONT, false)
         val url = originalUrl
-        artworkUrl = MomentsSongMetadata.artwork(savedInstanceState?.getString(Contract.ARTWORK))
+        artworkUrl = MomentsSongMetadata.artwork(savedInstanceState?.getString(Contract.ARTWORK) ?: intent.getStringExtra(Contract.ARTWORK))
         val initialTitle = savedInstanceState?.getString(Contract.TITLE)
             ?: MomentsSongMetadata.title(intent.getStringExtra(Contract.TITLE))
             ?: MomentsSongMetadata.title(intent.getStringExtra(Intent.EXTRA_SUBJECT)).orEmpty()
@@ -89,7 +89,7 @@ internal class MomentsSharePanel(private val owner: Activity, private val intent
             override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) = Unit
             override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) = Unit
             override fun afterTextChanged(s: Editable?) {
-                open.isEnabled = !metadataLoading && !pending && url != null && MomentsSongMetadata.title(s?.toString()) != null
+                open.isEnabled = !pending && url != null && MomentsSongMetadata.title(s?.toString()) != null
             }
         })
         layout.addView(open)
@@ -99,7 +99,7 @@ internal class MomentsSharePanel(private val owner: Activity, private val intent
         val content = ScrollView(this).apply { addView(layout) }
         if (url == null) status.text = ModuleText.WECHAT_LINK_REQUIRED.text()
         open.setOnClickListener {
-            if (metadataLoading || pending || url == null) return@setOnClickListener
+            if (pending || url == null) return@setOnClickListener
             val title = MomentsSongMetadata.title(titleInput.text.toString()) ?: return@setOnClickListener
             val artist = MomentsSongMetadata.clean(artistInput.text.toString())
             val sharedUrl = Contract.withChinaStorefront(url, chinaStorefront) ?: return@setOnClickListener
@@ -109,13 +109,11 @@ internal class MomentsSharePanel(private val owner: Activity, private val intent
             current.start()
         }
         if (url != null && MomentsSongMetadata.songId(url) != null && (initialTitle.isBlank() || initialArtist.isBlank() || artworkUrl == null)) {
-            metadataLoading = true; open.isEnabled = false
-            status.text = ModuleText.SHARE_METADATA_LOADING.text()
+            status.text = (if (open.isEnabled) ModuleText.SHARE_METADATA_BACKGROUND else ModuleText.SHARE_METADATA_LOADING).text()
             metadataExecutor.execute {
                 val metadata = runCatching { metadataResolver(originalUrl!!) }.getOrNull()
                 handler.post {
                     if (isDestroyed || isFinishing || shareStarted) return@post
-                    metadataLoading = false
                     if (metadata != null) {
                         artworkUrl = MomentsSongMetadata.artwork(metadata.artworkUrl)
                         if (initialTitle.isBlank() && titleInput.text.toString() == initialTitle) titleInput.setText(metadata.title)
@@ -161,7 +159,7 @@ internal class MomentsSharePanel(private val owner: Activity, private val intent
                     if (launch == null) fail(Contract.RESULT_MISSING)
                     else { startActivity(launch); handler.postDelayed(poll, 800) }
                 } catch (_: Exception) { fail(Contract.RESULT_LAUNCH) }
-            } else metadataExecutor.execute {
+            } else bridgeExecutor.execute {
                 try {
                     val result = owner.contentResolver.call(android.net.Uri.parse("content://${dev.amenhancer.module.BuildConfig.APPLICATION_ID}.update-control"),
                         "share_prepare", null, null) ?: throw IllegalStateException("Missing relay")
@@ -213,7 +211,7 @@ internal class MomentsSharePanel(private val owner: Activity, private val intent
                 putParcelable(MomentsShareRelay.CALLBACK, callback)
             }
             if (owner is MomentsShareActivity) MomentsShareRelay.dispatch(this@MomentsSharePanel, input)
-            else metadataExecutor.execute {
+            else bridgeExecutor.execute {
                 try {
                     val accepted = owner.contentResolver.call(android.net.Uri.parse("content://${dev.amenhancer.module.BuildConfig.APPLICATION_ID}.update-control"),
                         "share_request", null, input)?.getBoolean("accepted") == true
@@ -248,5 +246,5 @@ internal class MomentsSharePanel(private val owner: Activity, private val intent
         outState.putString(Contract.TITLE, titleInput.text.toString())
         outState.putString(Contract.ARTIST, artistInput.text.toString())
     }
-    fun close() { attempt?.dispose(); attempt = null; closed = true; metadataExecutor.shutdownNow(); handler.removeCallbacksAndMessages(null) }
+    fun close() { attempt?.dispose(); attempt = null; closed = true; metadataExecutor.shutdownNow(); bridgeExecutor.shutdownNow(); handler.removeCallbacksAndMessages(null) }
 }

@@ -56,6 +56,8 @@ class UpdateDownloadActivity : Activity() {
         layout.addView(TextView(this).apply { text = ModuleText.UPDATE_DOWNLOADER.text(); textSize = 22f })
         val preferences = getSharedPreferences("lyricwave_download_options", Context.MODE_PRIVATE)
         val choices = listOf(1, 4, 8, 16, 32, 64, 128)
+        if (retained == null && intent.getIntExtra("connections", -1) in choices)
+            preferences.edit().putInt("connections", intent.getIntExtra("connections", 8)).apply()
         layout.addView(TextView(this).apply { text = ModuleText.UPDATE_CONNECTIONS.text() })
         connections = android.widget.Spinner(this).apply {
             adapter = android.widget.ArrayAdapter(this@UpdateDownloadActivity, android.R.layout.simple_spinner_dropdown_item, choices)
@@ -151,6 +153,8 @@ internal class UpdateDownloadSession(
     private val cancellation = UpdateDownloadCancellation()
     private var release: AppUpdateRelease? = null
     private var asset: UpdateAsset? = null
+    // A backup Activity may overlap the foreground service; never purge its files.
+    private val directory = File(context.cacheDir, "updates/session-${java.util.UUID.randomUUID()}")
     private var busy = false
     @Volatile private var closed = false
     @Volatile var state = DownloadState(); private set
@@ -176,9 +180,8 @@ internal class UpdateDownloadSession(
         if (release == null || asset == null) { prepare(); return }
         runTask {
             val chosen = requireNotNull(asset); val build = requireNotNull(release?.build)
-            val directory = File(context.cacheDir, "updates")
             directory.mkdirs()
-            directory.listFiles()?.filter { it.isFile }?.forEach { it.delete() } // Only this session writes the module's update cache.
+            directory.listFiles()?.filter { it.isFile }?.forEach { it.delete() }
             var lastProgress = 0L
             publish(DownloadState(DownloadPhase.DOWNLOADING, chosen.name, total = chosen.size))
             val file = fetch(chosen, build, directory, cancellation, useOfficial) { current ->

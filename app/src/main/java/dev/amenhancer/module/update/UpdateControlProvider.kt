@@ -25,7 +25,16 @@ class UpdateControlProvider : ContentProvider() {
     override fun onCreate(): Boolean { context?.let(UpdateTransfer::restore); return true }
     override fun call(method: String, arg: String?, extras: Bundle?): Bundle {
         val app = requireNotNull(context)
-        if (!trustedCaller(app, Binder.getCallingUid())) throw SecurityException("Untrusted update caller")
+        // Keep the caller for authorization, but never use its Binder identity when acting
+        // as the module (PendingIntent creator package, notification manager, broadcasts).
+        val caller = Binder.getCallingUid()
+        val identity = Binder.clearCallingIdentity()
+        try {
+            if (!trustedCaller(app, caller)) throw SecurityException("Untrusted update caller")
+            return execute(app, method, extras)
+        } finally { Binder.restoreCallingIdentity(identity) }
+    }
+    private fun execute(app: Context, method: String, extras: Bundle?): Bundle {
         return when (method) {
             "share_prepare" -> {
                 val launch = app.packageManager.getLaunchIntentForPackage(dev.amenhancer.module.MomentsLinkContract.INTERMEDIARY_PACKAGE)
@@ -141,6 +150,8 @@ internal object UpdateTransfer {
         putString("phase", value.phase.name); putString("name", value.name)
         putLong("bytes", value.bytes); putLong("total", value.total); putInt("connections", value.connections)
         putString("reason", value.reason)
+        putInt("module_version_code", BuildConfig.VERSION_CODE)
+        putString("module_version_name", BuildConfig.VERSION_NAME)
         val manager = context.getSystemService(android.app.NotificationManager::class.java)
         putBoolean("notifications", manager.areNotificationsEnabled())
         putBoolean("promoted", Build.VERSION.SDK_INT >= 36 && manager.canPostPromotedNotifications())

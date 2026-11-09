@@ -15,6 +15,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import dev.amenhancer.module.BuildConfig
 import dev.amenhancer.module.i18n.ModuleText
+import dev.amenhancer.module.update.*
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
@@ -24,7 +25,11 @@ import top.yukonga.miuix.kmp.basic.Text
 import top.yukonga.miuix.kmp.basic.TextButton
 
 internal suspend fun updateTransferCommand(context: Context, method: String, extras: Bundle? = null): Bundle = withContext(Dispatchers.IO) {
-    context.contentResolver.call(Uri.parse("content://${BuildConfig.APPLICATION_ID}.update-control"), method, null, extras) ?: Bundle()
+    try {
+        context.contentResolver.call(Uri.parse("content://${BuildConfig.APPLICATION_ID}.update-control"), method, null, extras)
+            ?: throw ModuleControlException("control_unavailable")
+    } catch (error: kotlinx.coroutines.CancellationException) { throw error }
+      catch (error: Exception) { throw ModuleControlException(moduleControlFailure(error), error) }
 }
 
 /** This dialog lives in Apple Music; only the bounded transfer/notification service runs in the module UID. */
@@ -34,13 +39,18 @@ internal fun EmbeddedSettingsHost.showEmbeddedDownloadPanel(activity: Activity, 
         val preferences = remember { activity.getSharedPreferences("lyricwave_download_choices", Context.MODE_PRIVATE) }
         var threads by remember { mutableIntStateOf(preferences.getInt("connections", 8)) }
         var snapshot by remember { mutableStateOf(Bundle()) }
-        var error by remember { mutableStateOf(false) }
+        var commandFailure by remember { mutableStateOf<String?>(null) }
+        var pollFailure by remember { mutableStateOf<String?>(null) }
         var busy by remember { mutableStateOf(false) }
         var needsInstallPermission by remember { mutableStateOf(false) }
         val phase = snapshot.getString("phase", "READY")
         val running = phase == "CHECKING" || phase == "DOWNLOADING"
         val total = snapshot.getLong("total")
         val bytes = snapshot.getLong("bytes")
+        val serviceBlocked = phase == "FAILED" && snapshot.getString("reason") == "foreground_service"
+        val sampler = remember(phase) { UpdateTransferRateSampler() }
+        var rate by remember { mutableStateOf(UpdateTransferRate()) }
+        LaunchedEffect(snapshot) { rate = sampler.sample(bytes, total, android.os.SystemClock.elapsedRealtime()) }
         @Suppress("DEPRECATION")
         fun command(method: String, source: Boolean = official) {
             if (busy) return
@@ -51,7 +61,8 @@ internal fun EmbeddedSettingsHost.showEmbeddedDownloadPanel(activity: Activity, 
                     val extras = Bundle().apply { putLong("asset_id", id); putInt("connections", threads); putBoolean("official", source) }
                     val result = updateTransferCommand(activity, method, extras)
                     needsInstallPermission = result.getBoolean("install_permission")
-                    result.getParcelable<PendingIntent>("action")?.let { action ->
+                    val action = result.getParcelable<PendingIntent>("action") ?: throw ModuleControlException("control_protocol")
+                    action.let {
                         // Explicit button actions use the visible host's launch privilege.
                         // Do not grant this to background progress polling or service commands.
                         if ((method == "install" || method == "notifications") && android.os.Build.VERSION.SDK_INT >= 34) {
@@ -63,8 +74,12 @@ internal fun EmbeddedSettingsHost.showEmbeddedDownloadPanel(activity: Activity, 
                             action.send(activity, 0, null, null, null, null, options.toBundle())
                         } else action.send()
                     }
-                    error = false
-                } catch (_: Exception) { error = true }
+                    commandFailure = null
+                } catch (error: kotlinx.coroutines.CancellationException) { throw error }
+                  catch (error: Exception) {
+                    commandFailure = moduleControlFailure(error)
+                    dev.amenhancer.module.feedback.FeedbackRuntime.record("download", error)
+                }
                 finally { busy = false }
             }
         }
@@ -74,10 +89,17 @@ internal fun EmbeddedSettingsHost.showEmbeddedDownloadPanel(activity: Activity, 
                 val current = existing.getString("phase", "READY")
                 if (assetId > 0 && current !in listOf("CHECKING", "DOWNLOADING") &&
                     (current != "VERIFIED" || existing.getLong("asset_id", -1) != assetId)) command("begin")
-            }.onFailure { error = true }
+            }.onFailure {
+                if (it is kotlinx.coroutines.CancellationException) throw it
+                pollFailure = moduleControlFailure(it); dev.amenhancer.module.feedback.FeedbackRuntime.record("download", it)
+            }
             while (isActive && !activity.isDestroyed) {
                 delay(700)
-                runCatching { updateTransferCommand(activity, "status") }.onSuccess { snapshot = it; error = false }.onFailure { error = true }
+                runCatching { updateTransferCommand(activity, "status") }.onSuccess { snapshot = it; pollFailure = null }.onFailure {
+                    if (it is kotlinx.coroutines.CancellationException) throw it
+                    if (pollFailure == null) dev.amenhancer.module.feedback.FeedbackRuntime.record("download", it)
+                    pollFailure = moduleControlFailure(it)
+                }
             }
         }
         Text(snapshot.getString("name").orEmpty().ifBlank { "LyricWave" })
@@ -91,13 +113,26 @@ internal fun EmbeddedSettingsHost.showEmbeddedDownloadPanel(activity: Activity, 
                 }
                 Text(localizedText(ModuleText.UPDATE_PROGRESS,
                     "%.1f".format(bytes / 1048576.0), "%.1f".format(total / 1048576.0), snapshot.getInt("connections", threads)))
+                Text(if (rate.bytesPerSecond != null && rate.remainingSeconds != null)
+                    localizedText(ModuleText.UPDATE_TRANSFER_RATE, "%.0f".format(rate.bytesPerSecond!! / 1024.0), rate.remainingSeconds!!)
+                    else localizedText(ModuleText.UPDATE_WAITING_DATA))
             }
             "VERIFIED" -> Text(localizedText(ModuleText.UPDATE_READY_TO_INSTALL))
             "FAILED" -> if (snapshot.getString("reason") == "cancelled") Text(localizedText(ModuleText.UPDATE_CANCELLED))
-                else Text(localizedText(ModuleText.UPDATE_DOWNLOAD_FAILED, snapshot.getString("reason", "network")))
-            else -> Text(localizedText(ModuleText.UPDATE_CONNECTIONS))
+                else if (snapshot.getString("reason") == "already_current") Text(localizedText(ModuleText.UPDATE_CURRENT))
+                else if (!serviceBlocked) Text(localizedText(ModuleText.UPDATE_DOWNLOAD_FAILED, snapshot.getString("reason", "network")))
         }
-        if (error) EmbeddedSettingsNotice(localizedText(ModuleText.UPDATE_DOWNLOAD_FAILED, "service"))
+        val failure = commandFailure ?: pollFailure
+        if (failure != null || serviceBlocked) {
+            EmbeddedSettingsNotice(localizedText(if (failure == "control_permission") ModuleText.UPDATE_CONTROL_PERMISSION else ModuleText.UPDATE_CONTROL_UNAVAILABLE))
+            if (assetId > 0) TextButton(localizedText(ModuleText.UPDATE_BACKUP_DOWNLOADER), onClick = {
+                runCatching {
+                    activity.startActivity(backupDownloadIntent(assetId, threads, official))
+                }.onFailure { dev.amenhancer.module.feedback.FeedbackRuntime.record("download", it) }
+            })
+        }
+        if (snapshot.getInt("module_version_code", BuildConfig.VERSION_CODE) > BuildConfig.VERSION_CODE)
+            EmbeddedSettingsNotice(localizedText(ModuleText.UPDATE_RESTART_HOST, snapshot.getString("module_version_name", "")))
         if (needsInstallPermission) EmbeddedSettingsNotice(localizedText(ModuleText.UPDATE_INSTALL_PERMISSION))
         if (!running && phase != "VERIFIED") {
             Text(localizedText(ModuleText.UPDATE_CONNECTIONS))
@@ -113,7 +148,7 @@ internal fun EmbeddedSettingsHost.showEmbeddedDownloadPanel(activity: Activity, 
         }
         if (running) TextButton(localizedText(ModuleText.UPDATE_CANCEL), enabled = !busy, onClick = { command("cancel") })
         if (phase == "VERIFIED") TextButton(localizedText(ModuleText.UPDATE_INSTALL), enabled = !busy, onClick = { command("install") })
-        if (!snapshot.getBoolean("notifications") || (android.os.Build.VERSION.SDK_INT >= 36 && !snapshot.getBoolean("promoted"))) TextButton(localizedText(ModuleText.UPDATE_NOTIFICATION_SETTINGS), onClick = { command("notifications") })
+        if (snapshot.containsKey("notifications") && (!snapshot.getBoolean("notifications") || (android.os.Build.VERSION.SDK_INT >= 36 && !snapshot.getBoolean("promoted")))) TextButton(localizedText(ModuleText.UPDATE_NOTIFICATION_SETTINGS), onClick = { command("notifications") })
         TextButton(localizedText(if (running) ModuleText.UPDATE_BACKGROUND else ModuleText.CLOSE), onClick = dismiss)
     }
 }

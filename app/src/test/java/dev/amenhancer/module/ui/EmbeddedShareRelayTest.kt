@@ -36,6 +36,8 @@ import org.robolectric.shadows.ShadowAlertDialog
 import org.robolectric.shadows.ShadowBinder
 import org.robolectric.shadows.ShadowContentResolver
 import java.time.Duration
+import java.util.concurrent.CountDownLatch
+import java.util.concurrent.TimeUnit
 
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [34], qualifiers = "en-rUS")
@@ -96,5 +98,41 @@ class EmbeddedShareRelayTest {
             ShadowBinder.setCallingUid(44555)
             assertThrows(SecurityException::class.java) { provider.call("share_request", null, Bundle()) }
         } finally { ShadowBinder.setCallingUid(android.os.Process.myUid()) }
+    }
+    @Test fun `a stalled artwork lookup does not block edited details or the share relay`() {
+        val app = RuntimeEnvironment.getApplication()
+        val provider = Robolectric.buildContentProvider(UpdateControlProvider::class.java).create().get()
+        ShadowContentResolver.registerProviderInternal("${BuildConfig.APPLICATION_ID}.update-control", provider)
+        val info = ApplicationInfo().apply { packageName = Contract.INTERMEDIARY_PACKAGE; uid = 23456 }
+        shadowOf(app.packageManager).installPackage(PackageInfo().apply { packageName = info.packageName; applicationInfo = info })
+        shadowOf(app.packageManager).addResolveInfoForIntent(Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_LAUNCHER).setPackage(info.packageName), ResolveInfo().apply {
+            activityInfo = ActivityInfo().apply { packageName = info.packageName; name = "MainActivity"; applicationInfo = info; exported = true }
+        })
+        val metadataStarted = CountDownLatch(1); val gate = CountDownLatch(1)
+        var received = false
+        app.registerReceiver(object : BroadcastReceiver() {
+            override fun onReceive(context: Context, intent: Intent) {
+                assertEquals("Manual title", intent.getStringExtra(Contract.TITLE))
+                received = true; resultCode = Contract.RESULT_OPENED
+            }
+        }, IntentFilter(Contract.OPEN), Context.RECEIVER_EXPORTED)
+        val controller = Robolectric.buildActivity(AppleActivity::class.java).setup()
+        val relay = Intent(Intent.ACTION_SEND).setComponent(ComponentName(ModuleConstants.MODULE_PACKAGE, "dev.amenhancer.module.share.MomentsShareActivity"))
+            .putExtra(Intent.EXTRA_TEXT, "https://music.apple.com/cn/song/123").putExtra(Contract.TITLE, "Initial title")
+        assertTrue(EmbeddedShareRuntime.showPanel(controller.get(), Intent.createChooser(Intent(Intent.ACTION_SEND), "Share")
+            .putExtra(Intent.EXTRA_INITIAL_INTENTS, arrayOf(relay))) {
+            metadataStarted.countDown(); gate.await(10, TimeUnit.SECONDS); MomentsSongMetadata("Late title", "Artist")
+        })
+        val dialog = ShadowAlertDialog.getLatestAlertDialog()
+        try {
+            assertTrue(metadataStarted.await(5, TimeUnit.SECONDS))
+            views(dialog.window!!.decorView).filterIsInstance<android.widget.EditText>().first().setText("Manual title")
+            views(dialog.window!!.decorView).filterIsInstance<Button>().single { it.text == "Open NetEase sharing" }.performClick()
+            repeat(200) { shadowOf(Looper.getMainLooper()).idle(); if (shadowOf(controller.get()).nextStartedActivity == null) Thread.sleep(5) }
+            shadowOf(Looper.getMainLooper()).idleFor(Duration.ofSeconds(1))
+            repeat(200) { shadowOf(Looper.getMainLooper()).idle(); if (!received) Thread.sleep(5) }
+            assertTrue("Sharing must not wait for artwork", received)
+            assertEquals(1L, gate.count)
+        } finally { gate.countDown(); dialog.dismiss(); controller.pause().stop().destroy() }
     }
 }

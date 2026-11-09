@@ -50,7 +50,7 @@ class MomentsShareActivityTest {
     private fun awaitMetadata() {
         repeat(200) {
             shadowOf(Looper.getMainLooper()).idle()
-            if (openButton().isEnabled) return
+            if (openButton().isEnabled && texts().none { it == "Fetching artwork; you can share the existing details now." }) return
             Thread.sleep(10)
         }
         fail("Metadata lookup did not finish")
@@ -191,7 +191,7 @@ class MomentsShareActivityTest {
         controller.pause().stop().destroy()
     }
 
-    @Test fun `known title waits for artwork lookup and a failed lookup permits link sharing`() {
+    @Test fun `known title remains shareable while artwork loads and failure preserves edited details`() {
         val gate = CountDownLatch(1)
         val controller = Robolectric.buildActivity(MomentsShareActivity::class.java,
             Intent(Intent.ACTION_SEND).putExtra(Intent.EXTRA_TEXT, "https://music.apple.com/cn/song/123")
@@ -199,7 +199,8 @@ class MomentsShareActivityTest {
         controller.get().metadataResolver = { gate.await(2, TimeUnit.SECONDS); null }
         activity = controller.setup().visible().get()
         try {
-            assertFalse(openButton().isEnabled)
+            assertTrue(openButton().isEnabled)
+            assertTrue(texts().contains("Fetching artwork; you can share the existing details now."))
             gate.countDown()
             awaitMetadata()
             assertTrue(texts().contains("Manual title")); assertTrue(texts().contains("Manual artist"))

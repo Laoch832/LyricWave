@@ -80,6 +80,25 @@ class UpdateDownloadActivityTest {
         assertEquals(0, fetched.get()); assertNull(button(controller.get().window.decorView, ModuleText.UPDATE_INSTALL.text()))
         controller.pause().stop().destroy()
     }
+    @Test fun `backup entry preserves thread choice and uses the same verified built in download flow`() {
+        var fetched = 0
+        UpdateDownloadActivity.createSession = { context, id, official ->
+            UpdateDownloadSession(context, id, official, check = { release }, fetch = { _, _, directory, _, _, _ ->
+                assertEquals(128, context.getSharedPreferences("lyricwave_download_options", android.content.Context.MODE_PRIVATE).getInt("connections", 0))
+                fetched++; File(directory, "test.apk").apply { writeBytes(byteArrayOf(1, 2, 3, 4)) }
+            }, archiveCheck = { file, _ -> assertEquals(4L, file.length()) })
+        }
+        val intent = backupDownloadIntent(42, 128, true)
+        assertEquals(dev.amenhancer.module.BuildConfig.APPLICATION_ID, intent.component?.packageName)
+        val controller = Robolectric.buildActivity(UpdateDownloadActivity::class.java, intent).setup()
+        val activity = controller.get(); val root = activity.window.decorView
+        await { button(root, ModuleText.UPDATE_START.text()) != null }
+        assertEquals(0, fetched)
+        button(root, ModuleText.UPDATE_START.text())!!.performClick()
+        await { button(root, ModuleText.UPDATE_INSTALL.text()) != null }
+        assertEquals(1, fetched); assertNull(shadowOf(activity).nextStartedActivity)
+        controller.pause().stop().destroy()
+    }
     @Test fun `cancel button stops active operation and closes page`() {
         val started = CountDownLatch(1); val stopped = CountDownLatch(1)
         UpdateDownloadActivity.createSession = { context, id, official ->
@@ -101,5 +120,21 @@ class UpdateDownloadActivityTest {
         button(root, ModuleText.UPDATE_CANCEL.text())!!.performClick()
         assertTrue(stopped.await(5, TimeUnit.SECONDS)); assertTrue(activity.isFinishing)
         controller.pause().stop().destroy()
+    }
+    @Test fun `backup session cannot delete a concurrent foreground transfer file`() {
+        val app = RuntimeEnvironment.getApplication()
+        val foregroundFile = File(app.cacheDir, "updates/update-active.apk").apply { parentFile!!.mkdirs(); writeText("active transfer") }
+        val session = UpdateDownloadSession(app, 42, false, check = { release },
+            fetch = { _, _, directory, _, _, _ -> File(directory, "test.apk").apply { writeBytes(byteArrayOf(1,2,3,4)) } },
+            archiveCheck = { _, _ -> })
+        try {
+            session.prepare(); await { session.state.phase == DownloadPhase.READY }
+            await {
+                if (session.state.phase == DownloadPhase.READY) session.download(false)
+                session.state.phase == DownloadPhase.VERIFIED
+            }
+            assertEquals("active transfer", foregroundFile.readText())
+            assertNotEquals(foregroundFile.parentFile, session.state.file!!.parentFile)
+        } finally { session.close(); foregroundFile.delete() }
     }
 }
