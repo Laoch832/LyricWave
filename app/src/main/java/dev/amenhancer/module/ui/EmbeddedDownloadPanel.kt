@@ -48,6 +48,7 @@ internal fun EmbeddedSettingsHost.showEmbeddedDownloadPanel(activity: Activity, 
         val total = snapshot.getLong("total")
         val bytes = snapshot.getLong("bytes")
         val serviceBlocked = phase == "FAILED" && snapshot.getString("reason") == "foreground_service"
+        val alreadyCurrent = phase == "FAILED" && snapshot.getString("reason") == "already_current"
         val sampler = remember(phase) { UpdateTransferRateSampler() }
         var rate by remember { mutableStateOf(UpdateTransferRate()) }
         LaunchedEffect(snapshot) { rate = sampler.sample(bytes, total, android.os.SystemClock.elapsedRealtime()) }
@@ -134,7 +135,7 @@ internal fun EmbeddedSettingsHost.showEmbeddedDownloadPanel(activity: Activity, 
         if (snapshot.getInt("module_version_code", BuildConfig.VERSION_CODE) > BuildConfig.VERSION_CODE)
             EmbeddedSettingsNotice(localizedText(ModuleText.UPDATE_RESTART_HOST, snapshot.getString("module_version_name", "")))
         if (needsInstallPermission) EmbeddedSettingsNotice(localizedText(ModuleText.UPDATE_INSTALL_PERMISSION))
-        if (!running && phase != "VERIFIED") {
+        if (!running && phase != "VERIFIED" && !alreadyCurrent) {
             Text(localizedText(ModuleText.UPDATE_CONNECTIONS))
             androidx.compose.foundation.layout.FlowRow {
                 listOf(1, 4, 8, 16, 32, 64, 128).forEach { choice ->

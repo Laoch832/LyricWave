@@ -102,27 +102,32 @@ private fun EmbeddedSettingsHost.updateStatus(release: AppUpdateRelease): String
 
 private fun EmbeddedSettingsHost.showAppRelease(activity: Activity, release: AppUpdateRelease) {
     if (!release.updateAvailable) return
-    showEmbeddedMiuixDialog(activity, localizedText(ModuleText.UPDATE_AVAILABLE, release.build?.versionName ?: release.tag)) { dismiss ->
+    showEmbeddedMiuixDialog(activity, localizedText(ModuleText.UPDATE_DIALOG_TITLE)) { dismiss ->
         val snapshot by AppUpdateCoordinator.state.collectAsState()
         val locale = LocalConfiguration.current.locales[0]
-        EmbeddedSettingsNotice(updateStatus(release))
+        val effective = dev.amenhancer.module.update.compareInstalledVersion(release, snapshot.installed.code)
+        EmbeddedSettingsNotice(updateStatus(effective))
         EmbeddedSettingsNotice(localizedText(ModuleText.UPDATE_INSTALLED, snapshot.installed.name))
-        if (release.summary.isNotBlank()) Text(release.summary)
-        release.changes.forEach { change ->
-            Text(change.title, fontWeight = FontWeight.Bold)
-            Text(change.description)
+        if (snapshot.installed.code > BuildConfig.VERSION_CODE)
+            EmbeddedSettingsNotice(localizedText(ModuleText.UPDATE_RESTART_HOST, snapshot.installed.name))
+        if (effective.updateAvailable) {
+            if (release.summary.isNotBlank()) Text(release.summary)
+            release.changes.forEach { change ->
+                Text(change.title, fontWeight = FontWeight.Bold)
+                Text(change.description)
+            }
+            release.notices.forEach { EmbeddedSettingsNotice(it) }
+            if (release.changes.isEmpty() && release.notes.isNotBlank()) Text(release.notes.take(2500))
+            release.apks.sortedBy { it.name != release.build?.apk }.forEach { asset ->
+                val size = String.format(locale, "%.1f", asset.size / (1024.0 * 1024.0))
+                TextButton(localizedText(ModuleText.UPDATE_DOWNLOAD, asset.name, size),
+                    enabled = release.build?.apk == asset.name,
+                    onClick = { openInternalDownload(activity, asset.id, false) })
+                TextButton(localizedText(ModuleText.UPDATE_GITHUB_DOWNLOAD), enabled = release.build?.apk == asset.name,
+                    onClick = { openInternalDownload(activity, asset.id, true) })
+            }
+            TextButton(localizedText(ModuleText.UPDATE_RELEASES), onClick = { openUpdateUrl(activity, release.htmlUrl) })
         }
-        release.notices.forEach { EmbeddedSettingsNotice(it) }
-        if (release.changes.isEmpty() && release.notes.isNotBlank()) Text(release.notes.take(2500))
-        release.apks.sortedBy { it.name != release.build?.apk }.forEach { asset ->
-            val size = String.format(locale, "%.1f", asset.size / (1024.0 * 1024.0))
-            TextButton(localizedText(ModuleText.UPDATE_DOWNLOAD, asset.name, size),
-                enabled = release.build?.apk == asset.name,
-                onClick = { openInternalDownload(activity, asset.id, false) })
-            TextButton(localizedText(ModuleText.UPDATE_GITHUB_DOWNLOAD), enabled = release.build?.apk == asset.name,
-                onClick = { openInternalDownload(activity, asset.id, true) })
-        }
-        TextButton(localizedText(ModuleText.UPDATE_RELEASES), onClick = { openUpdateUrl(activity, release.htmlUrl) })
         EmbeddedDialogActions(localizedText(ModuleText.CLOSE), dismiss)
     }
 }

@@ -550,6 +550,7 @@ enum class ModuleText(internal val english: String, internal val chinese: String
     UPDATE_CONTROL_UNAVAILABLE("Cannot connect to the module service. Retry or use the built-in backup downloader below.", "无法连接模块服务。可重试，或使用下方备用内建下载器。"),
     UPDATE_RESTART_HOST("Module %1\$s is installed. Restart Apple Music to load the updated module.", "已安装澜音 %1\$s，请强停重开 Apple Music 使新模块生效。"),
     UPDATE_BACKUP_DOWNLOADER("Use built-in backup downloader", "使用备用内建下载器"),
+    UPDATE_DIALOG_TITLE("LyricWave update", "澜音更新"),
     SHARE_METADATA_BACKGROUND("Fetching artwork; you can share the existing details now.", "正在补全封面，也可直接分享已有信息。"),
     UPDATE_START("Start / retry download", "开始／重试下载"),
     UPDATE_CANCEL("Cancel download and close", "取消下载并关闭"),
