@@ -51,7 +51,7 @@ internal class MomentsSharePanel(private val owner: Activity, private val intent
     private var draftRevision = 0
     private var savedDraft: ShareDraft? = null
     private val draftStore by lazy { ShareDraftStore(applicationContext) }
-    private val draftExecutor = Executors.newSingleThreadExecutor { Thread(it, "LyricWave-share-draft").apply { isDaemon = true } }
+    private val draftExecutor = ShareDraftStore.io
     private val bridgeExecutor = Executors.newSingleThreadExecutor { Thread(it, "LyricWave-share-bridge").apply { isDaemon = true } }
     private var refreshDraftActions: () -> Unit = {}
     private var artworkUrl: String? = null
@@ -328,5 +328,5 @@ internal class MomentsSharePanel(private val owner: Activity, private val intent
         outState.putString(Contract.TITLE, titleInput.text.toString())
         outState.putString(Contract.ARTIST, artistInput.text.toString())
     }
-    fun close() { attempt?.dispose(); attempt = null; closed = true; draftRevision++; draftExecutor.shutdown(); bridgeExecutor.shutdownNow(); metadataExecutor.shutdownNow(); handler.removeCallbacksAndMessages(null) }
+    fun close() { attempt?.dispose(); attempt = null; closed = true; draftRevision++; bridgeExecutor.shutdownNow(); metadataExecutor.shutdownNow(); handler.removeCallbacksAndMessages(null) }
 }

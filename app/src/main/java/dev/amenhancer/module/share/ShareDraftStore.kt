@@ -40,5 +40,8 @@ internal class ShareDraftStore(context: Context, private val clock: () -> Long =
     companion object {
         // Activity replacement can leave an older controller's queued write in flight.
         private val lock = Any()
+        internal val io = java.util.concurrent.Executors.newSingleThreadExecutor {
+            Thread(it, "LyricWave-share-draft").apply { isDaemon = true }
+        }
     }
 }
