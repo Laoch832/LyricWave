@@ -51,6 +51,22 @@ class ShareDraftStoreTest {
         val file = File(app.filesDir, "lyricwave-share-draft-v1.json")
         assertFalse(file.exists()); file.writeText("x".repeat(32769)); assertNull(store.load(url)); assertFalse(file.exists())
     }
+    @Test fun `overlapping live stores cannot invalidate each others atomic writes`() {
+        val app = RuntimeEnvironment.getApplication(); val now = System.currentTimeMillis()
+        val stores = listOf(ShareDraftStore(app) { now }, ShareDraftStore(app) { now })
+        stores[0].save(draft(now))
+        val pool = java.util.concurrent.Executors.newFixedThreadPool(2)
+        try {
+            val jobs = stores.mapIndexed { index, store -> pool.submit {
+                repeat(25) { turn ->
+                    store.save(draft(now).copy(title = "Writer$index-$turn"))
+                    assertNotNull(store.load(url))
+                }
+            } }
+            jobs.forEach { it.get(5, TimeUnit.SECONDS) }
+            assertTrue(stores[0].load(url)!!.title.startsWith("Writer"))
+        } finally { pool.shutdownNow() }
+    }
     @Test fun `user restores saves and clears a draft without native sending or late metadata overwriting edits`() {
         val app = RuntimeEnvironment.getApplication(); val store = ShareDraftStore(app)
         store.save(draft(System.currentTimeMillis()))
