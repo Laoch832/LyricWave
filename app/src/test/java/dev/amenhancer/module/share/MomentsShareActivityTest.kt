@@ -206,4 +206,41 @@ class MomentsShareActivityTest {
             assertTrue(texts().any { "without a cover" in it })
         } finally { gate.countDown(); controller.pause().stop().destroy() }
     }
+
+    @Test fun `blocked receiver still reaches the independent deadline and restores region controls`() {
+        var blocked: BroadcastReceiver.PendingResult? = null
+        val host = app.createPackageContext(Contract.INTERMEDIARY_PACKAGE, 0)
+        host.registerReceiver(object : BroadcastReceiver() {
+            override fun onReceive(context: Context, intent: Intent) { blocked = goAsync() }
+        }, IntentFilter(Contract.OPEN), Context.RECEIVER_EXPORTED)
+        openButton().performClick()
+        shadowOf(Looper.getMainLooper()).idleFor(Duration.ofSeconds(2))
+        assertNotNull(blocked)
+        assertTrue(texts().any { it.contains("Waiting for NetEase") && it.contains("28s") })
+        shadowOf(Looper.getMainLooper()).idleFor(Duration.ofSeconds(29))
+        assertTrue(openButton().isEnabled)
+        assertTrue(views(activity.window.decorView).filterIsInstance<android.widget.Switch>().single().isEnabled)
+        assertTrue(texts().any { "[N0]" in it })
+        blocked?.setResultCode(Contract.RESULT_OPENED); blocked?.finish()
+        shadowOf(Looper.getMainLooper()).idle()
+        assertFalse(texts().any { it.startsWith("NetEase share panel opened") })
+    }
+
+    @Test fun `stop waiting ignores a late success and allows editing again`() {
+        var blocked: BroadcastReceiver.PendingResult? = null
+        val host = app.createPackageContext(Contract.INTERMEDIARY_PACKAGE, 0)
+        host.registerReceiver(object : BroadcastReceiver() {
+            override fun onReceive(context: Context, intent: Intent) { blocked = goAsync() }
+        }, IntentFilter(Contract.OPEN), Context.RECEIVER_EXPORTED)
+        openButton().performClick(); shadowOf(Looper.getMainLooper()).idleFor(Duration.ofSeconds(2))
+        val stop = views(activity.window.decorView).filterIsInstance<Button>().single { it.text == "Stop waiting" }
+        assertEquals(View.VISIBLE, stop.visibility); stop.performClick()
+        assertEquals(View.GONE, stop.visibility)
+        assertTrue(openButton().isEnabled)
+        assertTrue(views(activity.window.decorView).filterIsInstance<android.widget.Switch>().single().isEnabled)
+        blocked?.setResultCode(Contract.RESULT_OPENED); blocked?.finish()
+        shadowOf(Looper.getMainLooper()).idleFor(Duration.ofSeconds(40))
+        assertTrue(texts().any { it.startsWith("Stopped waiting") })
+        assertFalse(texts().any { "[N0]" in it || it.startsWith("NetEase share panel opened") })
+    }
 }

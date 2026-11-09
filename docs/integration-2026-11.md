@@ -73,3 +73,82 @@ beta.11 本地最终检查：1323 项 Gradle 测试通过，无失败/跳过；�
 - 尚未完成真机验收：DRM 偶发无声长期复现、朋友圈最终封面、厂商焦点通知样式、系统安装确认。上述单元测试、浏览器与服务器实测不能替代这些结果。
 
 发布后的文档提交触发网站回归测试，发现正式发布说明的 Markdown 一级标题在下载页嵌入后产生第二个 h1；修复仅在网站将发布说明标题降为卡片内 h3–h6，保留页面唯一 h1 和发布卡片 h2，没有放宽浏览器测试。APK 与已核验的 v1.7.0 发布保持不变，此网站修复单独部署。
+
+## 2026-11-09 日维护（周期第 1 天）
+
+计划日期按北京时间计，首次三天交付日仍为 2026-11-11。本次延续用户反馈：优先修复分享等待，并调查新 DRM 会话故障。主线修复不包含未完成的大功能，USB 独占音频继续排除，不注入微信。
+
+### 基线与验收
+
+- 起点 main 为 204669e2ddb2da09efa816e05bb1abfba64af04b；仓库无未提交用户修改、无未合并 PR、无本仓库 Issues。上一次最终 Android/网站 CI 均通过（42500693959 / 42500693926）；更早失败已由后续提交修复，没有重复修复或重建 1.7.0。
+- 修复验收：Apple Music 内嵌板不再用宿主身份发送签名保护广播；受限模块中继投递到同一网易云请求；模块页面不被启动；接收端签名权限不放宽，非授权 UID 被拒绝；网易云原生面板真正恢复前不报告打开。
+- 小功能验收：显示剩余秒数，可停止等待；无远端回调也在 30 秒独立截止；恢复分享按钮和地区编辑，迟到结果不能覆盖停止/超时状态。新增复制脱敏诊断，并保留根异常栈帧；复制不含消息、凭据、文件名和内部发送标记。
+- 已覆盖真实发送板、受限 Provider、广播接收回调、挂起接收器、迟到成功与本地计时的 Robolectric 流程；这不等同于实体设备上的最终分享成功。
+
+### 上游提交与发布
+
+2026-11-09 复查上游 [388164c74de63d05495d91f8a83164fb4772ca31](https://github.com/Zennmn/AM-plus-plus/commit/388164c74de63d05495d91f8a83164fb4772ca31)（main 1.6.9 / 119），本仓库已含完整历史，差集为空。公开语义版本 Release 仍为 [v1.6.8](https://github.com/Zennmn/AM-plus-plus/releases/tag/v1.6.8)（2026-11-01），另有 embedded 附件发布。没有新增适用提交需要移植，未盲目覆盖本地功能，也未向上游写入。
+
+### Apple Music 更新检查
+
+- [Google Play 官方](https://play.google.com/store/apps/details?id=com.apple.android.music&hl=en_US&gl=US)可访问，显示更新日期 2026-10-29，但当前公开页面没有可核实的版本号和 versionCode，不能据此认定没有新版本。
+- [Apple 官方 Android 使用说明](https://support.apple.com/en-us/101645)可访问，但不是版本发行记录。
+- [APKMirror 交叉来源](https://www.apkmirror.com/apk/apple/apple-music/)列表当前显示正式版 7.0.0，上传日 2026-10-30；列表还有 7.0.0-beta，同日上传。beta 详情页请求 403，无法确认最新 beta 的 versionCode，不视为“没有更新”。
+- 本地既有真实安装包与精确 profile 已确认的正式版仍为 7.0.0 / 1614。已有 beta profile 为 1606、1607、1609、1613；其余正式 profile 为 6.5.0/1580、6.5.1/1583、6.5.2/1586、6.5.3/1599。本次未发现可确认的新版本契约，未新增支持声明；此前完整 1614 历史 profile 核验的 278 项失败仍保留待验证状态，未伪称全宿主兼容通过。
+
+### 上游 Issue 首次存量梳理
+
+检查两页共 131 条 Issue/PR 记录，排除 PR 后 21 个 Issue；阅读正文与全部现有讨论（按页面更新时间 2026-11-07 起作增量基线），包含新建、近期更新、已关闭问题。仅本地评估，没有留言、开单或改状态。以下“已含历史”不等同于本机复现已消失；本次新增提交来自用户分享反馈，不冒充上游 Issue 修复。
+
+| 原始 Issue | 适用性、现有证据与状态 | 本次对应提交 |
+| --- | --- | --- |
+| [#127](https://github.com/Zennmn/AM-plus-plus/issues/127) | Gemini 400；思考参数格式建议已由 PR130/d61a258fa9f01d5005d8d5d32c499a070d9532d0 合入历史，当前源码具有 thinkingFormat；未重复修改 AI 请求，真实 Gemini 账户调用待验证。 | —（本次未实施） |
+| [#128](https://github.com/Zennmn/AM-plus-plus/issues/128) | 固定列表随机播放建议；体验候选 P3，需明确列表/队列语义，不以播放恢复改动擅自重排队列。 | —（本次未实施） |
+| [#126](https://github.com/Zennmn/AM-plus-plus/issues/126) | 横竖屏控制建议；候选 P2，需目标设备/布局验收，不新增无证据强制方向设置。 | —（本次未实施） |
+| [#116](https://github.com/Zennmn/AM-plus-plus/issues/116) | 平板玻璃顶栏异常；PR118/36dd119950b001883d3e31e17586f545d404a7c1 的相关修复已含，但截图是否同一问题未确认；需真机 P2。 | —（本次未实施） |
+| [#87](https://github.com/Zennmn/AM-plus-plus/issues/87) | 改包名支持；PR112/2b0add405d9343e330b93ce17025a557d5abd70b 已含。分享中继仍限官方签名与包名，不放宽安全边界；改包分享另待证据。 | —（本次未实施） |
+| [#111](https://github.com/Zennmn/AM-plus-plus/issues/111) | 滑动切歌建议；候选 P3，需手势冲突及误操作验收，不与当前故障恢复混用。 | —（本次未实施） |
+| [#109](https://github.com/Zennmn/AM-plus-plus/issues/109) | 旧 Backdrop ABI/资源类型崩溃报告；高优先级 P1 待取得实际旧插件二进制和对应堆栈。当前源码没有声称已补齐该旧重载，不能仅凭上游反馈判为本仓库已复现。 | —（本次未实施） |
+| [#73](https://github.com/Zennmn/AM-plus-plus/issues/73) | Android 10 嵌入版请求；本仓库模块 minSdk26，当前官方 7.0.0 分发要求 Android11，旧宿主 profile 与改包分发须分别验证，未承诺新嵌入安装包。 | —（本次未实施） |
+| [#95](https://github.com/Zennmn/AM-plus-plus/issues/95) | 更多玻璃效果建议；候选 P3，已有玻璃功能与具体目标需先排重，无新改动。 | —（本次未实施） |
+| [#94](https://github.com/Zennmn/AM-plus-plus/issues/94) | 播放时删曲崩溃/队列错位；讨论归因为原生但未在本仓库证实，保留 P1 真机复现；不将上游结论直接认定为本仓库原因。 | —（本次未实施） |
+| [#89](https://github.com/Zennmn/AM-plus-plus/issues/89) | 媒体卡片无法打开；讨论提及原生1609修复，PR93/4144e5cd6aabb3b6837d742dbe0346184912f01a 适配历史已含；厂商通知点击仍待真机。 | —（本次未实施） |
+| [#69](https://github.com/Zennmn/AM-plus-plus/issues/69) | 歌词模糊；PR97/32c9d09e1fb70d879068204ae66f61891f1baf99 的相关重构已含，当前故障未复现；不重复重构。 | —（本次未实施） |
+| [#85](https://github.com/Zennmn/AM-plus-plus/issues/85) | 已关闭的 root 检测请求；不作为 DRM 根因证据，不移植绕过检测方案。 | —（本次未实施） |
+| [#45](https://github.com/Zennmn/AM-plus-plus/issues/45) | 已关闭 USB 建议；按用户明确要求排除。 | —（本次未实施） |
+| [#80](https://github.com/Zennmn/AM-plus-plus/issues/80) | 1607 注入；PR96/b0f71e284eaf229629511da25e37d4d581176855 等适配已含精确 profile；具体旧环境注入待证据。 | —（本次未实施） |
+| [#75](https://github.com/Zennmn/AM-plus-plus/issues/75) | 7.0 beta 玻璃底栏；对应多版适配历史已含，仍需确切版本/布局验证，不向未知版本推定兼容。 | —（本次未实施） |
+| [#63](https://github.com/Zennmn/AM-plus-plus/issues/63) | 已关闭的高亮位置问题；相关上游修复在现有玻璃历史内，未改固定参考源；视觉真机复查待验证。 | —（本次未实施） |
+| [#58](https://github.com/Zennmn/AM-plus-plus/issues/58) | 已关闭的6.5.3适配请求；已登记6.5.3/1599精确profile，不重复开发，不能推定其他code。 | —（本次未实施） |
+| [#54](https://github.com/Zennmn/AM-plus-plus/issues/54) | TTML 发音/空格兼容建议；现有解析与歌词修复部分相关，样例和真机覆盖不足，保留 P2 复现，未宣称全面解决。 | —（本次未实施） |
+| [#38](https://github.com/Zennmn/AM-plus-plus/issues/38) | 上传歌曲无歌词/重载问题；PR117/e753541504a3e266a1552b81929f9f665ee5d796 的重载修复已含；原本无歌词的注入仍需单独样例验证。 | —（本次未实施） |
+| [#14](https://github.com/Zennmn/AM-plus-plus/issues/14) | 已关闭的空泛 Bug Report；缺少可复现资料，不生成猜测修复。 | —（本次未实施） |
+
+### 私有反馈与最新截图
+
+最初于 UTC 2026-11-08 18:56 检查当日及前一日两页，按 ID 去重共 9 条，排除 1 条 VerificationProbe 后为 8 条匿名诊断（模块/播放各4条），均无整数错误详情和异常类链，不把它们直接当作 DRM 根因。
+
+UTC 2026-11-09 再次读取凭据时，原项目 prj_vJB9MDcDxOdVawTowZOMHsWxbAAy、环境变量和旧部署均返回404；指定原团队及默认范围查询项目为空，CLI无可用登录，当前工具也无浏览器控制入口。公网两域反馈GET仍返回401，说明服务仍有鉴权，不能把无法读取当作没有收到。用户截图证实同名项目仍在原团队，已提供团队重新授权入口，等待用户恢复连接；未将日志改公开、未泄露凭据。恢复后必须检查 UTC11-09/11-08全部分页、按ID去重并记录匿名基线。
+
+用户补充北京时间22:50附近的新播放故障截图：7.0.0，state=1，ExoPlaybackException → DrmSession$DrmSessionException → RuntimeException。此链只能确认 DRM 会话错误，缺少最底层栈与组件码，不能认定为旧 E-25、内核问题或本次已修复。用户提到自定义内核，建议对照停用模块的原版播放及原厂内核环境；没有实际对照结果则保留待验证，不增加无条件许可证重试或更改播放队列。
+
+### 三天大功能：可恢复的分享草稿
+
+- Day1（11-09）：独立开发分支 [codex/share-drafts-20261109](https://github.com/Laoch832/LyricWave/tree/codex/share-drafts-20261109)，基础提交 e782001bab80e331704c325479189f12c5cbdba4；实现私有草稿的纯核心编解码、24小时到期、链接/封面来源校验和手动编辑保留，4项新测试通过，[开发分支CI](https://github.com/Laoch832/LyricWave/actions/runs/42638042038)成功。该分支不含自动发送指令，未合并或随今日正式版发布。
+- Day2（11-10）：原子保存、配置变化/进程重建后的恢复提示、用户主动恢复和清除；保证迟到元数据不覆盖编辑，错误/到期草稿安全丢弃。
+- Day3（11-11）：交付完整草稿保存→恢复→编辑→原生分享流程，覆盖旋转/进程重建/取消/清除和过期；额外交付，不抵扣当日两项小任务。若缺真机则如实保留最终原生验收限制。
+
+### 本地与正式交付进度
+
+本地1340项测试全部通过，无失败或跳过；要求的应用/库Lint、Debug与Release构建、架构/profile/玻璃检查、29项Python策略测试和工作流语法检查通过。分享定向覆盖受限Provider发送、非授权UID拒绝、冷启动等待、独立截止、停止和迟到结果；诊断覆盖根栈保留、复制字段白名单与敏感内容排除。同SHA云端CI、固定签名与正式Release核验已完成，证据见下。最初本地全测遇到临时磁盘不足，清理的是已安装工具的下载压缩包及可重建缓存，未删除用户代码或更换签名；已重新执行完整检查。实体设备的原生面板、朋友圈接收、DRM长播仍未完成。
+
+### 1.7.1 正式交付核验
+
+- 源码提交 [8b823eeee9c7ad0d55d11a885981533ec179f9f3](https://github.com/Laoch832/LyricWave/commit/8b823eeee9c7ad0d55d11a885981533ec179f9f3)，版本1.7.1 / 133。
+- [主线完整CI](https://github.com/Laoch832/LyricWave/actions/runs/42640940492)、[网站CI](https://github.com/Laoch832/LyricWave/actions/runs/42640940183)均成功；随后运行[正式发布工作流](https://github.com/Laoch832/LyricWave/actions/runs/42642493303)，所有检查、固定签名与发布步骤成功。
+- [正式Release v1.7.1](https://github.com/Laoch832/LyricWave/releases/tag/v1.7.1)作者Laoch832（173591322），draft=false、prerelease=false，latest指向本版；标签解析后的commit与target_commitish均为上述源码SHA。APK、SHA256SUMS.txt、SIGNATURE.txt、build-metadata.json、client-update.json五个附件齐全。
+- 经网站带文件名路径完整下载实际APK，11854246字节，SHA-256为 `c7e82c4becd782867352a83e57d47c7e271adacc597ee9233ad4f5a2eee92ec0`，与同次签名构建清单及SHA256SUMS一致。apksigner验证v2/v3签名通过，证书仍为 `4ec2f441139585083e476b596a503db7e6c459ec1ca1d9bcf59d815b6981da53`；实际包名dev.amenhancer.module、versionName1.7.1、versionCode133均匹配。
+- 下载响应为application/vnd.android.package-archive，filename和filename*都是LyricWave-1.7.1.apk。实际DEX包含share_request/share_prepare，未包含隔离开发的ShareDraftCodec。发布client-update.json逐字段匹配本次构建元数据和本版本release-notes/1.7.1.json，未重复历史发布说明。
+- 线上客户端实现实测：本机132为NEWER且可下载；133为CURRENT、134为AHEAD，二者均upToDate=true且不可降级下载；专用配置返回本版4项变化。
+- UTC2026-11-09发布后再次验证Vercel凭据读取，仍返回项目404；该时段新的云端DRM报告未读取成功，没有伪称查收或根因定位完成。用户已说明项目没有迁移，后续需要恢复连接访问，再读取UTC当日/前一日并按记录ID去重；此前一次性授权入口有10分钟有效期，不在仓库保存授权链接或密钥。
+- 未完成：真机验证网易云最终原生面板与朋友圈卡片、DRM偶发无声长期复现、内核对照。诊断导出与根栈保留不能当作DRM已修复。

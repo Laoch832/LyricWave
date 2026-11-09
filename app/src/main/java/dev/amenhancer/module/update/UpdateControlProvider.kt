@@ -27,6 +27,18 @@ class UpdateControlProvider : ContentProvider() {
         val app = requireNotNull(context)
         if (!trustedCaller(app, Binder.getCallingUid())) throw SecurityException("Untrusted update caller")
         return when (method) {
+            "share_prepare" -> {
+                val launch = app.packageManager.getLaunchIntentForPackage(dev.amenhancer.module.MomentsLinkContract.INTERMEDIARY_PACKAGE)
+                Bundle().apply {
+                    if (launch == null) putInt("code", dev.amenhancer.module.MomentsLinkContract.RESULT_MISSING)
+                    else putParcelable("action", PendingIntent.getActivity(app, 7101, launch,
+                        PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE))
+                }
+            }
+            "share_request" -> {
+                dev.amenhancer.module.share.MomentsShareRelay.dispatch(app, requireNotNull(extras))
+                Bundle().apply { putBoolean("accepted", true) }
+            }
             "feedback_config" -> {
                 val enabled = extras?.getBoolean("enabled", true) ?: true
                 app.getSharedPreferences("lyricwave_feedback_config", Context.MODE_PRIVATE).edit().putBoolean("enabled", enabled).apply()
