@@ -140,4 +140,15 @@ UTC 2026-11-09 再次读取凭据时，原项目 prj_vJB9MDcDxOdVawTowZOMHsWxbAA
 
 ### 本地与正式交付进度
 
-本地1340项测试全部通过，无失败或跳过；要求的应用/库Lint、Debug与Release构建、架构/profile/玻璃检查、29项Python策略测试和工作流语法检查通过。分享定向覆盖受限Provider发送、非授权UID拒绝、冷启动等待、独立截止、停止和迟到结果；诊断覆盖根栈保留、复制字段白名单与敏感内容排除。待补充同SHA云端CI、固定签名与正式Release核验链接；尚未把1.7.1当作已发布。最初本地全测遇到临时磁盘不足，清理的是已安装工具的下载压缩包及可重建缓存，未删除用户代码或更换签名；已重新执行完整检查。实体设备的原生面板、朋友圈接收、DRM长播仍未完成。
+本地1340项测试全部通过，无失败或跳过；要求的应用/库Lint、Debug与Release构建、架构/profile/玻璃检查、29项Python策略测试和工作流语法检查通过。分享定向覆盖受限Provider发送、非授权UID拒绝、冷启动等待、独立截止、停止和迟到结果；诊断覆盖根栈保留、复制字段白名单与敏感内容排除。同SHA云端CI、固定签名与正式Release核验已完成，证据见下。最初本地全测遇到临时磁盘不足，清理的是已安装工具的下载压缩包及可重建缓存，未删除用户代码或更换签名；已重新执行完整检查。实体设备的原生面板、朋友圈接收、DRM长播仍未完成。
+
+### 1.7.1 正式交付核验
+
+- 源码提交 [8b823eeee9c7ad0d55d11a885981533ec179f9f3](https://github.com/Laoch832/LyricWave/commit/8b823eeee9c7ad0d55d11a885981533ec179f9f3)，版本1.7.1 / 133。
+- [主线完整CI](https://github.com/Laoch832/LyricWave/actions/runs/42640940492)、[网站CI](https://github.com/Laoch832/LyricWave/actions/runs/42640940183)均成功；随后运行[正式发布工作流](https://github.com/Laoch832/LyricWave/actions/runs/42642493303)，所有检查、固定签名与发布步骤成功。
+- [正式Release v1.7.1](https://github.com/Laoch832/LyricWave/releases/tag/v1.7.1)作者Laoch832（173591322），draft=false、prerelease=false，latest指向本版；标签解析后的commit与target_commitish均为上述源码SHA。APK、SHA256SUMS.txt、SIGNATURE.txt、build-metadata.json、client-update.json五个附件齐全。
+- 经网站带文件名路径完整下载实际APK，11854246字节，SHA-256为 `c7e82c4becd782867352a83e57d47c7e271adacc597ee9233ad4f5a2eee92ec0`，与同次签名构建清单及SHA256SUMS一致。apksigner验证v2/v3签名通过，证书仍为 `4ec2f441139585083e476b596a503db7e6c459ec1ca1d9bcf59d815b6981da53`；实际包名dev.amenhancer.module、versionName1.7.1、versionCode133均匹配。
+- 下载响应为application/vnd.android.package-archive，filename和filename*都是LyricWave-1.7.1.apk。实际DEX包含share_request/share_prepare，未包含隔离开发的ShareDraftCodec。发布client-update.json逐字段匹配本次构建元数据和本版本release-notes/1.7.1.json，未重复历史发布说明。
+- 线上客户端实现实测：本机132为NEWER且可下载；133为CURRENT、134为AHEAD，二者均upToDate=true且不可降级下载；专用配置返回本版4项变化。
+- UTC2026-11-09发布后再次验证Vercel凭据读取，仍返回项目404；该时段新的云端DRM报告未读取成功，没有伪称查收或根因定位完成。用户已说明项目没有迁移，后续需要恢复连接访问，再读取UTC当日/前一日并按记录ID去重；此前一次性授权入口有10分钟有效期，不在仓库保存授权链接或密钥。
+- 未完成：真机验证网易云最终原生面板与朋友圈卡片、DRM偶发无声长期复现、内核对照。诊断导出与根栈保留不能当作DRM已修复。
