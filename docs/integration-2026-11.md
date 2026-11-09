@@ -213,3 +213,15 @@ Day3（11-11）继续验收完整保存→恢复→编辑→原生中继流程�
 用户另报告 Apple Music 播放页从后台恢复时歌词重载、多次返回手势才返回，并要求下一首音频/DRM 预加载和模块承担更多加载工作。已只读检查1614真实安装包的 PlayerActivity、PlayerLyricsViewFragment、PlayerLyricsViewModel、ExoMediaPlayer 与 PlaybackQueueMediaSource：恢复时原生重新发布媒体元数据；原生歌词会校验当前原始曲目 ID 与语言，再决定加载。下一首索引可由 getNextItemIndex 按原生随机/循环规则读取；队列媒体源的 prepareMediaSourceUpstream 会创建原生子源、持有同一个 DrmManager，并修改源持有表和 itemPositionProvider，不能把“调一次私有方法”当作已完成许可证预取或无副作用。当前未修改播放器返回或许可证逻辑；预加载架构仍待有界原型、契约/线程/取消/释放验证与真机证据。已请求用户关闭启动页预热后作对照，排查预创建页面是否影响返回，不能先认定原因。相关调查不混作本次已修复项目，也不更改三天草稿功能周期。
 
 发布前复查补齐“详情页保持打开、模块APK已在外部安装”的边界：弹窗订阅实际安装版本，实时重新比较，已是最新时收起旧说明和下载按钮；下载服务返回 already_current 时也不再显示重试入口。首个发布运行42716153628在创建Release之前主动取消（查询确认v1.7.3不存在），该取消不算通过或交付；修订后重新完成验证、主线CI和正式发布，不覆盖任何既有Release。
+
+预加载调查保留在 [codex/native-prefetch-contract-20261110](https://github.com/Laoch832/LyricWave/tree/codex/native-prefetch-contract-20261110)，提交 [e1197f85533eece6ad95a9b927a8fee05162bc54](https://github.com/Laoch832/LyricWave/commit/e1197f85533eece6ad95a9b927a8fee05162bc54)，[完整开发分支CI](https://github.com/Laoch832/LyricWave/actions/runs/42716238572)成功（按分支策略不签名、不发布）。已交付候选接口 DEX/访问标志验证脚本、精确7.0.0/1614只读 NativeNextItemReader1614 和3项线程/随机顺序/当前身份测试；31项 Python 测试及真实APK清单核对通过。读取器无运行时注册点，未接入预取；音频、DRM 请求、媒体源准备和返回处理没有改动，不能宣称已支持提前取许可证。后续接入前须整合 main 的详情页修订，并完成播放器线程、队列变化、资源交接/释放及真机延迟/错误率验证；完整架构边界与验收条件见该分支同文件。播放页重载和多次返回的对照问题仍待用户结果，尚未修复。
+
+### 1.7.3 正式交付核验
+
+- 最终发布源码为 [0ff60e334baa811f3778179e8a8eef727887ebad](https://github.com/Laoch832/LyricWave/commit/0ff60e334baa811f3778179e8a8eef727887ebad)，包含身份修正86bf9f7e372201134c2cc3af2114a23e6fac7775及最后的详情页实时状态修订；本地1354项测试全部通过。修订后应用单测、core:jvmTest、Debug/Release Lint 与构建再次通过，未通过放宽 Lint 或删除验证交付。
+- [最终源码完整CI](https://github.com/Laoch832/LyricWave/actions/runs/42717377654)（含固定签名）、[网站CI](https://github.com/Laoch832/LyricWave/actions/runs/42717377380)和Vercel状态成功后，才重新触发 [正式发布工作流](https://github.com/Laoch832/LyricWave/actions/runs/42718260972)；该流程全部检查、签名、个人身份验证与发布均成功。前一次取消运行不计作通过。
+- [正式Release v1.7.3](https://github.com/Laoch832/LyricWave/releases/tag/v1.7.3)于UTC2026-11-09T23:13:02Z发布，作者Laoch832（173591322），draft=false、prerelease=false，GitHub latest指向本版；tag解析和target_commitish均为最终源码0ff60e334baa811f3778179e8a8eef727887ebad。APK、SHA256SUMS.txt、SIGNATURE.txt、build-metadata.json、client-update.json五个附件齐全，专有说明为本版4项变化。
+- 线上完整APK为11870630字节，SHA-256=`709280f4d31149b3f89efdfedcceb4055051002c582a1670e171bcdf332d0508`，与同次构建元数据、SHA256SUMS一致。apksigner验证签名通过，固定证书仍为 `4ec2f441139585083e476b596a503db7e6c459ec1ca1d9bcf59d815b6981da53`；实际包名dev.amenhancer.module、versionName1.7.3、versionCode135均匹配，没有更换密钥。
+- 网站带文件名路径返回application/vnd.android.package-archive，filename与filename*都是LyricWave-1.7.3.apk。实际DEX包含新控制字段、速度采样器和通用更新标题；不含分享草稿或NativeNextItemReader1614等隔离代码。client-update.json逐字段匹配构建元数据及本版本release-notes/1.7.3.json。
+- 用客户端实际查询代码实测：134为NEWER且可下载，135为CURRENT、136为AHEAD，后两者均upToDate=true、updateAvailable=false。发布缓存刷新前新附件短暂404，刷新后实际下载和协议验证全部通过，未把请求失败当最新。
+- 用户安装后需强停重开Apple Music与网易云以加载新模块；同签名可覆盖安装，无需卸载或清空缓存。没有连接用户手机：最终网易云面板/封面、内建服务在该设备上的启动、播放器返回/恢复、DRM长播和内核对照均不能由单测或签名核验代替。私有反馈管理员读取仍被Vercel项目404阻塞，新批次尚未读取；音频与DRM预加载尚未实现或启用。
