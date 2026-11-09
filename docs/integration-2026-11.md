@@ -231,3 +231,5 @@ flowchart LR
 接入验收：只准备原生随机/循环顺序中的一个真实下一首；不复制完整队列，不调用 seek/play/retry 或替换当前 MediaSource；不自行拼接、重放或持久化许可证请求。只在原生 playbackHandler 所属 Looper 操作源持有表，已存在的源不可重复准备。队列更换/停止/关闭时只释放无 activeMediaPeriods 的闲置候选；下一首变为当前后交给原生管理，不释放活动源。必须验证失败无重试风暴、来回切歌/循环/随机/取消/释放、原生焦点与暂停语义，以及实际开始播放时延和 DRM 错误率；符号核对与单元测试不代替这些端到端结果。
 
 尚未实施运行时 Hook、音频缓存或许可证预取。prepareMediaSourceUpstream 的存在只证明可研究的媒体源准备入口，不能证明它会提前建立可供下一首复用的 DRM 会话；缺少真机及云端底层错误证据时，不将其接入正在使用的播放器。播放页重复返回和恢复重载仍待对照复现，未归因于启动页预热或自定义内核。
+
+进一步实现 NativeNextItemReader1614，只读取精确版本的下一首快照：核对当前原生曲目与已验证媒体身份，在原生播放器 Looper 上读取 getNextItemIndex 与 getQueueItemAtIndex，返回当前/下一首队列键和下一首 catalog ID；不用列表 index+1 猜测随机/循环顺序，不遍历全队列，不读取音频 URL 或会话凭据。3项 Robolectric 测试通过，覆盖随机下一首、重复当前/无下一首、错误版本、领先的元数据与错误线程；实际 DEX 清单已补齐 player 字段和 Player.getApplicationLooper，重新核对通过。该读取器没有运行时注册点，尚未驱动预取，继续只留在隔离分支。
