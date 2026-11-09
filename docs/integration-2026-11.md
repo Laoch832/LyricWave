@@ -176,8 +176,20 @@ UTC 2026-11-09 再次读取凭据时，原项目 prj_vJB9MDcDxOdVawTowZOMHsWxbAA
 
 继续在 [codex/share-drafts-20261109](https://github.com/Laoch832/LyricWave/tree/codex/share-drafts-20261109) 隔离开发，不混入今日 1.7.2。已实现私有原子保存、同一链接的恢复提示、用户主动保存/恢复/清除、空歌手和地区编辑保留、迟到元数据不覆盖恢复内容。文件操作跨控制器串行，关闭旧面板不影响新面板草稿；网络元数据和分享中继分离，慢查询不阻塞恢复后主动分享。到期、损坏和超限草稿安全丢弃，没有自动发送指令。
 
+Day2 开发提交为 [7292c566c4e2492e2db961db1f5b6b3fa9d01e08](https://github.com/Laoch832/LyricWave/commit/7292c566c4e2492e2db961db1f5b6b3fa9d01e08)，包含前置 7f38a4eaa6d7e43201badbabbc815404d6bb5fbd、09125ce7aee76e02924156d6905b5987ab931c1d。本地4项新存储/真实分享 Activity 测试通过，覆盖重建存储、原子失败保留、到期/超限、两个并发控制器，以及保存/主动恢复/清除和迟到元数据；原有分享测试及 core:jvmTest 通过。[同一 SHA 的完整开发分支 CI](https://github.com/Laoch832/LyricWave/actions/runs/42683543760)成功（开发分支按策略不签名、不发布），完整生命周期和原生终点继续留给 Day3 验收。
+
 Day3（11-11）继续验收完整保存→恢复→编辑→原生中继流程，以及旋转/进程重建/清除不复活/取消/过期；仅在完成验证后合入，不抵扣当天两项小任务。当前没有设备，最终原生面板与朋友圈封面、DRM 长播/内核对照仍待真机，不能用草稿或诊断改进声称 DRM 已修复。
 
 ### 验证与发布进度
 
-版本为 1.7.2 / 134，使用独立结构化说明 release-notes/1.7.2.json。本地1342项 Gradle 测试全部通过，无失败或跳过；应用及要求库 Lint、Release Lint、Debug/Release 构建通过，架构/profile/玻璃参考检查、29项 Python 发布策略测试和工作流语法检查通过。尚待同 SHA 云端 CI/固定签名和正式发布核验，完成后在本节补充实际证据。
+版本为 1.7.2 / 134，使用独立结构化说明 release-notes/1.7.2.json。本地1342项 Gradle 测试全部通过，无失败或跳过；应用及要求库 Lint、Release Lint、Debug/Release 构建通过，架构/profile/玻璃参考检查、29项 Python 发布策略测试和工作流语法检查通过。
+
+源码提交 [7e22bea313900fed2231284fafa44ccb6628cbef](https://github.com/Laoch832/LyricWave/commit/7e22bea313900fed2231284fafa44ccb6628cbef) 已由 Laoch832 推送 main；[同 SHA 主线 CI](https://github.com/Laoch832/LyricWave/actions/runs/42683466136)（含固定签名）、[网站 CI](https://github.com/Laoch832/LyricWave/actions/runs/42683465974)和 Vercel 提交状态均成功。通过后才以个人账号触发 [正式发布工作流](https://github.com/Laoch832/LyricWave/actions/runs/42684516298)，其全量检查、签名与发布均成功。
+
+### 1.7.2 正式交付核验
+
+- [Release v1.7.2](https://github.com/Laoch832/LyricWave/releases/tag/v1.7.2)于 UTC2026-11-09T19:36:11Z 发布，作者 Laoch832 / 173591322，draft=false、prerelease=false；GitHub latest 指向本版，tag 解析后的 SHA 和 target_commitish 均为 7e22bea313900fed2231284fafa44ccb6628cbef。APK、SHA256SUMS.txt、SIGNATURE.txt、build-metadata.json、client-update.json五个附件齐全。
+- 从网站带文件名路径完整下载实际 APK，11870630 字节，SHA-256=`0fcb7098711419703904ef2b34ad69e8130f4f3a5d56a6ccaab7e5b1e46b20d1`，与同次构建清单及 SHA256SUMS 一致。apksigner 验证签名通过，固定证书仍为 `4ec2f441139585083e476b596a503db7e6c459ec1ca1d9bcf59d815b6981da53`；实际包名 dev.amenhancer.module、versionName1.7.2、versionCode134 与元数据匹配，没有重建或更换签名。
+- 下载响应为 application/vnd.android.package-archive，filename 和 filename* 都是 LyricWave-1.7.2.apk。实际发布 DEX 不含隔离分支 ShareDraftCodec/ShareDraftStore。client-update.json 逐字段匹配本次构建元数据及 release-notes/1.7.2.json 的2项变化，未复用历史功能长文。
+- 使用客户端实际查询实现验证：本机133为NEWER且可下载，134为CURRENT、135为AHEAD；后两者均 upToDate=true、updateAvailable=false，不提供降级下载。发布后缓存刷新前新附件短暂404，刷新后完整下载与配置验证通过，未把失败当作已是最新。
+- 公网两个反馈域 GET 再次确认401；原 Vercel 项目访问仍待恢复，新增 DRM 报告尚未查收。当前新反馈回执只证明批次接收，不证明错误已分析或修复。最终真机验收仍缺设备：DRM 长播和内核对照、网易云原生终点和朋友圈封面、厂商焦点通知。
