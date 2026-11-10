@@ -361,6 +361,7 @@ private val EmbeddedSettingsNavigationPages = listOf(
     EmbeddedSettingsPage.INTERFACE,
     EmbeddedSettingsPage.TITLE_REGION,
     EmbeddedSettingsPage.ADVANCED,
+    EmbeddedSettingsPage.EXPERIMENTAL,
     EmbeddedSettingsPage.PLUGINS,
 )
 
@@ -391,6 +392,7 @@ private val EmbeddedSettingsPage.title: ModuleText
         EmbeddedSettingsPage.LYRICS_EFFECTS -> ModuleText.CATEGORY_LYRICS_EFFECTS
         EmbeddedSettingsPage.INTERFACE -> ModuleText.CATEGORY_INTERFACE
         EmbeddedSettingsPage.TITLE_REGION -> ModuleText.CATEGORY_TITLE_REGION
+        EmbeddedSettingsPage.EXPERIMENTAL -> ModuleText.EXPERIMENTAL_FEATURES
         EmbeddedSettingsPage.ADVANCED -> ModuleText.ADVANCED_SETTINGS
         EmbeddedSettingsPage.PLUGINS -> ModuleText.PLUGINS
         EmbeddedSettingsPage.AI_LYRICS_ACTIVITY -> ModuleText.AI_ACTIVITY_TITLE
@@ -449,6 +451,9 @@ private fun EmbeddedSettingsHost.EmbeddedSettingsHome(
             } else "DPI · $dpi",
             EmbeddedSvgIcon.Settings,
         ) { onOpen(EmbeddedSettingsPage.ADVANCED) }
+        EmbeddedSettingLink(localizedText(ModuleText.EXPERIMENTAL_FEATURES), localizedText(ModuleText.NEXT_ASSET_PRELOAD), EmbeddedSvgIcon.StartupPrewarm) {
+            onOpen(EmbeddedSettingsPage.EXPERIMENTAL)
+        }
         EmbeddedSettingLink(
             localizedText(ModuleText.PLUGINS),
             localizedText(if (plugins == null) ModuleText.PLUGIN_RUNTIME_UNAVAILABLE else ModuleText.SUMMARY_PLUGINS),
@@ -589,6 +594,32 @@ private fun EmbeddedSettingsHost.EmbeddedSettingsCategory(
                 onSelectedIndexChange = { index -> onEdit { it.copy(titleCorrectionMode = modes[index]) } },
             )
         }
+        EmbeddedSettingsPage.EXPERIMENTAL -> {
+            EmbeddedSettingsGroup {
+                Setting(ModuleText.NEXT_ASSET_PRELOAD, ModuleText.NEXT_ASSET_PRELOAD_SUMMARY,
+                    settings.experimentalNextAssetPreloadEnabled, EmbeddedSvgIcon.StartupPrewarm) { value ->
+                    onEdit { it.copy(experimentalNextAssetPreloadEnabled = value) }
+                }
+                var status by remember { mutableStateOf(dev.amenhancer.module.playback.NextAssetPreloadStatus.state) }
+                LaunchedEffect(active, settings.experimentalNextAssetPreloadEnabled) {
+                    while (active) {
+                        status = dev.amenhancer.module.playback.NextAssetPreloadStatus.state
+                        kotlinx.coroutines.delay(500)
+                    }
+                }
+                val stateText = if (!settings.experimentalNextAssetPreloadEnabled) ModuleText.PRELOAD_OFF else when (status) {
+                    dev.amenhancer.module.playback.NextAssetPreloadState.REQUESTING -> ModuleText.PRELOAD_REQUESTING
+                    dev.amenhancer.module.playback.NextAssetPreloadState.READY -> ModuleText.PRELOAD_READY
+                    dev.amenhancer.module.playback.NextAssetPreloadState.USED -> ModuleText.PRELOAD_USED
+                    dev.amenhancer.module.playback.NextAssetPreloadState.NATIVE -> ModuleText.PRELOAD_NATIVE
+                    dev.amenhancer.module.playback.NextAssetPreloadState.FALLBACK -> ModuleText.PRELOAD_FALLBACK
+                    dev.amenhancer.module.playback.NextAssetPreloadState.UNSUPPORTED -> ModuleText.PRELOAD_UNSUPPORTED
+                    else -> ModuleText.PRELOAD_WAITING
+                }
+                Text(localizedText(ModuleText.NEXT_ASSET_PRELOAD_STATE, localizedText(stateText)), modifier = Modifier.padding(20.dp))
+                Text(localizedText(ModuleText.NEXT_ASSET_PRELOAD_NOTICE), modifier = Modifier.padding(20.dp))
+            }
+        }
         EmbeddedSettingsPage.ADVANCED -> {
             EmbeddedSettingsGroup {
             if (nativeBridge.supportsStartupPagePrewarm(activity)) Setting(
@@ -684,6 +715,7 @@ private fun EmbeddedSettingsHost.showEmbeddedPageDetails(activity: Activity, pag
             ModuleText.BOTTOM_BAR_ANIMATION_SETTINGS to ModuleText.BOTTOM_BAR_ANIMATION_SETTINGS_SUMMARY,
         )
         EmbeddedSettingsPage.TITLE_REGION -> listOf(ModuleText.TITLE_CORRECTION to ModuleText.TITLE_CORRECTION_SUMMARY)
+        EmbeddedSettingsPage.EXPERIMENTAL -> listOf(ModuleText.NEXT_ASSET_PRELOAD to ModuleText.NEXT_ASSET_PRELOAD_NOTICE)
         EmbeddedSettingsPage.ADVANCED -> listOf(
             ModuleText.STARTUP_PAGE_PREWARM to ModuleText.STARTUP_PAGE_PREWARM_SUMMARY,
             ModuleText.CELLULAR_SETTINGS to ModuleText.CELLULAR_SETTINGS_SUMMARY,

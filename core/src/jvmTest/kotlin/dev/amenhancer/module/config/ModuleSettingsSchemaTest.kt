@@ -11,6 +11,14 @@ import org.junit.Assert.assertNull
 import org.junit.Test
 
 class ModuleSettingsSchemaTest {
+    @Test fun experimentalPreloadIsOptInAndPersistsAcrossSharedSchema() {
+        val defaults = ModuleSettingsSchema.decode(emptyMap<String, Any>())
+        assertFalse(defaults.experimentalNextAssetPreloadEnabled)
+        val enabled = defaults.copy(experimentalNextAssetPreloadEnabled = true)
+        assertEquals(enabled, ModuleSettingsSchema.decode(ModuleSettingsSchema.encode(enabled)))
+        assertEquals(true, ModuleSettingsSchema.decodeOrdinarySettings(ModuleSettingsSchema.encodeOrdinarySettings(enabled)).experimentalNextAssetPreloadEnabled)
+    }
+
     @org.junit.Test fun feedbackDefaultAndStorefrontChoiceRoundTrip() {
         val defaults = ModuleSettingsSchema.decode(emptyMap<String, Any>())
         org.junit.Assert.assertTrue(defaults.automaticFeedbackEnabled)
@@ -138,6 +146,7 @@ class ModuleSettingsSchemaTest {
                 "automatic_feedback_enabled" to true,
                 "automatic_update_check_enabled" to true,
                 "playback_stall_recovery_enabled" to true,
+                "experimental_next_asset_preload_enabled" to false,
                 "lyrics_hdr_enabled" to false,
                 "lyrics_hdr_brightness_percent" to 200,
                 "lyrics_hdr_flashbang_enabled" to false,
@@ -204,6 +213,7 @@ class ModuleSettingsSchemaTest {
                 "automatic_feedback_enabled" to true,
                 "automatic_update_check_enabled" to true,
                 "playback_stall_recovery_enabled" to true,
+                "experimental_next_asset_preload_enabled" to false,
                 "lyrics_hdr_enabled" to false,
                 "lyrics_hdr_brightness_percent" to 200,
                 "lyrics_hdr_flashbang_enabled" to false,

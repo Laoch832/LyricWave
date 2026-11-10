@@ -4,7 +4,7 @@ object ModuleConstants {
     const val MODULE_PACKAGE = "dev.amenhancer.module"
     const val TARGET_PACKAGE = "com.apple.android.music"
     const val REMOTE_PREFERENCES_GROUP = "settings"
-    const val CONFIG_SCHEMA_VERSION = 20
+    const val CONFIG_SCHEMA_VERSION = 21
 
     const val FEATURE_DUAL_PANE = "dual_pane"
     const val FEATURE_EDITORIAL_VIDEO = "editorial_video"
@@ -23,6 +23,7 @@ object ModuleConstants {
     const val FEATURE_TITLE_CORRECTION = "title_correction"
     const val FEATURE_APPLE_MUSIC_DPI = "apple_music_dpi"
     const val FEATURE_CELLULAR_DATA_ENTRY = "cellular_data_entry"
+    const val FEATURE_NEXT_ASSET_PRELOAD = "next_asset_preload"
     const val FEATURE_PLAYBACK_STALL_RECOVERY = "playback_stall_recovery"
     const val FEATURE_PLAYER_RECOVERY = "player_recovery"
     const val FEATURE_STARTUP_PAGE_PREWARM = "startup_page_prewarm"

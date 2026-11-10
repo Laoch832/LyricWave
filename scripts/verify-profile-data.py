@@ -38,6 +38,15 @@ def main():
             for group, roles in required_wrap.items():
                 assert roles <= wrap.get(group, {}).keys(), f'missing wrap sweep {group}: {filename}'
             assert profile['productionEnabled'], f'wrap sweep must use an enabled exact profile: {filename}'
+        if 'nextAssetPreload' in profile:
+            assert key == ('com.apple.android.music', '7.0.0', 1614)
+            preload = profile['nextAssetPreload']
+            assert preload['contractVersion'] == 1
+            assert preload['verification']['deviceValidated'] is False
+            assert len(preload['verification']['apkSha256']) == 64
+            assert {'source','manager','callback','queue','queueItem','item','playerOwner','engine'} <= preload['types'].keys()
+            assert {'handler','manager','queue','listener','player','callbacks'} <= preload['fields'].keys()
+            assert preload['verification']['classes']
         if 'playbackRendererRefresh' in profile:
             refresh = profile['playbackRendererRefresh']
             assert refresh.get('contractVersion') == 1

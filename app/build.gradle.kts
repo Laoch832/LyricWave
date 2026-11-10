@@ -37,8 +37,8 @@ android {
         applicationId = "dev.amenhancer.module"
         minSdk = 26
         targetSdk = 37
-        versionCode = 135
-        versionName = "1.7.3"
+        versionCode = 136
+        versionName = "1.7.4"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
@@ -66,6 +66,7 @@ android {
     }
 
     testOptions {
+        unitTests.isIncludeAndroidResources = true
         unitTests.all {
             it.jvmArgs(
                 "--add-opens=java.base/java.lang=ALL-UNNAMED",
@@ -104,7 +105,7 @@ dependencies {
     implementation(project(":host-netease"))
     implementation(project(":glass"))
     compileOnly("io.github.libxposed:api:102.0.0")
-    compileOnly("io.github.libxposed:service:102.0.0")
+    implementation("io.github.libxposed:service:102.0.0")
     testCompileOnly("io.github.libxposed:service:102.0.0")
     implementation("org.jetbrains.kotlin:kotlin-stdlib:2.4.10")
     implementation("androidx.activity:activity:1.13.0")

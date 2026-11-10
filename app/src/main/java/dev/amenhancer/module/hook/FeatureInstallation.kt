@@ -250,6 +250,7 @@ private fun productionFeatureInstallationModule(
         plans = listOf(
             FeatureInstallationPlan(feature = PlayerRecoveryFeature()),
             FeatureInstallationPlan(feature = PlaybackStallRecoveryFeature()),
+            FeatureInstallationPlan(feature = NextAssetPreloadFeature()),
             FeatureInstallationPlan(
                 feature = DualPaneFeature(),
                 registerResources = { AppleMusicHostFactory.registerDualPaneResources() },

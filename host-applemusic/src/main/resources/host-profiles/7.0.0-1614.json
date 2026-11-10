@@ -6251,5 +6251,158 @@
       "source": "Apple Music 7.0.0 (1614) classes2.dex: SVAudioRendererV2.onKeyRefreshed/decodeAudioBuffer/onDisabled; PlayerDrmManager.updateLicenseKeyListeners; SVAudioRendererV2.onStreamChanged",
       "apkSha256": "49e83b64fccff79310c7dff174e02228dd0455a3d87df4d9655d1e4f8cd2e351"
     }
+  },
+  "nextAssetPreload": {
+    "types": {
+      "source": "com.apple.android.music.playback.player.mediasource.PlaybackQueueMediaSource",
+      "manager": "com.apple.android.music.playback.player.mediasource.PlaybackAssetRequestManager",
+      "callback": "com.apple.android.music.playback.player.mediasource.AssetRequestCallback",
+      "item": "com.apple.android.music.playback.model.PlayerMediaItem",
+      "queueItem": "com.apple.android.music.playback.model.PlayerQueueItem",
+      "queue": "com.apple.android.music.playback.queue.PlaybackQueueManager",
+      "playerOwner": "com.apple.android.music.playback.player.ExoMediaPlayer",
+      "engine": "com.google.android.exoplayer2.ExoPlayer",
+      "transfer": "com.google.android.exoplayer2.upstream.TransferListener",
+      "asset": "com.apple.android.music.playback.model.MediaAssetInfo",
+      "context": "com.apple.android.music.playback.player.MediaPlayerContext"
+    },
+    "fields": {
+      "handler": "playbackHandler",
+      "manager": "assetRequestManager",
+      "queue": "playbackQueueManager",
+      "listener": "sourcePrepareListener",
+      "player": "player",
+      "callbacks": "callbacksByMediaItem",
+      "context": "playerContext"
+    },
+    "methods": {
+      "prepare": "prepareSourceInternal",
+      "release": "releaseSourceInternal",
+      "request": "requestAsset",
+      "cancel": "cancelAssetRequest",
+      "key": "keyForMediaItem",
+      "validate": "shouldAssetRequestCompletionContinue",
+      "complete": "onAssetRequestComplete",
+      "currentIndex": "getCurrentIndex",
+      "nextIndex": "nextItemIndexForIndex",
+      "count": "getItemCount",
+      "at": "getItemAtIndex",
+      "queueId": "getPlaybackQueueId",
+      "payload": "getItem",
+      "storeId": "getPlaybackStoreId",
+      "currentItem": "getCurrentItem",
+      "hostNextIndex": "getNextItemIndex",
+      "hostAt": "getQueueItemAtIndex",
+      "canNetwork": "canMakeNetworkRequestWithCurrentConditions"
+    },
+    "contractVersion": 1,
+    "verification": {
+      "apkSha256": "49e83b64fccff79310c7dff174e02228dd0455a3d87df4d9655d1e4f8cd2e351",
+      "deviceValidated": false,
+      "scope": "experimental native playback-asset requests; no license or audio buffering claim",
+      "classes": {
+        "Lcom/apple/android/music/playback/player/mediasource/PlaybackQueueMediaSource;": {
+          "methods": {
+            "prepareSourceInternal(Lcom/google/android/exoplayer2/upstream/TransferListener;)V": 1,
+            "releaseSourceInternal()V": 1
+          },
+          "fields": {
+            "playbackHandler": {
+              "descriptor": "Landroid/os/Handler;",
+              "access": 2
+            },
+            "assetRequestManager": {
+              "descriptor": "Lcom/apple/android/music/playback/player/mediasource/PlaybackAssetRequestManager;",
+              "access": 18
+            },
+            "playbackQueueManager": {
+              "descriptor": "Lcom/apple/android/music/playback/queue/PlaybackQueueManager;",
+              "access": 18
+            },
+            "sourcePrepareListener": {
+              "descriptor": "Lcom/apple/android/music/playback/player/mediasource/MediaSourcePrepareListener;",
+              "access": 18
+            }
+          }
+        },
+        "Lcom/apple/android/music/playback/player/mediasource/PlaybackAssetRequestManager;": {
+          "methods": {
+            "cancelAssetRequest(Lcom/apple/android/music/playback/model/PlayerMediaItem;)V": 1,
+            "keyForMediaItem(Lcom/apple/android/music/playback/model/PlayerMediaItem;)Ljava/lang/String;": 10,
+            "requestAsset(Lcom/apple/android/music/playback/model/PlayerMediaItem;Lcom/apple/android/music/playback/player/mediasource/AssetRequestCallback;JZ)V": 1,
+            "shouldAssetRequestCompletionContinue(Lcom/apple/android/music/playback/model/PlayerMediaItem;Lcom/apple/android/music/playback/model/MediaAssetInfo;)Ljava/io/IOException;": 2
+          },
+          "fields": {
+            "callbacksByMediaItem": {
+              "descriptor": "Ljava/util/Map;",
+              "access": 18
+            },
+            "playerContext": {
+              "descriptor": "Lcom/apple/android/music/playback/player/MediaPlayerContext;",
+              "access": 18
+            }
+          }
+        },
+        "Lcom/apple/android/music/playback/player/mediasource/AssetRequestCallback;": {
+          "methods": {
+            "onAssetRequestCancelled(Lcom/apple/android/music/playback/model/PlayerMediaItem;)V": 1,
+            "onAssetRequestComplete(Lcom/apple/android/music/playback/model/PlayerMediaItem;Lcom/apple/android/music/playback/model/MediaAssetInfo;)V": 1025,
+            "onAssetRequestError(Lcom/apple/android/music/playback/model/PlayerMediaItem;Ljava/io/IOException;)V": 1025
+          },
+          "fields": {}
+        },
+        "Lcom/apple/android/music/playback/queue/PlaybackQueueManager;": {
+          "methods": {
+            "getCurrentIndex()I": 1025,
+            "getItemAtIndex(I)Lcom/apple/android/music/playback/model/PlayerQueueItem;": 1025,
+            "getItemCount()I": 1025,
+            "nextItemIndexForIndex(I)I": 1025
+          },
+          "fields": {}
+        },
+        "Lcom/apple/android/music/playback/model/PlayerQueueItem;": {
+          "methods": {
+            "getItem()Lcom/apple/android/music/playback/model/PlayerMediaItem;": 1025,
+            "getPlaybackQueueId()J": 1025
+          },
+          "fields": {}
+        },
+        "Lcom/apple/android/music/playback/model/PlayerMediaItem;": {
+          "methods": {
+            "getPlaybackStoreId()Ljava/lang/String;": 1025
+          },
+          "fields": {}
+        },
+        "Lcom/apple/android/music/playback/player/MediaPlayerContext;": {
+          "methods": {
+            "canMakeNetworkRequestWithCurrentConditions()Z": 1025
+          },
+          "fields": {}
+        },
+        "Lcom/apple/android/music/playback/player/ExoMediaPlayer;": {
+          "methods": {
+            "getCurrentItem()Lcom/apple/android/music/playback/model/PlayerQueueItem;": 1,
+            "getNextItemIndex()I": 1,
+            "getQueueItemAtIndex(I)Lcom/apple/android/music/playback/model/PlayerQueueItem;": 1
+          },
+          "fields": {
+            "player": {
+              "descriptor": "Lcom/google/android/exoplayer2/ExoPlayer;",
+              "access": 18
+            }
+          }
+        },
+        "Lcom/google/android/exoplayer2/Player;": {
+          "methods": {
+            "getApplicationLooper()Landroid/os/Looper;": 1025,
+            "getCurrentPosition()J": 1025,
+            "getDuration()J": 1025,
+            "getPlayWhenReady()Z": 1025,
+            "getPlaybackState()I": 1025
+          },
+          "fields": {}
+        }
+      }
+    }
   }
 }

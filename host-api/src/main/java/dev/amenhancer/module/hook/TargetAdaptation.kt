@@ -41,6 +41,9 @@ data class TargetAdaptation(
     val cellularDataEntry: CellularDataEntryTarget = CellularDataEntryTarget {
         TargetCapabilityInstall.Degraded("Cellular data entry target was not configured")
     },
+    val nextAssetPreload: NextAssetPreloadTarget = NextAssetPreloadTarget {
+        TargetCapabilityInstall.Unsupported("Native next asset preloading is not available")
+    },
     val playbackStall: PlaybackStallTarget = PlaybackStallTarget {
         TargetCapabilityInstall.Unsupported("Playback source recovery is not available")
     },
@@ -144,3 +147,5 @@ fun interface LyricsHdrTarget { fun install(): TargetCapabilityInstall }
 fun interface WechatMomentsTarget { fun install(): TargetCapabilityInstall }
 
 fun interface PlaybackStallTarget { fun install(): TargetCapabilityInstall }
+
+fun interface NextAssetPreloadTarget { fun install(): TargetCapabilityInstall }

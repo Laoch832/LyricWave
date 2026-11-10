@@ -19,14 +19,17 @@ class EmbeddedOnlyArtifactStructuralRegressionTest {
     ).firstOrNull(File::exists) ?: File(relativePath)
 
     @Test
-    fun `settings remain embedded and the only exported activity is the explicit link share bridge`() {
+    fun `settings stay embedded while the desktop entry only checks activation`() {
         val manifest = projectFile("app/src/main/AndroidManifest.xml")
         val entry = projectFile("app/src/main/java/dev/amenhancer/module/hook/HookEntry.kt")
         val host = projectFile("app/src/main/java/dev/amenhancer/module/ui/EmbeddedSettingsHost.kt")
 
         assertTrue(manifest.contains("<activity android:name=\".share.MomentsShareActivity\""))
-        assertFalse(manifest.contains("android.intent.category.LAUNCHER"))
-        assertFalse(manifest.contains("android.intent.action.MAIN"))
+        val launcher = manifest.substringAfter("<activity android:name=\".status.ModuleStatusActivity\"").substringBefore("</activity>")
+        assertTrue(launcher.contains("android.intent.category.LAUNCHER"))
+        assertTrue(launcher.contains("android.intent.action.MAIN"))
+        assertTrue(Regex("android.intent.category.LAUNCHER").findAll(manifest).count() == 1)
+        assertTrue(Regex("android.intent.action.MAIN").findAll(manifest).count() == 1)
         assertFalse(manifest.contains(".ui.SettingsActivity"))
         assertFalse(manifest.contains("<activity-alias"))
         assertTrue(manifest.contains("permission.SHARE_MOMENTS_LINK"))

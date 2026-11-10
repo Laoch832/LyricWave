@@ -114,6 +114,8 @@ object AppleMusicHostFactory {
             identity = build.displayName,
             build = build,
             currentSong = currentSong,
+            nextAssetPreload = AppleMusicNextAssetPreloadTarget(build, profile.document.optJSONObject("nextAssetPreload"),
+                classLoader, enabled = { config.settings().experimentalNextAssetPreloadEnabled }),
             playbackStall = AppleMusicPlaybackStallTarget(classLoader, enabled = { config.settings().playbackStallRecoveryEnabled },
                 rendererRefresh = rendererRefresh::install),
             playerRecovery = FragmentPlayerRecoveryTarget(resolver, build),

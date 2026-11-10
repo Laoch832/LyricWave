@@ -29,7 +29,7 @@ internal object EmbeddedShareRuntime {
         return runCatching {
             val panel = MomentsSharePanel(activity, relay).also { if (resolver != null) it.metadataResolver = resolver }
             val dialog = AlertDialog.Builder(activity).setTitle(ModuleText.WECHAT_MOMENTS_CARD.text())
-                .setView(panel.buildView(null)).setNegativeButton(ModuleText.CLOSE.text(), null)
+                .setView(panel.buildView(null, showHeader = false)).setNegativeButton(ModuleText.CLOSE.text(), null)
                 .setNeutralButton(ModuleText.SHARE_OTHER.text()) { _, _ ->
                     val source = chooser.getParcelableExtra<Intent>(Intent.EXTRA_INTENT)
                     val original = Intent(chooser).putExtra(SYSTEM_SHARE, true)
@@ -42,6 +42,9 @@ internal object EmbeddedShareRuntime {
                     else original.putExtra(Intent.EXTRA_INITIAL_INTENTS, others.toTypedArray())
                     activity.startActivity(original)
                 }.create()
+            panel.onOutcome = { code, _ ->
+                if (code == MomentsLinkContract.RESULT_OPENED) dialog.dismiss()
+            }
             dialog.setOnDismissListener { panel.close() }
             dialog.show()
             dialog.window?.decorView?.addOnAttachStateChangeListener(object : android.view.View.OnAttachStateChangeListener {

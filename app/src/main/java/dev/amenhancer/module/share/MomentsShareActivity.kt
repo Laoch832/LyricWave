@@ -49,11 +49,14 @@ internal class MomentsSharePanel(private val owner: Activity, private val intent
     private var shareStarted = false
     private var artworkUrl: String? = null
     private val metadataExecutor = Executors.newSingleThreadExecutor { Thread(it, "LyricWave-share-metadata").apply { isDaemon = true } }
-    private val bridgeExecutor = Executors.newSingleThreadExecutor { Thread(it, "LyricWave-share-bridge").apply { isDaemon = true } }
     internal var metadataResolver: (String) -> MomentsSongMetadata? = AppleSongMetadataLookup()::lookup
     private lateinit var titleInput: EditText
     private lateinit var artistInput: EditText
-    fun buildView(savedInstanceState: Bundle?): android.view.View {
+    internal var onOutcome: ((Int, String?) -> Unit)? = null
+    private var confirmedStart: (() -> Unit)? = null
+    private var confirmedRequest: Pair<String, Long>? = null
+    fun startConfirmedShare(id: String, deadline: Long) { confirmedRequest = id to deadline; confirmedStart?.invoke() }
+    fun buildView(savedInstanceState: Bundle?, showHeader: Boolean = true): android.view.View {
         val originalUrl = Contract.extract(intent.getCharSequenceExtra(Intent.EXTRA_TEXT)?.toString().orEmpty())
         chinaStorefront = savedInstanceState?.getBoolean(Contract.CHINA_STOREFRONT)
             ?: intent.getBooleanExtra(Contract.CHINA_STOREFRONT, false)
@@ -65,7 +68,7 @@ internal class MomentsSharePanel(private val owner: Activity, private val intent
         val initialArtist = savedInstanceState?.getString(Contract.ARTIST)
             ?: MomentsSongMetadata.clean(intent.getStringExtra(Contract.ARTIST)).orEmpty()
         val layout = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; setPadding(32, 48, 32, 32) }
-        layout.addView(TextView(this).apply { text = ModuleText.WECHAT_MOMENTS_CARD.text(); textSize = 22f })
+        if (showHeader) layout.addView(TextView(this).apply { text = ModuleText.WECHAT_MOMENTS_CARD.text(); textSize = 22f })
         titleInput = EditText(this).apply { hint = ModuleText.SHARE_SONG_TITLE.text(); setSingleLine(true); setText(initialTitle) }
         artistInput = EditText(this).apply { hint = ModuleText.SHARE_SONG_ARTIST.text(); setSingleLine(true); setText(initialArtist) }
         layout.addView(titleInput); layout.addView(artistInput)
@@ -98,16 +101,18 @@ internal class MomentsSharePanel(private val owner: Activity, private val intent
         layout.isFocusableInTouchMode = true; layout.requestFocus()
         val content = ScrollView(this).apply { addView(layout) }
         if (url == null) status.text = ModuleText.WECHAT_LINK_REQUIRED.text()
-        open.setOnClickListener {
-            if (pending || url == null) return@setOnClickListener
-            val title = MomentsSongMetadata.title(titleInput.text.toString()) ?: return@setOnClickListener
+        val begin = begin@{
+            if (pending || url == null) return@begin
+            val title = MomentsSongMetadata.title(titleInput.text.toString()) ?: return@begin
             val artist = MomentsSongMetadata.clean(artistInput.text.toString())
-            val sharedUrl = Contract.withChinaStorefront(url, chinaStorefront) ?: return@setOnClickListener
+            val sharedUrl = Contract.withChinaStorefront(url, chinaStorefront) ?: return@begin
             shareStarted = true; pending = true; open.isEnabled = false; regionSwitch.isEnabled = false
             val current = ShareAttempt(sharedUrl, title, artist, artworkUrl, status, open, regionSwitch, stop)
             attempt = current
             current.start()
         }
+        confirmedStart = begin
+        open.setOnClickListener { begin() }
         if (url != null && MomentsSongMetadata.songId(url) != null && (initialTitle.isBlank() || initialArtist.isBlank() || artworkUrl == null)) {
             status.text = (if (open.isEnabled) ModuleText.SHARE_METADATA_BACKGROUND else ModuleText.SHARE_METADATA_LOADING).text()
             metadataExecutor.execute {
@@ -134,8 +139,9 @@ internal class MomentsSharePanel(private val owner: Activity, private val intent
         val url: String, val title: String, val artist: String?, val artwork: String?,
         val status: TextView, val button: Button, val region: android.widget.Switch, val stop: Button,
     ) {
-        val id = UUID.randomUUID().toString()
-        private val deadline = SystemClock.elapsedRealtime() + Contract.REQUEST_TIMEOUT_MS
+        val id = confirmedRequest?.first ?: UUID.randomUUID().toString()
+        private val deadline = confirmedRequest?.second ?: (SystemClock.elapsedRealtime() + Contract.REQUEST_TIMEOUT_MS)
+        private var remoteCancel: android.os.ResultReceiver? = null
         private var lastCode = 0
         private var detail: String? = null
         private val valid get() = attempt === this && !isDestroyed && !isFinishing
@@ -152,43 +158,43 @@ internal class MomentsSharePanel(private val owner: Activity, private val intent
         fun start() {
             stop.visibility = android.view.View.VISIBLE
             stop.setOnClickListener { if (valid) finish(ModuleText.SHARE_WAIT_STOPPED.text()) }
-            tick.run(); handler.postDelayed(timeout, Contract.REQUEST_TIMEOUT_MS)
-            if (owner is MomentsShareActivity) {
+            tick.run(); handler.postDelayed(timeout, (deadline - SystemClock.elapsedRealtime()).coerceAtLeast(0))
+            if (owner is MomentsShareActivity || owner is MomentsShareHandoffActivity) {
                 try {
                     val launch = packageManager.getLaunchIntentForPackage(Contract.INTERMEDIARY_PACKAGE)
                     if (launch == null) fail(Contract.RESULT_MISSING)
                     else { startActivity(launch); handler.postDelayed(poll, 800) }
                 } catch (_: Exception) { fail(Contract.RESULT_LAUNCH) }
-            } else bridgeExecutor.execute {
-                try {
-                    val result = owner.contentResolver.call(android.net.Uri.parse("content://${dev.amenhancer.module.BuildConfig.APPLICATION_ID}.update-control"),
-                        "share_prepare", null, null) ?: throw IllegalStateException("Missing relay")
-                    handler.post {
-                        if (!valid) return@post
+            } else {
+                val callback = object : android.os.ResultReceiver(handler) {
+                    override fun onReceiveResult(code: Int, data: Bundle?) {
                         @Suppress("DEPRECATION")
-                        val launch = result.getParcelable<android.app.PendingIntent>("action")
-                        if (launch == null) fail(result.getInt("code", Contract.RESULT_RELAY))
-                        else try {
-                            if (android.os.Build.VERSION.SDK_INT >= 34) {
-                                val options = android.app.ActivityOptions.makeBasic().apply {
-                                    setPendingIntentBackgroundActivityStartMode(if (android.os.Build.VERSION.SDK_INT >= 36)
-                                        android.app.ActivityOptions.MODE_BACKGROUND_ACTIVITY_START_ALLOW_IF_VISIBLE
-                                    else android.app.ActivityOptions.MODE_BACKGROUND_ACTIVITY_START_ALLOWED)
-                                }
-                                launch.send(owner, 0, null, null, null, null, options.toBundle())
-                            } else launch.send()
-                            handler.postDelayed(poll, 800)
-                        } catch (_: Exception) { fail(Contract.RESULT_LAUNCH) }
+                        val cancel = data?.getParcelable<android.os.ResultReceiver>(MomentsShareHandoff.CANCEL)
+                        if (!valid) { cancel?.send(0, Bundle()); return }
+                        if (code == MomentsShareHandoff.READY) { remoteCancel = cancel; cancel?.send(MomentsShareHandoff.READY, Bundle()); return }
+                        detail = data?.getString(MomentsShareRelay.DETAIL)
+                        when (code) {
+                            Contract.RESULT_OPENED -> finish(ModuleText.WECHAT_EDITOR_OPENED.text(), code)
+                            MomentsShareHandoff.CANCELLED -> finish(ModuleText.SHARE_WAIT_STOPPED.text())
+                            else -> fail(code)
+                        }
                     }
-                } catch (_: Exception) { handler.post { if (valid) fail(Contract.RESULT_RELAY) } }
+                }
+                try {
+                    owner.startActivityForResult(MomentsShareHandoff.intent(url, title, artist, artwork, id, deadline, callback), MomentsShareHandoff.REQUEST_CODE)
+                } catch (error: Exception) {
+                    dev.amenhancer.module.feedback.FeedbackRuntime.record("share", error, mapOf("result" to Contract.RESULT_RELAY))
+                    fail(Contract.RESULT_RELAY)
+                }
             }
         }
-        fun dispose() { handler.removeCallbacks(timeout); handler.removeCallbacks(poll); handler.removeCallbacks(tick) }
-        private fun finish(message: String) {
+        fun dispose() { handler.removeCallbacks(timeout); handler.removeCallbacks(poll); handler.removeCallbacks(tick); remoteCancel?.send(0, Bundle()); remoteCancel = null }
+        private fun finish(message: String, code: Int = MomentsShareHandoff.CANCELLED) {
             if (!valid) return
             dispose(); attempt = null; pending = false
             button.isEnabled = true; region.isEnabled = true; stop.visibility = android.view.View.GONE
             status.text = message
+            onOutcome?.invoke(code, detail)
         }
         private fun send() {
             val callback = object : android.os.ResultReceiver(handler) {
@@ -196,7 +202,7 @@ internal class MomentsSharePanel(private val owner: Activity, private val intent
                     if (!valid) return
                     lastCode = code; detail = data?.getString(MomentsShareRelay.DETAIL)
                     when {
-                        code == Contract.RESULT_OPENED -> finish(ModuleText.WECHAT_EDITOR_OPENED.text())
+                        code == Contract.RESULT_OPENED -> finish(ModuleText.WECHAT_EDITOR_OPENED.text(), Contract.RESULT_OPENED)
                         code in listOf(0, Contract.RESULT_NOT_READY, Contract.RESULT_PENDING) -> {
                             handler.removeCallbacks(poll)
                             if (SystemClock.elapsedRealtime() < deadline) handler.postDelayed(poll, 500) else fail(code)
@@ -210,14 +216,7 @@ internal class MomentsSharePanel(private val owner: Activity, private val intent
                 putString(Contract.ARTWORK, artwork); putString(Contract.REQUEST_ID, id)
                 putParcelable(MomentsShareRelay.CALLBACK, callback)
             }
-            if (owner is MomentsShareActivity) MomentsShareRelay.dispatch(this@MomentsSharePanel, input)
-            else bridgeExecutor.execute {
-                try {
-                    val accepted = owner.contentResolver.call(android.net.Uri.parse("content://${dev.amenhancer.module.BuildConfig.APPLICATION_ID}.update-control"),
-                        "share_request", null, input)?.getBoolean("accepted") == true
-                    if (!accepted) handler.post { if (valid) fail(Contract.RESULT_RELAY) }
-                } catch (_: Exception) { handler.post { if (valid) fail(Contract.RESULT_RELAY) } }
-            }
+            MomentsShareRelay.dispatch(this@MomentsSharePanel, input)
         }
         private fun fail(code: Int) {
             if (!valid) return
@@ -231,13 +230,14 @@ internal class MomentsSharePanel(private val owner: Activity, private val intent
                 Contract.RESULT_LAUNCH -> ModuleText.WECHAT_PANEL_LAUNCH_FAILED
                 Contract.RESULT_BUSY -> ModuleText.WECHAT_SHARE_BUSY
                 Contract.RESULT_RELAY -> ModuleText.SHARE_RELAY_UNAVAILABLE
+                MomentsShareHandoff.REJECTED -> ModuleText.SHARE_HANDOFF_REJECTED
                 Contract.RESULT_MISSING -> ModuleText.WECHAT_MISSING
                 else -> ModuleText.WECHAT_BRIDGE_UNAVAILABLE
             }.text()
             val safeDetail = detail?.takeIf { it.matches(Regex("[0-9A-Za-z./_-]{1,80}")) }
             val text = "$message [N$code]" + (safeDetail?.let { " ($it)" } ?: "")
             dev.amenhancer.module.feedback.FeedbackRuntime.record("share", codes = mapOf("result" to code))
-            finish(text); Toast.makeText(this@MomentsSharePanel, text, Toast.LENGTH_LONG).show()
+            finish(text, code); Toast.makeText(this@MomentsSharePanel, text, Toast.LENGTH_LONG).show()
         }
     }
     fun saveState(outState: Bundle) {
@@ -246,5 +246,5 @@ internal class MomentsSharePanel(private val owner: Activity, private val intent
         outState.putString(Contract.TITLE, titleInput.text.toString())
         outState.putString(Contract.ARTIST, artistInput.text.toString())
     }
-    fun close() { attempt?.dispose(); attempt = null; closed = true; metadataExecutor.shutdownNow(); bridgeExecutor.shutdownNow(); handler.removeCallbacksAndMessages(null) }
+    fun close() { attempt?.dispose(); attempt = null; closed = true; metadataExecutor.shutdownNow(); handler.removeCallbacksAndMessages(null); confirmedStart = null; onOutcome = null }
 }

@@ -24,6 +24,7 @@ internal enum class EmbeddedSettingsPage : NavKey {
     INTERFACE,
     TITLE_REGION,
     ADVANCED,
+    EXPERIMENTAL,
     PLUGINS,
     LLM_LYRICS,
     AI_LYRICS_ACTIVITY,

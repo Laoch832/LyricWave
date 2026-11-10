@@ -116,6 +116,7 @@ class OrdinarySettingsWritePolicyTest {
                 "automatic_feedback_enabled" to true,
                 "automatic_update_check_enabled" to true,
                 "playback_stall_recovery_enabled" to true,
+                "experimental_next_asset_preload_enabled" to false,
                 "lyrics_hdr_enabled" to false,
                 "lyrics_hdr_brightness_percent" to 200,
                 "lyrics_hdr_flashbang_enabled" to false,

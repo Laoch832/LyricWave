@@ -15,6 +15,17 @@
 
 # Verification
 
+- Batch each development conversation round into one stable release. Accepted experimental features must have a usable switch connected to the actual runtime in that release.
+- Daily new features must have an observable user benefit (for example fewer steps,
+  shorter measured waits, smoother playback/UI, or a working recovery flow) and explicit
+  end-to-end acceptance criteria. Logs, receipts, contract inventories, tests, internal
+  refactors, documentation and an unconnected settings switch are maintenance work,
+  not delivery of the daily user-experience feature. Report unfinished work honestly.
+- Experimental features need a real, tested runtime path behind their switch, clear
+  supported-version limits, cancellation/resource cleanup and fail-open behavior.
+  A read-only probe is not a working preloader; enabling an experiment is not proof
+  of physical-device compatibility. Stable releases remain numeric x.y.z.
+
 - For AI lyric translation and caching changes, run `./gradlew :core:jvmTest`
   and `python scripts/verify-architecture.py`.
 - Cache reuse and update detection must compare the currently selected source TTML (native, online or imported);
