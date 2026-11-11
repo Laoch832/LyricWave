@@ -27,7 +27,8 @@ concurrency:
   cancel-in-progress: true
 jobs:
   website:
-    runs-on: ubuntu-latest
+    # Match the tested Android runner instead of inheriting an unreviewed OS upgrade.
+    runs-on: ubuntu-24.04
     timeout-minutes: 15
     defaults:
       run:

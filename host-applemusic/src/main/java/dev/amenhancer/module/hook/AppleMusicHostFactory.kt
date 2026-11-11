@@ -116,6 +116,8 @@ object AppleMusicHostFactory {
             currentSong = currentSong,
             nextAssetPreload = AppleMusicNextAssetPreloadTarget(build, profile.document.optJSONObject("nextAssetPreload"),
                 classLoader, enabled = { config.settings().experimentalNextAssetPreloadEnabled }),
+            bufferedPlayback = AppleMusicBufferedDrmTarget(build, profile.document.optJSONObject("bufferedDrmRecovery"),
+                classLoader, enabled = { config.settings().experimentalBufferedDrmRecoveryEnabled }),
             playbackStall = AppleMusicPlaybackStallTarget(classLoader, enabled = { config.settings().playbackStallRecoveryEnabled },
                 rendererRefresh = rendererRefresh::install),
             playerRecovery = FragmentPlayerRecoveryTarget(resolver, build),

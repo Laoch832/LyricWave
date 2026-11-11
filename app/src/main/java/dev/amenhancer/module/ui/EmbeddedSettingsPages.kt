@@ -451,7 +451,7 @@ private fun EmbeddedSettingsHost.EmbeddedSettingsHome(
             } else "DPI · $dpi",
             EmbeddedSvgIcon.Settings,
         ) { onOpen(EmbeddedSettingsPage.ADVANCED) }
-        EmbeddedSettingLink(localizedText(ModuleText.EXPERIMENTAL_FEATURES), localizedText(ModuleText.NEXT_ASSET_PRELOAD), EmbeddedSvgIcon.StartupPrewarm) {
+        EmbeddedSettingLink(localizedText(ModuleText.EXPERIMENTAL_FEATURES), localizedText(ModuleText.BUFFERED_DRM_RECOVERY), EmbeddedSvgIcon.StartupPrewarm) {
             onOpen(EmbeddedSettingsPage.EXPERIMENTAL)
         }
         EmbeddedSettingLink(
@@ -596,6 +596,36 @@ private fun EmbeddedSettingsHost.EmbeddedSettingsCategory(
         }
         EmbeddedSettingsPage.EXPERIMENTAL -> {
             EmbeddedSettingsGroup {
+                Setting(ModuleText.BUFFERED_DRM_RECOVERY, ModuleText.BUFFERED_DRM_RECOVERY_SUMMARY,
+                    settings.experimentalBufferedDrmRecoveryEnabled, EmbeddedSvgIcon.StartupPrewarm) { value ->
+                    onEdit { it.copy(experimentalBufferedDrmRecoveryEnabled = value) }
+                }
+                var reserveMs by remember { mutableStateOf(0L) }
+                var recoveryStage by remember { mutableStateOf(dev.amenhancer.module.playback.DrmRoundTripRecovery.Stage.IDLE) }
+                var bufferAvailable by remember { mutableStateOf(false) }
+                LaunchedEffect(active, settings.experimentalBufferedDrmRecoveryEnabled) {
+                    while (active) {
+                        reserveMs = dev.amenhancer.module.playback.BufferedDrmRecoveryStatus.bufferedMs
+                        recoveryStage = dev.amenhancer.module.playback.BufferedDrmRecoveryStatus.stage
+                        bufferAvailable = dev.amenhancer.module.playback.BufferedDrmRecoveryStatus.available
+                        kotlinx.coroutines.delay(500)
+                    }
+                }
+                val bufferState = when {
+                    !settings.experimentalBufferedDrmRecoveryEnabled -> ModuleText.PRELOAD_OFF
+                    !bufferAvailable -> ModuleText.PRELOAD_UNSUPPORTED
+                    else -> when (recoveryStage) {
+                        dev.amenhancer.module.playback.DrmRoundTripRecovery.Stage.NEXT -> ModuleText.BUFFERED_DRM_NEXT
+                        dev.amenhancer.module.playback.DrmRoundTripRecovery.Stage.REFILL -> ModuleText.BUFFERED_DRM_REFILL
+                        dev.amenhancer.module.playback.DrmRoundTripRecovery.Stage.COMPLETE -> ModuleText.BUFFERED_DRM_COMPLETE
+                        dev.amenhancer.module.playback.DrmRoundTripRecovery.Stage.CANCELLED -> ModuleText.BUFFERED_DRM_CANCELLED
+                        dev.amenhancer.module.playback.DrmRoundTripRecovery.Stage.FAILED -> ModuleText.BUFFERED_DRM_FAILED
+                        else -> ModuleText.BUFFERED_DRM_WAITING
+                    }
+                }
+                Text(localizedText(ModuleText.BUFFERED_DRM_STATE, String.format(androidx.compose.ui.platform.LocalConfiguration.current.locales[0], "%.1f", reserveMs / 1000.0), localizedText(bufferState)), modifier = Modifier.padding(20.dp))
+                Text(localizedText(ModuleText.BUFFERED_DRM_NOTICE), modifier = Modifier.padding(20.dp))
+
                 Setting(ModuleText.NEXT_ASSET_PRELOAD, ModuleText.NEXT_ASSET_PRELOAD_SUMMARY,
                     settings.experimentalNextAssetPreloadEnabled, EmbeddedSvgIcon.StartupPrewarm) { value ->
                     onEdit { it.copy(experimentalNextAssetPreloadEnabled = value) }
@@ -715,7 +745,8 @@ private fun EmbeddedSettingsHost.showEmbeddedPageDetails(activity: Activity, pag
             ModuleText.BOTTOM_BAR_ANIMATION_SETTINGS to ModuleText.BOTTOM_BAR_ANIMATION_SETTINGS_SUMMARY,
         )
         EmbeddedSettingsPage.TITLE_REGION -> listOf(ModuleText.TITLE_CORRECTION to ModuleText.TITLE_CORRECTION_SUMMARY)
-        EmbeddedSettingsPage.EXPERIMENTAL -> listOf(ModuleText.NEXT_ASSET_PRELOAD to ModuleText.NEXT_ASSET_PRELOAD_NOTICE)
+        EmbeddedSettingsPage.EXPERIMENTAL -> listOf(ModuleText.BUFFERED_DRM_RECOVERY to ModuleText.BUFFERED_DRM_NOTICE,
+            ModuleText.NEXT_ASSET_PRELOAD to ModuleText.NEXT_ASSET_PRELOAD_NOTICE)
         EmbeddedSettingsPage.ADVANCED -> listOf(
             ModuleText.STARTUP_PAGE_PREWARM to ModuleText.STARTUP_PAGE_PREWARM_SUMMARY,
             ModuleText.CELLULAR_SETTINGS to ModuleText.CELLULAR_SETTINGS_SUMMARY,

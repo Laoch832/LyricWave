@@ -58,6 +58,8 @@
 
 # Playback recovery
 
-- Never change the queue, skip tracks, rewrite playback URLs/credentials or force playWhenReady to recover a fault.
-- Only confirmed recoverable network-source errors in native IDLE may reprepare; automatic recovery is bounded and pause/song-change guards must be tested.
+- Never rewrite playback URLs/credentials or force playback contrary to explicit user intent.
+- The user explicitly authorized an opt-in buffered DRM recovery experiment on 2026-11-11: temporarily select the real native next item, then restore the original item/audible position and original play intent; one additional attempt may evict only verified current-song temporary streaming cache. Preserve queue contents/order, offline downloads and DRM credentials. Cancel on user input, bound time/attempts, and do not broaden this exception to other recovery paths.
+- Existing non-experimental recovery must not skip tracks or edit the queue.
+- For non-experimental recovery, only confirmed recoverable network-source errors in native IDLE may reprepare; automatic recovery is bounded and pause/song-change guards must be tested.
 - A spinner or a unit-test pass is not evidence that the user's audio problem is resolved. Keep error reporting free of signed URLs and credentials.

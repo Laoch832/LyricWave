@@ -6404,5 +6404,1074 @@
         }
       }
     }
+  },
+  "bufferedDrmRecovery": {
+    "contractVersion": 1,
+    "methods": {
+      "unexpected": {
+        "owner": "com.google.android.exoplayer2.ExoPlaybackException",
+        "name": "createForUnexpected",
+        "parameters": [
+          "java.lang.RuntimeException"
+        ],
+        "returns": "com.google.android.exoplayer2.ExoPlaybackException",
+        "static": true,
+        "invocationOnly": false
+      },
+      "render": {
+        "owner": "com.apple.android.music.playback.renderer.SVAudioRendererV2",
+        "name": "render",
+        "parameters": [
+          "long",
+          "long"
+        ],
+        "returns": "void",
+        "static": false,
+        "invocationOnly": false
+      },
+      "initializeSink": {
+        "owner": "com.apple.android.music.playback.renderer.SVAudioRendererV2",
+        "name": "initializeAudioSink",
+        "parameters": [
+          "com.google.android.exoplayer2.Format"
+        ],
+        "returns": "void",
+        "static": false,
+        "invocationOnly": false
+      },
+      "fatal": {
+        "owner": "com.google.android.exoplayer2.ExoPlayerImplInternal",
+        "name": "stopInternal",
+        "parameters": [
+          "boolean",
+          "boolean",
+          "boolean"
+        ],
+        "returns": "void",
+        "static": false,
+        "invocationOnly": false
+      },
+      "hostError": {
+        "owner": "com.apple.android.music.playback.player.ExoMediaPlayer",
+        "name": "onPlayerError",
+        "parameters": [
+          "com.google.android.exoplayer2.ExoPlaybackException"
+        ],
+        "returns": "void",
+        "static": false,
+        "invocationOnly": false
+      },
+      "hostVolume": {
+        "owner": "com.apple.android.music.playback.player.ExoMediaPlayer",
+        "name": "setVolume",
+        "parameters": [
+          "float"
+        ],
+        "returns": "void",
+        "static": false,
+        "invocationOnly": false
+      },
+      "hostPlay": {
+        "owner": "com.apple.android.music.playback.player.ExoMediaPlayer",
+        "name": "play",
+        "parameters": [],
+        "returns": "void",
+        "static": false,
+        "invocationOnly": false
+      },
+      "hostPause": {
+        "owner": "com.apple.android.music.playback.player.ExoMediaPlayer",
+        "name": "pause",
+        "parameters": [],
+        "returns": "void",
+        "static": false,
+        "invocationOnly": false
+      },
+      "hostStop": {
+        "owner": "com.apple.android.music.playback.player.ExoMediaPlayer",
+        "name": "stop",
+        "parameters": [],
+        "returns": "void",
+        "static": false,
+        "invocationOnly": false
+      },
+      "hostRelease": {
+        "owner": "com.apple.android.music.playback.player.ExoMediaPlayer",
+        "name": "release",
+        "parameters": [],
+        "returns": "void",
+        "static": false,
+        "invocationOnly": false
+      },
+      "hostSeek": {
+        "owner": "com.apple.android.music.playback.player.ExoMediaPlayer",
+        "name": "seekToPosition",
+        "parameters": [
+          "long"
+        ],
+        "returns": "void",
+        "static": false,
+        "invocationOnly": false
+      },
+      "hostSelect": {
+        "owner": "com.apple.android.music.playback.player.ExoMediaPlayer",
+        "name": "setPlaybackIndexFromQueueId",
+        "parameters": [
+          "long"
+        ],
+        "returns": "boolean",
+        "static": false,
+        "invocationOnly": false
+      },
+      "hostIndex": {
+        "owner": "com.apple.android.music.playback.player.ExoMediaPlayer",
+        "name": "setPlaybackIndex",
+        "parameters": [
+          "int"
+        ],
+        "returns": "void",
+        "static": false,
+        "invocationOnly": false
+      },
+      "hostChangeBy": {
+        "owner": "com.apple.android.music.playback.player.ExoMediaPlayer",
+        "name": "changePlaybackIndexBy",
+        "parameters": [
+          "int"
+        ],
+        "returns": "void",
+        "static": false,
+        "invocationOnly": false
+      },
+      "hostCurrent": {
+        "owner": "com.apple.android.music.playback.player.ExoMediaPlayer",
+        "name": "getCurrentItem",
+        "parameters": [],
+        "returns": "com.apple.android.music.playback.model.PlayerQueueItem",
+        "static": false,
+        "invocationOnly": false
+      },
+      "hostQueue": {
+        "owner": "com.apple.android.music.playback.player.ExoMediaPlayer",
+        "name": "getPlaybackQueueManager",
+        "parameters": [],
+        "returns": "com.apple.android.music.playback.queue.PlaybackQueueManager",
+        "static": false,
+        "invocationOnly": false
+      },
+      "hostNext": {
+        "owner": "com.apple.android.music.playback.player.ExoMediaPlayer",
+        "name": "getNextItemIndex",
+        "parameters": [],
+        "returns": "int",
+        "static": false,
+        "invocationOnly": false
+      },
+      "hostAt": {
+        "owner": "com.apple.android.music.playback.player.ExoMediaPlayer",
+        "name": "getQueueItemAtIndex",
+        "parameters": [
+          "int"
+        ],
+        "returns": "com.apple.android.music.playback.model.PlayerQueueItem",
+        "static": false,
+        "invocationOnly": false
+      },
+      "hostRemoveCache": {
+        "owner": "com.apple.android.music.playback.player.ExoMediaPlayer",
+        "name": "removeCache",
+        "parameters": [
+          "com.apple.android.music.playback.model.PlayerMediaItem"
+        ],
+        "returns": "void",
+        "static": false,
+        "invocationOnly": false
+      },
+      "hostResetQueue": {
+        "owner": "com.apple.android.music.playback.player.ExoMediaPlayer",
+        "name": "resetQueue",
+        "parameters": [],
+        "returns": "void",
+        "static": false,
+        "invocationOnly": false
+      },
+      "hostRemoveItem": {
+        "owner": "com.apple.android.music.playback.player.ExoMediaPlayer",
+        "name": "removeQueueItemWithId",
+        "parameters": [
+          "long"
+        ],
+        "returns": "void",
+        "static": false,
+        "invocationOnly": false
+      },
+      "hostMoveItem": {
+        "owner": "com.apple.android.music.playback.player.ExoMediaPlayer",
+        "name": "moveQueueItemWithId",
+        "parameters": [
+          "long",
+          "long",
+          "int"
+        ],
+        "returns": "void",
+        "static": false,
+        "invocationOnly": false
+      },
+      "hostAddItems": {
+        "owner": "com.apple.android.music.playback.player.ExoMediaPlayer",
+        "name": "addQueueItems",
+        "parameters": [
+          "com.apple.android.music.playback.queue.PlaybackQueueItemProvider",
+          "int"
+        ],
+        "returns": "void",
+        "static": false,
+        "invocationOnly": false
+      },
+      "hostPrepare": {
+        "owner": "com.apple.android.music.playback.player.ExoMediaPlayer",
+        "name": "prepare",
+        "parameters": [
+          "com.apple.android.music.playback.queue.PlaybackQueueItemProvider"
+        ],
+        "returns": "void",
+        "static": false,
+        "invocationOnly": false
+      },
+      "hostPrepare2": {
+        "owner": "com.apple.android.music.playback.player.ExoMediaPlayer",
+        "name": "prepare",
+        "parameters": [
+          "com.apple.android.music.playback.queue.PlaybackQueueItemProvider",
+          "boolean"
+        ],
+        "returns": "void",
+        "static": false,
+        "invocationOnly": false
+      },
+      "hostPrepare4": {
+        "owner": "com.apple.android.music.playback.player.ExoMediaPlayer",
+        "name": "prepare",
+        "parameters": [
+          "com.apple.android.music.playback.queue.PlaybackQueueItemProvider",
+          "int",
+          "boolean",
+          "int"
+        ],
+        "returns": "void",
+        "static": false,
+        "invocationOnly": false
+      },
+      "queueId": {
+        "owner": "com.apple.android.music.playback.model.PlayerQueueItem",
+        "name": "getPlaybackQueueId",
+        "parameters": [],
+        "returns": "long",
+        "static": false,
+        "invocationOnly": true
+      },
+      "payload": {
+        "owner": "com.apple.android.music.playback.model.PlayerQueueItem",
+        "name": "getItem",
+        "parameters": [],
+        "returns": "com.apple.android.music.playback.model.PlayerMediaItem",
+        "static": false,
+        "invocationOnly": true
+      },
+      "downloaded": {
+        "owner": "com.apple.android.music.playback.model.PlayerMediaItem",
+        "name": "isDownloadedAsset",
+        "parameters": [],
+        "returns": "boolean",
+        "static": false,
+        "invocationOnly": true
+      },
+      "queueUuid": {
+        "owner": "com.apple.android.music.playback.queue.PlaybackQueueManager",
+        "name": "getQueueUUID",
+        "parameters": [],
+        "returns": "java.util.UUID",
+        "static": false,
+        "invocationOnly": true
+      },
+      "engineLoop": {
+        "owner": "com.google.android.exoplayer2.ExoPlayerImpl",
+        "name": "getApplicationLooper",
+        "parameters": [],
+        "returns": "android.os.Looper",
+        "static": false,
+        "invocationOnly": false
+      },
+      "engineError": {
+        "owner": "com.google.android.exoplayer2.ExoPlayerImpl",
+        "name": "getPlaybackError",
+        "parameters": [],
+        "returns": "com.google.android.exoplayer2.ExoPlaybackException",
+        "static": false,
+        "invocationOnly": false
+      },
+      "engineState": {
+        "owner": "com.google.android.exoplayer2.ExoPlayerImpl",
+        "name": "getPlaybackState",
+        "parameters": [],
+        "returns": "int",
+        "static": false,
+        "invocationOnly": false
+      },
+      "engineWants": {
+        "owner": "com.google.android.exoplayer2.ExoPlayerImpl",
+        "name": "getPlayWhenReady",
+        "parameters": [],
+        "returns": "boolean",
+        "static": false,
+        "invocationOnly": false
+      },
+      "engineRelease": {
+        "owner": "com.google.android.exoplayer2.ExoPlayerImpl",
+        "name": "release",
+        "parameters": [],
+        "returns": "void",
+        "static": false,
+        "invocationOnly": false
+      },
+      "enginePlayWhen": {
+        "owner": "com.google.android.exoplayer2.ExoPlayerImpl",
+        "name": "setPlayWhenReady",
+        "parameters": [
+          "boolean"
+        ],
+        "returns": "void",
+        "static": false,
+        "invocationOnly": false
+      },
+      "enginePlayWhen2": {
+        "owner": "com.google.android.exoplayer2.ExoPlayerImpl",
+        "name": "setPlayWhenReady",
+        "parameters": [
+          "boolean",
+          "int"
+        ],
+        "returns": "void",
+        "static": false,
+        "invocationOnly": false
+      },
+      "hostQueueIndex": {
+        "owner": "com.apple.android.music.playback.player.ExoMediaPlayer",
+        "name": "getQueueItemIndex",
+        "parameters": [
+          "long"
+        ],
+        "returns": "int",
+        "static": false,
+        "invocationOnly": false
+      },
+      "engineSeek": {
+        "owner": "com.google.android.exoplayer2.ExoPlayerImpl",
+        "name": "seekTo",
+        "parameters": [
+          "int",
+          "long"
+        ],
+        "returns": "void",
+        "static": false,
+        "invocationOnly": false
+      },
+      "rendererState": {
+        "owner": "com.google.android.exoplayer2.BaseRenderer",
+        "name": "getState",
+        "parameters": [],
+        "returns": "int",
+        "static": false,
+        "invocationOnly": false
+      },
+      "stream": {
+        "owner": "com.google.android.exoplayer2.BaseRenderer",
+        "name": "getStream",
+        "parameters": [],
+        "returns": "com.google.android.exoplayer2.source.SampleStream",
+        "static": false,
+        "invocationOnly": false
+      },
+      "asset": {
+        "owner": "com.apple.android.music.playback.player.mediasource.ProtectedSampleStream",
+        "name": "getAssetInfo",
+        "parameters": [],
+        "returns": "com.apple.android.music.playback.model.MediaAssetInfo",
+        "static": false,
+        "invocationOnly": false
+      },
+      "assetStore": {
+        "owner": "com.apple.android.music.playback.model.MediaAssetInfo",
+        "name": "getStoreId",
+        "parameters": [],
+        "returns": "long",
+        "static": false,
+        "invocationOnly": false
+      },
+      "itemStore": {
+        "owner": "com.apple.android.music.playback.model.PlayerMediaItem",
+        "name": "getPlaybackStoreId",
+        "parameters": [],
+        "returns": "java.lang.String",
+        "static": false,
+        "invocationOnly": true
+      },
+      "chooseRenderer": {
+        "owner": "com.apple.android.music.playback.player.PlayerTrackSelector",
+        "name": "findRenderer",
+        "parameters": [
+          "[Lcom.google.android.exoplayer2.RendererCapabilities;",
+          "com.google.android.exoplayer2.source.TrackGroup",
+          "[I",
+          "boolean"
+        ],
+        "returns": "int",
+        "static": false,
+        "invocationOnly": false
+      },
+      "capType": {
+        "owner": "com.google.android.exoplayer2.RendererCapabilities",
+        "name": "getTrackType",
+        "parameters": [],
+        "returns": "int",
+        "static": false,
+        "invocationOnly": true
+      },
+      "capSupport": {
+        "owner": "com.google.android.exoplayer2.RendererCapabilities",
+        "name": "supportsFormat",
+        "parameters": [
+          "com.google.android.exoplayer2.Format"
+        ],
+        "returns": "int",
+        "static": false,
+        "invocationOnly": true
+      },
+      "groupFormat": {
+        "owner": "com.google.android.exoplayer2.source.TrackGroup",
+        "name": "getFormat",
+        "parameters": [
+          "int"
+        ],
+        "returns": "com.google.android.exoplayer2.Format",
+        "static": false,
+        "invocationOnly": false
+      },
+      "itemType": {
+        "owner": "com.apple.android.music.playback.model.PlayerMediaItem",
+        "name": "getType",
+        "parameters": [],
+        "returns": "int",
+        "static": false,
+        "invocationOnly": true
+      },
+      "rendererIndex": {
+        "owner": "com.google.android.exoplayer2.BaseRenderer",
+        "name": "getIndex",
+        "parameters": [],
+        "returns": "int",
+        "static": false,
+        "invocationOnly": false
+      },
+      "rendererType": {
+        "owner": "com.google.android.exoplayer2.BaseRenderer",
+        "name": "getTrackType",
+        "parameters": [],
+        "returns": "int",
+        "static": false,
+        "invocationOnly": false
+      },
+      "fadeEnabled": {
+        "owner": "com.google.android.exoplayer2.AudioFadeControl",
+        "name": "isCrossFadeEnabled",
+        "parameters": [],
+        "returns": "boolean",
+        "static": false,
+        "invocationOnly": true
+      },
+      "sinkConfigure": {
+        "owner": "com.google.android.exoplayer2.audio.AudioSink",
+        "name": "configure",
+        "parameters": [
+          "int",
+          "int",
+          "int",
+          "int",
+          "[I",
+          "int",
+          "int"
+        ],
+        "returns": "void",
+        "static": false,
+        "invocationOnly": true
+      },
+      "sinkDisableTunneling": {
+        "owner": "com.google.android.exoplayer2.audio.AudioSink",
+        "name": "disableTunneling",
+        "parameters": [],
+        "returns": "void",
+        "static": false,
+        "invocationOnly": true
+      },
+      "sinkEnableTunnelingV21": {
+        "owner": "com.google.android.exoplayer2.audio.AudioSink",
+        "name": "enableTunnelingV21",
+        "parameters": [
+          "int"
+        ],
+        "returns": "void",
+        "static": false,
+        "invocationOnly": true
+      },
+      "sinkFlush": {
+        "owner": "com.google.android.exoplayer2.audio.AudioSink",
+        "name": "flush",
+        "parameters": [],
+        "returns": "void",
+        "static": false,
+        "invocationOnly": true
+      },
+      "sinkGetCurrentPositionUs": {
+        "owner": "com.google.android.exoplayer2.audio.AudioSink",
+        "name": "getCurrentPositionUs",
+        "parameters": [
+          "boolean"
+        ],
+        "returns": "long",
+        "static": false,
+        "invocationOnly": true
+      },
+      "sinkGetPlaybackParameters": {
+        "owner": "com.google.android.exoplayer2.audio.AudioSink",
+        "name": "getPlaybackParameters",
+        "parameters": [],
+        "returns": "com.google.android.exoplayer2.PlaybackParameters",
+        "static": false,
+        "invocationOnly": true
+      },
+      "sinkHandleBuffer": {
+        "owner": "com.google.android.exoplayer2.audio.AudioSink",
+        "name": "handleBuffer",
+        "parameters": [
+          "java.nio.ByteBuffer",
+          "long"
+        ],
+        "returns": "boolean",
+        "static": false,
+        "invocationOnly": true
+      },
+      "sinkHandleDiscontinuity": {
+        "owner": "com.google.android.exoplayer2.audio.AudioSink",
+        "name": "handleDiscontinuity",
+        "parameters": [],
+        "returns": "void",
+        "static": false,
+        "invocationOnly": true
+      },
+      "sinkHasPendingData": {
+        "owner": "com.google.android.exoplayer2.audio.AudioSink",
+        "name": "hasPendingData",
+        "parameters": [],
+        "returns": "boolean",
+        "static": false,
+        "invocationOnly": true
+      },
+      "sinkIsEnded": {
+        "owner": "com.google.android.exoplayer2.audio.AudioSink",
+        "name": "isEnded",
+        "parameters": [],
+        "returns": "boolean",
+        "static": false,
+        "invocationOnly": true
+      },
+      "sinkPause": {
+        "owner": "com.google.android.exoplayer2.audio.AudioSink",
+        "name": "pause",
+        "parameters": [],
+        "returns": "void",
+        "static": false,
+        "invocationOnly": true
+      },
+      "sinkPlay": {
+        "owner": "com.google.android.exoplayer2.audio.AudioSink",
+        "name": "play",
+        "parameters": [],
+        "returns": "void",
+        "static": false,
+        "invocationOnly": true
+      },
+      "sinkPlayToEndOfStream": {
+        "owner": "com.google.android.exoplayer2.audio.AudioSink",
+        "name": "playToEndOfStream",
+        "parameters": [],
+        "returns": "void",
+        "static": false,
+        "invocationOnly": true
+      },
+      "sinkReset": {
+        "owner": "com.google.android.exoplayer2.audio.AudioSink",
+        "name": "reset",
+        "parameters": [],
+        "returns": "void",
+        "static": false,
+        "invocationOnly": true
+      },
+      "sinkSetAudioAttributes": {
+        "owner": "com.google.android.exoplayer2.audio.AudioSink",
+        "name": "setAudioAttributes",
+        "parameters": [
+          "com.google.android.exoplayer2.audio.AudioAttributes"
+        ],
+        "returns": "void",
+        "static": false,
+        "invocationOnly": true
+      },
+      "sinkSetAudioSessionId": {
+        "owner": "com.google.android.exoplayer2.audio.AudioSink",
+        "name": "setAudioSessionId",
+        "parameters": [
+          "int"
+        ],
+        "returns": "void",
+        "static": false,
+        "invocationOnly": true
+      },
+      "sinkSetAuxEffectInfo": {
+        "owner": "com.google.android.exoplayer2.audio.AudioSink",
+        "name": "setAuxEffectInfo",
+        "parameters": [
+          "com.google.android.exoplayer2.audio.AuxEffectInfo"
+        ],
+        "returns": "void",
+        "static": false,
+        "invocationOnly": true
+      },
+      "sinkSetListener": {
+        "owner": "com.google.android.exoplayer2.audio.AudioSink",
+        "name": "setListener",
+        "parameters": [
+          "com.google.android.exoplayer2.audio.AudioSink$Listener"
+        ],
+        "returns": "void",
+        "static": false,
+        "invocationOnly": true
+      },
+      "sinkSetPlaybackParameters": {
+        "owner": "com.google.android.exoplayer2.audio.AudioSink",
+        "name": "setPlaybackParameters",
+        "parameters": [
+          "com.google.android.exoplayer2.PlaybackParameters"
+        ],
+        "returns": "void",
+        "static": false,
+        "invocationOnly": true
+      },
+      "sinkSetVolume": {
+        "owner": "com.google.android.exoplayer2.audio.AudioSink",
+        "name": "setVolume",
+        "parameters": [
+          "float"
+        ],
+        "returns": "void",
+        "static": false,
+        "invocationOnly": true
+      },
+      "sinkSupportsOutput": {
+        "owner": "com.google.android.exoplayer2.audio.AudioSink",
+        "name": "supportsOutput",
+        "parameters": [
+          "int",
+          "int"
+        ],
+        "returns": "boolean",
+        "static": false,
+        "invocationOnly": true
+      }
+    },
+    "fields": {
+      "selector": {
+        "owner": "com.apple.android.music.playback.player.ExoMediaPlayer",
+        "name": "trackSelector",
+        "type": "com.apple.android.music.playback.player.PlayerTrackSelector"
+      },
+      "groupLength": {
+        "owner": "com.google.android.exoplayer2.source.TrackGroup",
+        "name": "length",
+        "type": "int"
+      },
+      "fadeControl": {
+        "owner": "com.google.android.exoplayer2.ExoPlayerImplInternal",
+        "name": "audioFadeControl",
+        "type": "com.google.android.exoplayer2.AudioFadeControl"
+      },
+      "rate": {
+        "owner": "com.apple.android.music.playback.renderer.SVAudioRendererV2",
+        "name": "decoderOutputSampleRate",
+        "type": "int"
+      },
+      "channels": {
+        "owner": "com.apple.android.music.playback.renderer.SVAudioRendererV2",
+        "name": "decoderOutputNumOfChannels",
+        "type": "int"
+      },
+      "bits": {
+        "owner": "com.apple.android.music.playback.renderer.SVAudioRendererV2",
+        "name": "decoderOutputBitsPerChannel",
+        "type": "int"
+      },
+      "encoderDelay": {
+        "owner": "com.google.android.exoplayer2.Format",
+        "name": "encoderDelay",
+        "type": "int"
+      },
+      "encoderPadding": {
+        "owner": "com.google.android.exoplayer2.Format",
+        "name": "encoderPadding",
+        "type": "int"
+      },
+      "mime": {
+        "owner": "com.google.android.exoplayer2.Format",
+        "name": "sampleMimeType",
+        "type": "java.lang.String"
+      },
+      "soundCheck": {
+        "owner": "com.apple.android.music.playback.renderer.SVAudioRendererV2",
+        "name": "isSoundCheckEnabled",
+        "type": "boolean"
+      },
+      "gain": {
+        "owner": "com.apple.android.music.playback.renderer.SVAudioRendererV2",
+        "name": "soundCheckGain",
+        "type": "float"
+      },
+      "nativeInput": {
+        "owner": "com.google.android.exoplayer2.audio.DefaultAudioSink",
+        "name": "inputBuffer",
+        "type": "java.nio.ByteBuffer"
+      },
+      "pendingTs": {
+        "owner": "com.apple.android.music.playback.renderer.SVAudioRendererV2",
+        "name": "outputBufferTs",
+        "type": "long"
+      },
+      "inputFormat": {
+        "owner": "com.apple.android.music.playback.renderer.SVAudioRendererV2",
+        "name": "inputFormat",
+        "type": "com.google.android.exoplayer2.Format"
+      },
+      "sink": {
+        "owner": "com.apple.android.music.playback.renderer.SVAudioRendererV2",
+        "name": "audioSink",
+        "type": "com.google.android.exoplayer2.audio.AudioSink"
+      },
+      "offset": {
+        "owner": "com.google.android.exoplayer2.BaseRenderer",
+        "name": "streamOffsetUs",
+        "type": "long"
+      },
+      "hostPlayer": {
+        "owner": "com.apple.android.music.playback.player.ExoMediaPlayer",
+        "name": "player",
+        "type": "com.google.android.exoplayer2.ExoPlayer"
+      },
+      "hostWants": {
+        "owner": "com.apple.android.music.playback.player.ExoMediaPlayer",
+        "name": "playWhenReady",
+        "type": "boolean"
+      },
+      "hostPending": {
+        "owner": "com.apple.android.music.playback.player.ExoMediaPlayer",
+        "name": "playWhenQueuePrepared",
+        "type": "boolean"
+      },
+      "engineInternal": {
+        "owner": "com.google.android.exoplayer2.ExoPlayerImpl",
+        "name": "internalPlayer",
+        "type": "com.google.android.exoplayer2.ExoPlayerImplInternal"
+      },
+      "engineRenderers": {
+        "owner": "com.google.android.exoplayer2.ExoPlayerImpl",
+        "name": "renderers",
+        "type": "[Lcom.google.android.exoplayer2.Renderer;"
+      },
+      "internalEnabled": {
+        "owner": "com.google.android.exoplayer2.ExoPlayerImplInternal",
+        "name": "enabledRenderers",
+        "type": "[Lcom.google.android.exoplayer2.Renderer;"
+      },
+      "internalWants": {
+        "owner": "com.google.android.exoplayer2.ExoPlayerImplInternal",
+        "name": "playWhenReady",
+        "type": "boolean"
+      }
+    },
+    "verification": {
+      "apkSha256": "49e83b64fccff79310c7dff174e02228dd0455a3d87df4d9655d1e4f8cd2e351",
+      "deviceValidated": false,
+      "scope": "Forward PCM output and bounded native next/back recovery. No license interception. Temporary cache only for non-downloaded original item.",
+      "classes": {
+        "Lcom/google/android/exoplayer2/ExoPlaybackException;": {
+          "methods": {
+            "createForUnexpected(Ljava/lang/RuntimeException;)Lcom/google/android/exoplayer2/ExoPlaybackException;": 9
+          },
+          "fields": {}
+        },
+        "Lcom/apple/android/music/playback/renderer/SVAudioRendererV2;": {
+          "methods": {
+            "render(JJ)V": 1,
+            "initializeAudioSink(Lcom/google/android/exoplayer2/Format;)V": 2
+          },
+          "fields": {
+            "decoderOutputSampleRate": {
+              "descriptor": "I",
+              "access": 2
+            },
+            "decoderOutputNumOfChannels": {
+              "descriptor": "I",
+              "access": 2
+            },
+            "decoderOutputBitsPerChannel": {
+              "descriptor": "I",
+              "access": 2
+            },
+            "isSoundCheckEnabled": {
+              "descriptor": "Z",
+              "access": 2
+            },
+            "soundCheckGain": {
+              "descriptor": "F",
+              "access": 2
+            },
+            "outputBufferTs": {
+              "descriptor": "J",
+              "access": 2
+            },
+            "inputFormat": {
+              "descriptor": "Lcom/google/android/exoplayer2/Format;",
+              "access": 2
+            },
+            "audioSink": {
+              "descriptor": "Lcom/google/android/exoplayer2/audio/AudioSink;",
+              "access": 2
+            }
+          }
+        },
+        "Lcom/google/android/exoplayer2/ExoPlayerImplInternal;": {
+          "methods": {
+            "stopInternal(ZZZ)V": 2
+          },
+          "fields": {
+            "audioFadeControl": {
+              "descriptor": "Lcom/google/android/exoplayer2/AudioFadeControl;",
+              "access": 18
+            },
+            "enabledRenderers": {
+              "descriptor": "[Lcom/google/android/exoplayer2/Renderer;",
+              "access": 2
+            },
+            "playWhenReady": {
+              "descriptor": "Z",
+              "access": 2
+            }
+          }
+        },
+        "Lcom/apple/android/music/playback/player/ExoMediaPlayer;": {
+          "methods": {
+            "onPlayerError(Lcom/google/android/exoplayer2/ExoPlaybackException;)V": 1,
+            "setVolume(F)V": 1,
+            "play()V": 1,
+            "pause()V": 1,
+            "stop()V": 1,
+            "release()V": 1,
+            "seekToPosition(J)V": 1,
+            "setPlaybackIndexFromQueueId(J)Z": 1,
+            "setPlaybackIndex(I)V": 1,
+            "changePlaybackIndexBy(I)V": 1,
+            "getCurrentItem()Lcom/apple/android/music/playback/model/PlayerQueueItem;": 1,
+            "getPlaybackQueueManager()Lcom/apple/android/music/playback/queue/PlaybackQueueManager;": 1,
+            "getNextItemIndex()I": 1,
+            "getQueueItemAtIndex(I)Lcom/apple/android/music/playback/model/PlayerQueueItem;": 1,
+            "removeCache(Lcom/apple/android/music/playback/model/PlayerMediaItem;)V": 2,
+            "resetQueue()V": 2,
+            "removeQueueItemWithId(J)V": 1,
+            "moveQueueItemWithId(JJI)V": 1,
+            "addQueueItems(Lcom/apple/android/music/playback/queue/PlaybackQueueItemProvider;I)V": 1,
+            "prepare(Lcom/apple/android/music/playback/queue/PlaybackQueueItemProvider;)V": 1,
+            "prepare(Lcom/apple/android/music/playback/queue/PlaybackQueueItemProvider;Z)V": 1,
+            "prepare(Lcom/apple/android/music/playback/queue/PlaybackQueueItemProvider;IZI)V": 1,
+            "getQueueItemIndex(J)I": 1
+          },
+          "fields": {
+            "trackSelector": {
+              "descriptor": "Lcom/apple/android/music/playback/player/PlayerTrackSelector;",
+              "access": 18
+            },
+            "player": {
+              "descriptor": "Lcom/google/android/exoplayer2/ExoPlayer;",
+              "access": 18
+            },
+            "playWhenReady": {
+              "descriptor": "Z",
+              "access": 66
+            },
+            "playWhenQueuePrepared": {
+              "descriptor": "Z",
+              "access": 2
+            }
+          }
+        },
+        "Lcom/apple/android/music/playback/model/PlayerQueueItem;": {
+          "methods": {
+            "getPlaybackQueueId()J": 1025,
+            "getItem()Lcom/apple/android/music/playback/model/PlayerMediaItem;": 1025
+          },
+          "fields": {}
+        },
+        "Lcom/apple/android/music/playback/model/PlayerMediaItem;": {
+          "methods": {
+            "isDownloadedAsset()Z": 1025,
+            "getPlaybackStoreId()Ljava/lang/String;": 1025,
+            "getType()I": 1025
+          },
+          "fields": {}
+        },
+        "Lcom/apple/android/music/playback/queue/PlaybackQueueManager;": {
+          "methods": {
+            "getQueueUUID()Ljava/util/UUID;": 1025
+          },
+          "fields": {}
+        },
+        "Lcom/google/android/exoplayer2/ExoPlayerImpl;": {
+          "methods": {
+            "getApplicationLooper()Landroid/os/Looper;": 1,
+            "getPlaybackError()Lcom/google/android/exoplayer2/ExoPlaybackException;": 1,
+            "getPlaybackState()I": 1,
+            "getPlayWhenReady()Z": 1,
+            "release()V": 1,
+            "setPlayWhenReady(Z)V": 1,
+            "setPlayWhenReady(ZI)V": 1,
+            "seekTo(IJ)V": 1
+          },
+          "fields": {
+            "internalPlayer": {
+              "descriptor": "Lcom/google/android/exoplayer2/ExoPlayerImplInternal;",
+              "access": 18
+            },
+            "renderers": {
+              "descriptor": "[Lcom/google/android/exoplayer2/Renderer;",
+              "access": 18
+            }
+          }
+        },
+        "Lcom/google/android/exoplayer2/BaseRenderer;": {
+          "methods": {
+            "getState()I": 17,
+            "getStream()Lcom/google/android/exoplayer2/source/SampleStream;": 17,
+            "getIndex()I": 17,
+            "getTrackType()I": 17
+          },
+          "fields": {
+            "streamOffsetUs": {
+              "descriptor": "J",
+              "access": 2
+            }
+          }
+        },
+        "Lcom/apple/android/music/playback/player/mediasource/ProtectedSampleStream;": {
+          "methods": {
+            "getAssetInfo()Lcom/apple/android/music/playback/model/MediaAssetInfo;": 1
+          },
+          "fields": {}
+        },
+        "Lcom/apple/android/music/playback/model/MediaAssetInfo;": {
+          "methods": {
+            "getStoreId()J": 1
+          },
+          "fields": {}
+        },
+        "Lcom/apple/android/music/playback/player/PlayerTrackSelector;": {
+          "methods": {
+            "findRenderer([Lcom/google/android/exoplayer2/RendererCapabilities;Lcom/google/android/exoplayer2/source/TrackGroup;[IZ)I": 1
+          },
+          "fields": {}
+        },
+        "Lcom/google/android/exoplayer2/RendererCapabilities;": {
+          "methods": {
+            "getTrackType()I": 1025,
+            "supportsFormat(Lcom/google/android/exoplayer2/Format;)I": 1025
+          },
+          "fields": {}
+        },
+        "Lcom/google/android/exoplayer2/source/TrackGroup;": {
+          "methods": {
+            "getFormat(I)Lcom/google/android/exoplayer2/Format;": 1
+          },
+          "fields": {
+            "length": {
+              "descriptor": "I",
+              "access": 17
+            }
+          }
+        },
+        "Lcom/google/android/exoplayer2/AudioFadeControl;": {
+          "methods": {
+            "isCrossFadeEnabled()Z": 1025
+          },
+          "fields": {}
+        },
+        "Lcom/google/android/exoplayer2/audio/AudioSink;": {
+          "methods": {
+            "configure(IIII[III)V": 1025,
+            "disableTunneling()V": 1025,
+            "enableTunnelingV21(I)V": 1025,
+            "flush()V": 1025,
+            "getCurrentPositionUs(Z)J": 1025,
+            "getPlaybackParameters()Lcom/google/android/exoplayer2/PlaybackParameters;": 1025,
+            "handleBuffer(Ljava/nio/ByteBuffer;J)Z": 1025,
+            "handleDiscontinuity()V": 1025,
+            "hasPendingData()Z": 1025,
+            "isEnded()Z": 1025,
+            "pause()V": 1025,
+            "play()V": 1025,
+            "playToEndOfStream()V": 1025,
+            "reset()V": 1025,
+            "setAudioAttributes(Lcom/google/android/exoplayer2/audio/AudioAttributes;)V": 1025,
+            "setAudioSessionId(I)V": 1025,
+            "setAuxEffectInfo(Lcom/google/android/exoplayer2/audio/AuxEffectInfo;)V": 1025,
+            "setListener(Lcom/google/android/exoplayer2/audio/AudioSink$Listener;)V": 1025,
+            "setPlaybackParameters(Lcom/google/android/exoplayer2/PlaybackParameters;)V": 1025,
+            "setVolume(F)V": 1025,
+            "supportsOutput(II)Z": 1025
+          },
+          "fields": {}
+        },
+        "Lcom/google/android/exoplayer2/Format;": {
+          "methods": {},
+          "fields": {
+            "encoderDelay": {
+              "descriptor": "I",
+              "access": 17
+            },
+            "encoderPadding": {
+              "descriptor": "I",
+              "access": 17
+            },
+            "sampleMimeType": {
+              "descriptor": "Ljava/lang/String;",
+              "access": 17
+            }
+          }
+        },
+        "Lcom/google/android/exoplayer2/audio/DefaultAudioSink;": {
+          "methods": {},
+          "fields": {
+            "inputBuffer": {
+              "descriptor": "Ljava/nio/ByteBuffer;",
+              "access": 2
+            }
+          }
+        }
+      }
+    }
   }
 }

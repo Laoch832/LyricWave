@@ -44,6 +44,9 @@ data class TargetAdaptation(
     val nextAssetPreload: NextAssetPreloadTarget = NextAssetPreloadTarget {
         TargetCapabilityInstall.Unsupported("Native next asset preloading is not available")
     },
+    val bufferedPlayback: PlaybackStallTarget = PlaybackStallTarget {
+        TargetCapabilityInstall.Unsupported("Buffered playback is not available for this host")
+    },
     val playbackStall: PlaybackStallTarget = PlaybackStallTarget {
         TargetCapabilityInstall.Unsupported("Playback source recovery is not available")
     },

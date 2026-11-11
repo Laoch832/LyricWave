@@ -151,6 +151,8 @@ def verify_fragment_contracts(document, classes, failures):
         'fragmentDualPane', 'fragmentLyricsRuntime', 'fragmentKaraokeWidth', 'fragmentTabletVideoHandoff')}
     if document.get('playbackRendererRefresh') is not None:
         sections['playbackRendererRefresh'] = document['playbackRendererRefresh']
+    if document.get('bufferedDrmRecovery') is not None:
+        sections['bufferedDrmRecovery'] = document['bufferedDrmRecovery']
     sections['fragmentChrome.members'] = (document.get('fragmentChrome') or {}).get('members')
     settings = document.get('settings') or {}
     presentation = document.get('metadataPresentation')

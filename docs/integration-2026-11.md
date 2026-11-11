@@ -273,3 +273,34 @@ Day3（11-11）继续验收完整保存→恢复→编辑→原生中继流程�
 [正式 Release v1.7.4](https://github.com/Laoch832/LyricWave/releases/tag/v1.7.4) 作者 Laoch832，draft=false、prerelease=false，latest 指向本版；标签及 target_commitish 精确指向上述完整源码 SHA。五个附件 APK、SHA256SUMS.txt、SIGNATURE.txt、build-metadata.json、client-update.json 齐全，均实际通过网站下载接口下载比对。APK 11965344 字节，SHA-256 066af6068872af6792588a3d4c6e8d967dd0e0c25b9d92bb6f2a1f3cb47bdadc；apksigner 验证 v2 签名成功，证书仍为固定 4ec2f441139585083e476b596a503db7e6c459ec1ca1d9bcf59d815b6981da53。aapt 核对 dev.amenhancer.module /1.7.4 /136 和桌面入口；实际APK含用户提供原图、分享中继、下一首资源预取与官方service桥，不含隔离草稿实现。APK响应MIME与filename、filename*均正确。客户端真实线上配置验证：安装code135提示更新；136、137均已是最新，不重复下载；专用说明六项与同次构建元数据一致。发布初期网站缓存短暂404，之后实际重取全部附件成功，未将失败请求计作通过。
 
 真机音频、跨UID分享及桌面激活仍待用户设备验收；本版不声称DRM无声修复。用户11-11新授权的“前向20–30秒PCM缓冲 + 下一首再回原曲 + 失败后当前曲临时缓存重试”在 codex/drm-buffer-20261111 单独开发，尚未进入本正式版；旧禁止跳歌规则仅对此有界、用户主动开启的实验提出例外，不扩大到其他恢复路径。
+
+
+## 2026-11-11（Day3）维护：1.7.5 连续播放缓冲实验
+
+工作基线为 main 的 cdac6acf9d1fc03ac720b27d2e519da7b9bfddfb；先完成上文 1.7.4 的实际正式发布核验，再沿用 codex/drm-buffer-20261111 的既有工作，没有重复 PR、覆盖其他工作区修改或合入 USB/微信代码。本轮用户明确指定 DRM 方案，验收标准和架构见 [连续播放缓冲](native-playback-buffer.md)。新增体验功能是可实际开启的前向 PCM 缓冲及有界原生 next/back 恢复；修复重点为运行中接续原生未完成写入、终止时停止旧音频与避免第二输出，不将日志或测试计为新功能。
+
+### 更新、反馈与周期
+
+- [真实上游 SHA 388164c74de63d05495d91f8a83164fb4772ca31](https://github.com/Zennmn/AM-plus-plus/commit/388164c74de63d05495d91f8a83164fb4772ca31) 和 [Release v1.6.8](https://github.com/Zennmn/AM-plus-plus/releases/tag/v1.6.8) 未变，历史已包含，无新增可合并提交。本仓库未合并 PR、开放 Issues 查询均为空，复用既往维护记录。
+- 对上次基线 2026-11-10 起按 updated_at/state=all 增量检查上游 Issues，起始检查新增讨论为 [#133 评论6770386616](https://github.com/Zennmn/AM-plus-plus/issues/133#issuecomment-6770386616) 与 [6770436907](https://github.com/Zennmn/AM-plus-plus/issues/133#issuecomment-6770436907)：从不同原生页面进入歌词时的性能差异及快速声部滚动卡顿，仍无确认修复提交。缺少同设备帧数据，状态继续待复现，候选为播放器页面性能优化；未将上游推测当成本仓库缺陷，也未向上游写入。
+- [官方 Google Play](https://play.google.com/store/apps/details?id=com.apple.android.music) 可访问，更新日期 2026-10-29，公开页不提供版本/code；[APKMirror 发行列表](https://www.apkmirror.com/apk/apple/apple-music/) 当前最高正式条目仍 7.0.0，本地官方证书实包为 7.0.0 /1614，较上次确认无变化。beta 资格页重定向登录，最新 beta 未核实；不称没有更新。没有扩大完整宿主支持范围。
+- 指定 Vercel 项目 prj_vJB9MDcDxOdVawTowZOMHsWxbAAy 复查仍返回404，公网私有反馈 GET 返回401；无法安全取得管理员凭据，UTC11-10/11-11 私有反馈、分页和去重均未检查。不能当作零故障；没有输出凭据、提交原始用户日志或改变私有 Blob。需恢复连接账号对该项目的读取权限。
+- 本日为三天周期 Day3，原计划可恢复分享草稿仍在 codex/share-drafts-20261109 隔离，未完成端到端恢复，首次大功能交付逾期。用户优先的 DRM 实验不冒称该分享功能已交付；后续继续未完成流程，不以运行次数重置周期。
+
+### 实现与兼容性
+
+配置 schema22 的 experimental_buffered_drm_recovery_enabled 在 core 统一编解码与设置写白名单，默认关闭；界面真实状态连接原生 AudioSink 代理。前向环形内存 FIFO 目标30秒/最多32MiB，物理时钟和原曲 store ID 与队列 occurrence ID 分开使用。授权、视频、交叉淡入淡出、多输出及无不同下一首时不自动恢复。每次最多两次原曲请求、22秒总上限、120秒冷却；只在原曲第二次确认 DRM 且源 IDLE、非离线歌曲时调用其临时流缓存删除。暂停/拖动/换队列优先，失败先停止保留输出，不追加无跟踪自动播放。原生仍独占许可证及解码，不改链接/凭据，不清账号或离线下载。
+
+从精确官方签名 7.0.0/1614 APK 单独核对新接口；APK SHA-256 为 49e83b64fccff79310c7dff174e02228dd0455a3d87df4d9655d1e4f8cd2e351，Apple 证书 88ba590ec2e1ea33c4458daf59489faee2cef297a9b4071e18cf82ef531100aa。不提交 APK 或反编译实现。重要限制：整份既有宿主 profile 的实包校验在 1.7.4 基线已有697项中270项旧 UI/混淆符号不匹配；本轮新能力采用独立精确契约校验，不把旧270项失败掩盖成整个宿主验证通过，也不据此声称整机适配成功，后续需单独审计既有 UI 定位。
+
+网站 CI 从 ubuntu-latest 固定为 ubuntu-24.04：旧文档提交对应网站运行43036810147两次都在安装浏览器依赖阶段遇到26.04/resolute系统源DNS失败，原运行仍计失败；保留浏览器系统依赖安装和全部网页检查，用本轮新 SHA 验证修订。
+
+本轮验证及正式交付链接在完成后补齐；没有设备，DRM长播与真实无声恢复、听音连续性、分享最终面板/封面及自定义内核因果仍待验收。
+
+维护过程中再次增量检查到 UTC11-11T16:54–16:56 的三个新评论，已读取正文及全部讨论：[#69/6801938712](https://github.com/Zennmn/AM-plus-plus/issues/69#issuecomment-6801938712) 作者称此前歌词模糊重构已解决静态歌词模糊创作者清单，本仓库已有 CreditsRowIdentity 和 LyricCreditsRowsStructuralRegressionTest，保留真机待验证，不重复改实现；[#38/6801931337](https://github.com/Zennmn/AM-plus-plus/issues/38#issuecomment-6801931337) 作者称此前注入重构已修复自行上传歌曲，缺少本仓库同曲目复现，记录为线索，不直接宣布修复；[#54/6801901623](https://github.com/Zennmn/AM-plus-plus/issues/54#issuecomment-6801901623) 中文界面发音显示将在下一版本更新，目前没有对应新提交/PR可审查。本仓库已有 expandAppleLyricsPronunciationLanguages 与 TTML 格式转换，先作为行为对照候选，等待可审查提交和中文/第三方歌词实测，不移入尚未公开代码。再次核实上游 HEAD 仍388164c7，以上均不作为本轮新增修复交付。
+
+本地完整验证通过：1433项Gradle单元测试（失败0、错误0、跳过0），所需应用/库 Lint、Debug与Release构建均成功；33项Python测试、架构边界、9个精确profile数据、玻璃来源与固定actionlint检查通过。新能力73个方法及23个字段对实际官方APK的完整描述符/访问标志校验通过。临时清理的仅为一小时前可重建的Gradle构建缓存，未删除用户数据或改签名。完整验证后仅校准开关说明文字，避免把恢复中关闭与正常排空的不同流程混为一谈，随后按最终源码再次验证。具体测试包含24项模拟宿主音频代理测试、前向FIFO/时钟/EOF与有界恢复策略测试；均不代替实体设备音频验收。
+
+最终收尾新增“原生正在切换且 canSeek 暂不可用时用户拖动”的位置遮蔽：取消恢复直接使用用户请求位置（包括向后拖动），同时设置原曲 window/position，避免普通宿主 seek 在准备阶段被忽略后落回旧进度。新增 core 与真实代理模型回归用例。前一次仅说明文字的增量构建为纳入此修复而主动中止，不计作最终通过；重新执行完整检查。
+
+最终修订完整复跑成功：1435项单元测试（失败/错误/跳过均0）、所有上述必需Lint、Debug/Release构建通过，33项Python测试及架构/profile检查再次通过。后续只补充该最终源码的云端CI、签名和正式Release核验，不将中止的增量检查计作通过。

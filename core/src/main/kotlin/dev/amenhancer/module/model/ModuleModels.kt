@@ -58,6 +58,7 @@ data class ModuleSettings(
     val automaticFeedbackEnabled: Boolean = true,
     val automaticUpdateCheckEnabled: Boolean = true,
     val playbackStallRecoveryEnabled: Boolean = true,
+    val experimentalBufferedDrmRecoveryEnabled: Boolean = false,
     val experimentalNextAssetPreloadEnabled: Boolean = false,
     /** HDR gainmap lyrics; system thermal and display limits always apply. */
     val lyricsHdrEnabled: Boolean = false,
