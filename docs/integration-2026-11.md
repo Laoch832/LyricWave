@@ -310,3 +310,17 @@ Day3（11-11）继续验收完整保存→恢复→编辑→原生中继流程�
 网站补映射后生产构建、25项单元测试、Lint、类型和64篇文档链接检查通过。浏览器发现原有 sitemap 用例硬编码68条，新增双语文档后实际70条，其他19项通过，1项原有可选截图用例未启用。将用例改为逐条核对内容清单与六个入口的完整官方URL集合并拒绝重复，而非删除检查或只放宽数量；随后复跑全套浏览器流程。
 
 网页修正后完整浏览器复跑成功：20项必要用例通过，失败0；原有 UPDATE_SCREENSHOTS 选配截图采集用例仍未启用（1项跳过，不计为已验证用例）。生产构建、25项网页单元测试、Lint、类型及64篇文档链接检查均通过。Android 源码未再变动，最终1435项及全量Lint/双变体构建的证据仍适用；修订后的完整提交必须另等云端CI和固定签名通过，再发布。
+
+
+### 本轮最终云端状态：源码完成，1.7.5 正式交付被 GitHub 启动异常阻塞
+
+本次仍按11-11计划 Day3 登记，跨北京时间午夜继续执行没有重置周期。最终功能源码为 [a9273fc26505e7e718515e98d75ff07e7d86b5bd](https://github.com/Laoch832/LyricWave/commit/a9273fc26505e7e718515e98d75ff07e7d86b5bd)，网站修正后的完整候选为 [fb0472a5a9e71d030cec81dfee8a1244fb650f60](https://github.com/Laoch832/LyricWave/commit/fb0472a5a9e71d030cec81dfee8a1244fb650f60)，均以已验证的 Laoch832 /173591322 /User 个人账号推入 main，没有强推。后续仅补充维护记录，不是第二个功能版本。
+
+- 源码自动触发的 [Android CI 43096400237](https://github.com/Laoch832/LyricWave/actions/runs/43096400237) 和 [网站CI 43096400218](https://github.com/Laoch832/LyricWave/actions/runs/43096400218) 持续queued且jobs为空；旧 a9273fc2 运行已被修订替代，不计作通过。尝试取消旧运行及force-cancel均收到409“Cannot cancel a workflow run that has not been queued yet”，没有声称取消成功或修改其他项目。
+- 对同一完整 fb0472a5 候选执行一次明确 publish=false 的手动Android验证及手动网站验证：[Android 43097190556](https://github.com/Laoch832/LyricWave/actions/runs/43097190556)、[网站43097193940](https://github.com/Laoch832/LyricWave/actions/runs/43097193940)。两者均在生成任何job前以startup_failure结束，页面Annotation为“An unexpected error has occurred and we've been automatically notified”，没有可读取的测试/构建job日志。首次错误请求ID分别为2d26cbab-de10-11f1-8846-004b7b167d9a、67c7e8d4-de10-11f1-8732-d6b47e522a75。
+- 按页面建议分别重新运行一次，等到两项再次completed/startup_failure、jobs仍为空，未把触发重试当完成。重试后请求ID为9C3F:D611C:2E58ED5:939AF38:6AF4D346、D874:14ECFB:1482A34:411C275:6AF4D357。Android build.yml与已成功1.7.4的版本完全一致，固定actionlint通过；GitHub公共状态页当时仍显示All Systems Operational，不能据此掩盖本仓库的具体失败，也没有无依据改动有效的签名流程或减少检查。
+- 网站修正后的 [Vercel部署ALQfFGvuNfiu24H5myFDp82gezTm](https://vercel.com/cancarls-projects/lyric-wave/ALQfFGvuNfiu24H5myFDp82gezTm) 对完整fb0472a5提交报告success；公网新增缓冲说明及版本API实测200。该部署成功不等于GitHub网站CI通过。Vercel连接仍无法读取指定项目/部署日志及管理员环境变量；私有反馈UTC11-10/11-11未检查，不是零故障。
+- 1435项Android/JVM测试、必需Lint与双变体构建、33项Python、新96项原生接口实包契约校验均为本地成功证据；网站生产构建、25项网页单测、类型/Lint/64篇文档链接和20项必要浏览器流程也在本地通过。它们不能代替云端检查、固定签名及真机播放验收。
+- 截至UTC2026-11-11T20:47，1.7.5 /137未发布、没有v1.7.5标签、没有本版固定签名APK或可核验发布附件。没有创建预发布、覆盖既有Release、提取或重建密钥。GitHub最新正式版仍为 [v1.7.4](https://github.com/Laoch832/LyricWave/releases/tag/v1.7.4)：作者Laoch832，draft=false、prerelease=false，目标5274ec072b9a1c67841cc81016887e7564d4561a；它不包含本轮PCM缓冲功能。
+
+下次维护先读取此记录及最新CI，恢复GitHub启动服务后，直接继续现有1.7.5候选的完整检查、固定签名和个人账号正式发布，不重复开发此缓冲功能、不仅因本次未发版而再制造新版本、不把待定或startup_failure算通过；如从新增维护记录后的main发布，必须核验该完整提交的新CI与签名来源，再创建对应v1.7.5正式Release并实际下载五个附件核对SHA/固定证书/latest/作者/draft=false/prerelease=false。原定可恢复分享草稿仍未交付，保留原开发分支；播放真机验收和私有反馈权限仍是独立未完成事项。
