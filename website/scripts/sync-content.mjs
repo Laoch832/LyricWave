@@ -35,6 +35,7 @@ const groups = {
       "player",
       "sharing",
       "playback-recovery",
+      "native-playback-buffer",
     ],
   },
   advanced: {
@@ -192,6 +193,7 @@ const titles = {
   "online-lyrics": ["在线歌词补全", "Online lyric completion"],
   player: ["液态玻璃与平板播放器", "Glass & tablet player"],
   sharing: ["朋友圈链接分享", "WeChat Moments links"],
+  "native-playback-buffer": ["连续播放缓冲（实验）", "Continuous audio buffer (experimental)"],
   "integration-2026-11": ["上游合并记录", "Integration notes"],
   "playback-recovery": ["播放中断恢复", "Playback recovery"],
   architecture: ["项目架构", "Architecture"],

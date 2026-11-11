@@ -1,5 +1,6 @@
 import { test, expect } from "@playwright/test";
 import { dictionary } from "../../src/lib/i18n";
+import manifest from "../../src/lib/generated/content-map.json" with { type: "json" };
 test("language links and extracted-document navigation resolve to real pages", async ({
   page,
 }) => {
@@ -76,10 +77,13 @@ test("localized SEO, social previews, security headers and discovery routes are 
   const xml = await sitemap.text();
   expect(xml).toContain("/docs/zh");
   expect(xml).not.toContain("originlw.canz-monkey.cn");
-  expect(xml.match(/<loc>https:\/\/lyricwave.canz-monkey.cn\//g)).toHaveLength(
-    68,
-  );
-  expect(xml.match(/<url>/g)).toHaveLength(68);
+  const expectedUrls = [
+    "/zh", "/en", "/zh/download", "/en/download", "/docs/zh", "/docs/en",
+    ...manifest.map((entry) => entry.route),
+  ].map((route) => `https://lyricwave.canz-monkey.cn${route}`);
+  const actualUrls = [...xml.matchAll(/<loc>([^<]+)<\/loc>/g)].map((match) => match[1]);
+  expect(actualUrls.sort()).toEqual(expectedUrls.sort());
+  expect(new Set(actualUrls).size).toBe(expectedUrls.length);
   const robots = await request.get("/robots.txt");
   expect(await robots.text()).toContain("/sitemap.xml");
   const search = await request.get("/api/search?query=cache&locale=en");
