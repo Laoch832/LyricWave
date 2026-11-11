@@ -264,3 +264,12 @@ Day3（11-11）继续验收完整保存→恢复→编辑→原生中继流程�
 ### 本轮交付验证（最终源码待推送）
 
 最终参考图布局调整后，本地1384项完整Gradle测试全部通过（失败0、跳过0），应用/库所需Lint、Debug与Release构建均成功；31项Python测试、架构/profile/玻璃检查、工作流语法及真实1614安装包预取契约校验通过。桌面功能额外覆盖真实合并Manifest的启动入口、AdaptiveIconDrawable资源、官方SDK所报告的版本/用户隔离、断连、超时、迟到结果、刷新与打开宿主；原生图形测试已审阅中文深色预览。预览使用模拟框架数据及Debug构建，仅证明布局与模型流程，不冒充用户手机激活或真实播放/朋友圈成功。分享、预加载与新桌面入口在同一个1.7.4 /136中交付，专用结构化说明含本版6项变化。云端完整CI、固定签名和正式Release核验完成后补充链接；未完成发布前不把签名Artifact当作正式交付。
+
+
+### 1.7.4 正式交付核验（2026-11-11 UTC 补齐）
+
+最终源码 [5274ec072b9a1c67841cc81016887e7564d4561a](https://github.com/Laoch832/LyricWave/commit/5274ec072b9a1c67841cc81016887e7564d4561a) 已进入 main；[完整主线 CI](https://github.com/Laoch832/LyricWave/actions/runs/42850082776)、[网站 CI](https://github.com/Laoch832/LyricWave/actions/runs/42850082689) 均成功。此前中断时仅完成 CI，未发布，不能算交付；本日以已核验的 Laoch832 /173591322 个人账号执行[正式发布工作流43034277412](https://github.com/Laoch832/LyricWave/actions/runs/43034277412)，源码、Android验证、固定签名、个人账号发布四个job全部成功。
+
+[正式 Release v1.7.4](https://github.com/Laoch832/LyricWave/releases/tag/v1.7.4) 作者 Laoch832，draft=false、prerelease=false，latest 指向本版；标签及 target_commitish 精确指向上述完整源码 SHA。五个附件 APK、SHA256SUMS.txt、SIGNATURE.txt、build-metadata.json、client-update.json 齐全，均实际通过网站下载接口下载比对。APK 11965344 字节，SHA-256 066af6068872af6792588a3d4c6e8d967dd0e0c25b9d92bb6f2a1f3cb47bdadc；apksigner 验证 v2 签名成功，证书仍为固定 4ec2f441139585083e476b596a503db7e6c459ec1ca1d9bcf59d815b6981da53。aapt 核对 dev.amenhancer.module /1.7.4 /136 和桌面入口；实际APK含用户提供原图、分享中继、下一首资源预取与官方service桥，不含隔离草稿实现。APK响应MIME与filename、filename*均正确。客户端真实线上配置验证：安装code135提示更新；136、137均已是最新，不重复下载；专用说明六项与同次构建元数据一致。发布初期网站缓存短暂404，之后实际重取全部附件成功，未将失败请求计作通过。
+
+真机音频、跨UID分享及桌面激活仍待用户设备验收；本版不声称DRM无声修复。用户11-11新授权的“前向20–30秒PCM缓冲 + 下一首再回原曲 + 失败后当前曲临时缓存重试”在 codex/drm-buffer-20261111 单独开发，尚未进入本正式版；旧禁止跳歌规则仅对此有界、用户主动开启的实验提出例外，不扩大到其他恢复路径。
