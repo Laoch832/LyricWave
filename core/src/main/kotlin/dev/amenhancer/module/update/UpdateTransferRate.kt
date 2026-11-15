@@ -10,10 +10,11 @@ class UpdateTransferRateSampler {
     private var anchorBytes = 0L
     private var lastTime = -1L
     private var lastBytes = 0L
+    private var lastTotal = Long.MIN_VALUE
     private var lastMovement = -1L
     private var rate: Long? = null
     fun sample(bytes: Long, total: Long, now: Long): UpdateTransferRate {
-        if (anchorTime < 0 || now < lastTime || bytes < lastBytes) {
+        if (anchorTime < 0 || now < lastTime || bytes < lastBytes || total != lastTotal) {
             anchorTime = now; anchorBytes = bytes; lastMovement = now; rate = null
         }
         if (bytes > lastBytes) lastMovement = now
@@ -23,7 +24,7 @@ class UpdateTransferRateSampler {
             anchorTime = now; anchorBytes = bytes
         }
         if (now - lastMovement >= 4000) { rate = null; anchorTime = now; anchorBytes = bytes }
-        lastTime = now; lastBytes = bytes
+        lastTime = now; lastBytes = bytes; lastTotal = total
         return UpdateTransferRate(rate, rate?.takeIf { total > 0 && bytes in 0..total }?.let {
             ceil((total - bytes).toDouble() / it).toLong()
         })
