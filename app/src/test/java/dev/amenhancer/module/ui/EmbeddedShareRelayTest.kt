@@ -226,4 +226,30 @@ class EmbeddedShareRelayTest {
         try { assertTrue(module.get().isFinishing); assertNull(shadowOf(module.get()).nextStartedActivity) }
         finally { module.pause().stop().destroy() }
     }
+    @Test fun `expired trusted handoff is cancellation and never opens intermediary`() {
+        assertHandoffRejected(SystemClock.elapsedRealtime() - 1, "com.apple.android.music", MomentsShareHandoff.CANCELLED, 0)
+    }
+    @Test fun `unbounded handoff deadline is rejected with anonymous reason`() {
+        assertHandoffRejected(SystemClock.elapsedRealtime() + Contract.REQUEST_TIMEOUT_MS + 1000, "com.apple.android.music", MomentsShareHandoff.REJECTED, 7)
+    }
+    @Test fun `untrusted caller is rejected with anonymous reason`() {
+        assertHandoffRejected(SystemClock.elapsedRealtime() + 30000, "evil.app", MomentsShareHandoff.REJECTED, 3)
+    }
+    private fun assertHandoffRejected(deadline: Long, caller: String, expectedCode: Int, expectedReason: Int) {
+        var code = -1; var reason = -1
+        val input = MomentsShareHandoff.intent(url, "Title", "Artist", artwork, "request-1", deadline,
+            object : ResultReceiver(Handler(Looper.getMainLooper())) {
+                override fun onReceiveResult(resultCode: Int, data: Bundle?) {
+                    code = resultCode; reason = data?.getInt(MomentsShareHandoff.REJECTION, 0) ?: 0
+                }
+            })
+        val module = Robolectric.buildActivity(MomentsShareHandoffActivity::class.java, input)
+        shadowOf(module.get()).setCallingPackage(caller)
+        module.setup().visible().postResume(); drain()
+        try {
+            assertEquals(expectedCode, code); assertEquals(expectedReason, reason)
+            assertTrue(module.get().isFinishing); assertNull(shadowOf(module.get()).nextStartedActivity)
+        } finally { module.pause().stop().destroy() }
+    }
+
 }

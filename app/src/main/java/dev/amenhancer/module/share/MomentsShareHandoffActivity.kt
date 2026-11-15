@@ -31,13 +31,21 @@ class MomentsShareHandoffActivity : Activity() {
         callback = intent.getParcelableExtra(MomentsShareHandoff.CALLBACK)
         deadline = intent.getLongExtra(MomentsShareHandoff.DEADLINE, 0)
         requestId = intent.getStringExtra(Contract.REQUEST_ID).orEmpty()
-        if (callback == null || intent.action != MomentsShareHandoff.ACTION || !MomentsShareHandoff.trustedOrigin(this) ||
-            Contract.extract(intent.getStringExtra(android.content.Intent.EXTRA_TEXT).orEmpty()) == null ||
-            MomentsSongMetadata.title(intent.getStringExtra(Contract.TITLE)) == null ||
-            !requestId.matches(Regex("[A-Za-z0-9-]{1,100}")) ||
-            deadline - SystemClock.elapsedRealtime() !in 1..Contract.REQUEST_TIMEOUT_MS) {
-            complete(MomentsShareHandoff.REJECTED); return
+        val remaining = deadline - SystemClock.elapsedRealtime()
+        val rejection = when {
+            callback == null -> 1
+            intent.action != MomentsShareHandoff.ACTION -> 2
+            !MomentsShareHandoff.trustedOrigin(this) -> 3
+            Contract.extract(intent.getStringExtra(android.content.Intent.EXTRA_TEXT).orEmpty()) == null -> 4
+            MomentsSongMetadata.title(intent.getStringExtra(Contract.TITLE)) == null -> 5
+            !requestId.matches(Regex("[A-Za-z0-9-]{1,100}")) -> 6
+            remaining > Contract.REQUEST_TIMEOUT_MS -> 7
+            else -> 0
         }
+        if (rejection != 0) {
+            complete(MomentsShareHandoff.REJECTED, rejection = rejection); return
+        }
+        if (remaining <= 0) { complete(MomentsShareHandoff.CANCELLED); return }
         panel = MomentsSharePanel(this, intent).also { controller ->
             // The host already confirmed these fields; do not repeat a network lookup.
             controller.metadataResolver = { null }
@@ -73,10 +81,10 @@ class MomentsShareHandoffActivity : Activity() {
             else panel?.startConfirmedShare(requestId, deadline)
         }
     }
-    private fun complete(code: Int, detail: String? = null) {
+    private fun complete(code: Int, detail: String? = null, rejection: Int = 0) {
         if (completed) return
         completed = true; handler.removeCallbacks(timeout); panel?.close()
-        callback?.send(code, Bundle().apply { detail?.let { putString(MomentsShareRelay.DETAIL, it) } })
+        callback?.send(code, Bundle().apply { detail?.let { putString(MomentsShareRelay.DETAIL, it) }; if (rejection in 1..7) putInt(MomentsShareHandoff.REJECTION, rejection) })
         // The capability reports the outcome; do not feed an unrelated success into native Activity results.
         setResult(RESULT_CANCELED)
         finish()

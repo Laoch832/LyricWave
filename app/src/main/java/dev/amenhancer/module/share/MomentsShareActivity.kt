@@ -223,6 +223,7 @@ internal class MomentsSharePanel(private val owner: Activity, private val intent
         private val deadline = confirmedRequest?.second ?: (SystemClock.elapsedRealtime() + Contract.REQUEST_TIMEOUT_MS)
         private var remoteCancel: android.os.ResultReceiver? = null
         private var lastCode = 0
+        private var rejectionReason = 0
         private var detail: String? = null
         private val valid get() = attempt === this && !isDestroyed && !isFinishing
         private val timeout = Runnable { if (valid) fail(lastCode) }
@@ -253,6 +254,7 @@ internal class MomentsSharePanel(private val owner: Activity, private val intent
                         if (!valid) { cancel?.send(0, Bundle()); return }
                         if (code == MomentsShareHandoff.READY) { remoteCancel = cancel; cancel?.send(MomentsShareHandoff.READY, Bundle()); return }
                         detail = data?.getString(MomentsShareRelay.DETAIL)
+                        rejectionReason = data?.getInt(MomentsShareHandoff.REJECTION, 0)?.takeIf { it in 1..7 } ?: 0
                         when (code) {
                             Contract.RESULT_OPENED -> finish(ModuleText.WECHAT_EDITOR_OPENED.text(), code)
                             MomentsShareHandoff.CANCELLED -> finish(ModuleText.SHARE_WAIT_STOPPED.text())
@@ -261,7 +263,11 @@ internal class MomentsSharePanel(private val owner: Activity, private val intent
                     }
                 }
                 try {
-                    owner.startActivityForResult(MomentsShareHandoff.intent(url, title, artist, artwork, id, deadline, callback), MomentsShareHandoff.REQUEST_CODE)
+                    val handoff = MomentsShareHandoff.intent(url, title, artist, artwork, id, deadline, callback)
+                    if (android.os.Build.VERSION.SDK_INT >= 35) {
+                        owner.startActivityForResult(handoff, MomentsShareHandoff.REQUEST_CODE,
+                            android.app.ActivityOptions.makeBasic().setShareIdentityEnabled(true).toBundle())
+                    } else owner.startActivityForResult(handoff, MomentsShareHandoff.REQUEST_CODE)
                 } catch (error: Exception) {
                     dev.amenhancer.module.feedback.FeedbackRuntime.record("share", error, mapOf("result" to Contract.RESULT_RELAY))
                     fail(Contract.RESULT_RELAY)
@@ -317,7 +323,10 @@ internal class MomentsSharePanel(private val owner: Activity, private val intent
             }.text()
             val safeDetail = detail?.takeIf { it.matches(Regex("[0-9A-Za-z./_-]{1,80}")) }
             val text = "$message [N$code]" + (safeDetail?.let { " ($it)" } ?: "")
-            dev.amenhancer.module.feedback.FeedbackRuntime.record("share", codes = mapOf("result" to code))
+            dev.amenhancer.module.feedback.FeedbackRuntime.record("share", codes = buildMap {
+                put("result", code)
+                if (code == MomentsShareHandoff.REJECTED && rejectionReason in 1..7) put("component", rejectionReason)
+            })
             finish(text, code); Toast.makeText(this@MomentsSharePanel, text, Toast.LENGTH_LONG).show()
         }
     }
