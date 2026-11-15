@@ -22,6 +22,7 @@ class UpdateDownloadService : Service() {
     private var transferRateSampler = UpdateTransferRateSampler()
     @Volatile private var measuredRate = UpdateTransferRate()
     private var running = false
+    @Synchronized
     internal fun recordTransferRate(bytes: Long, total: Long, now: Long) {
         measuredRate = transferRateSampler.sample(bytes, total, now)
     }
