@@ -19,7 +19,12 @@ import java.util.concurrent.atomic.AtomicLong
 class UpdateDownloadService : Service() {
     private val worker = Executors.newSingleThreadExecutor()
     private val cancellation = UpdateDownloadCancellation()
+    private var transferRateSampler = UpdateTransferRateSampler()
+    @Volatile private var measuredRate = UpdateTransferRate()
     private var running = false
+    internal fun recordTransferRate(bytes: Long, total: Long, now: Long) {
+        measuredRate = transferRateSampler.sample(bytes, total, now)
+    }
     internal var checkRelease: () -> AppUpdateRelease = { AppUpdateClient().check(BuildConfig.VERSION_CODE.toLong(), BuildConfig.APPLICATION_ID) }
     internal var fetchFile: (UpdateAsset, UpdateBuild, File, UpdateDownloadCancellation, TransferRequest, (UpdateDownloadProgress) -> Unit) -> File =
         { asset, build, directory, cancel, request, progress -> AppUpdateDownloader(parallelism = request.connections).download(asset, build, directory, cancel, request.official, progress) }
@@ -38,6 +43,7 @@ class UpdateDownloadService : Service() {
         if (request == null) { if (!running) stopSelf(startId); return START_NOT_STICKY }
         if (running) return START_NOT_STICKY
         running = true; UpdateTransfer.controlToken = ticket; UpdateTransfer.assetId = request.id
+        transferRateSampler = UpdateTransferRateSampler(); measuredRate = UpdateTransferRate()
         UpdateTransfer.file = null; UpdateTransfer.build = null
         UpdateTransfer.state = DownloadState(DownloadPhase.CHECKING)
         val manager = getSystemService(NotificationManager::class.java)
@@ -61,6 +67,7 @@ class UpdateDownloadService : Service() {
                 val updated = AtomicLong(-1000)
                 val file = fetchFile(asset, build, directory, cancellation, request) { p ->
                     val now = android.os.SystemClock.elapsedRealtime(); val previous = updated.get()
+                    recordTransferRate(p.bytes, p.total, now)
                     if ((now - previous >= 300 || p.bytes == p.total) && updated.compareAndSet(previous, now)) {
                         UpdateTransfer.state = DownloadState(DownloadPhase.DOWNLOADING, asset.name, p.bytes, p.total, p.connections)
                         postProgress(manager)
@@ -88,7 +95,7 @@ class UpdateDownloadService : Service() {
         if (Build.VERSION.SDK_INT < 33 || checkSelfPermission(android.Manifest.permission.POST_NOTIFICATIONS) == android.content.pm.PackageManager.PERMISSION_GRANTED)
             manager.notify(NOTIFICATION, notification())
     }
-    private fun notification(): Notification {
+    internal fun notification(): Notification {
         val state = UpdateTransfer.state
         val active = state.phase == DownloadPhase.DOWNLOADING || state.phase == DownloadPhase.CHECKING
         val percent = if (state.total > 0) (100 * state.bytes / state.total).toInt().coerceIn(0, 100) else 0
@@ -104,6 +111,14 @@ class UpdateDownloadService : Service() {
             .setContentTitle(if (active) ModuleText.UPDATE_DOWNLOADER.text() else "LyricWave")
             .setContentText(message).setCategory(Notification.CATEGORY_PROGRESS).setOngoing(active).setOnlyAlertOnce(true)
         launch?.let { builder.setContentIntent(PendingIntent.getActivity(this, 1, it, PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)) }
+        if (state.phase == DownloadPhase.DOWNLOADING) {
+            val speed = measuredRate.bytesPerSecond
+            val remaining = measuredRate.remainingSeconds
+            if (speed != null && remaining != null) {
+                builder.setSubText(ModuleText.UPDATE_TRANSFER_RATE.text(
+                    "%.0f".format(java.util.Locale.ROOT, speed / 1024.0), remaining))
+            }
+        }
         if (active) {
             builder.setProgress(100, percent, state.total == 0L)
             val cancel = PendingIntent.getService(this, 2, Intent(this, UpdateDownloadService::class.java).setAction("cancel")
