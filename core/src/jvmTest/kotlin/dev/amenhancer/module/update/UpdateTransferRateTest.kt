@@ -24,4 +24,15 @@ class UpdateTransferRateTest {
         sampler.sample(0, 0, 0)
         assertEquals(UpdateTransferRate(1000, null), sampler.sample(1000, 0, 1000))
     }
+    @Test fun `changing asset size invalidates stale speed and ETA without a progress reset`() {
+        val sampler = UpdateTransferRateSampler()
+        sampler.sample(0, 8192, 100)
+        assertEquals(UpdateTransferRate(2048, 3), sampler.sample(2048, 8192, 1100))
+        // A second job can begin at a larger byte count, so comparing bytes alone is insufficient.
+        assertEquals(UpdateTransferRate(), sampler.sample(2048, 16384, 1200))
+        assertEquals(UpdateTransferRate(2048, 6), sampler.sample(4096, 16384, 2200))
+        assertEquals(UpdateTransferRate(), sampler.sample(4096, 0, 2300))
+        assertEquals(UpdateTransferRate(1000, null), sampler.sample(5096, 0, 3300))
+    }
+
 }
