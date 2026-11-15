@@ -1,7 +1,14 @@
 package dev.amenhancer.module.share
 
 import android.app.Application
+import android.content.BroadcastReceiver
+import android.content.Context
 import android.content.Intent
+import android.content.IntentFilter
+import android.content.pm.ApplicationInfo
+import android.content.pm.PackageInfo
+import android.content.pm.ActivityInfo
+import android.content.pm.ResolveInfo
 import android.os.Looper
 import android.view.View
 import android.view.ViewGroup
@@ -21,6 +28,7 @@ import org.robolectric.annotation.LooperMode
 import java.io.File
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
+import java.time.Duration
 
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [34], manifest = Config.NONE, qualifiers = "en-rUS")
@@ -66,6 +74,52 @@ class ShareDraftStoreTest {
             jobs.forEach { it.get(5, TimeUnit.SECONDS) }
             assertTrue(stores[0].load(url)!!.title.startsWith("Writer"))
         } finally { pool.shutdownNow() }
+    }
+    @Test fun `restored fields go to the native NetEase share request only after user confirmation`() {
+        val app = RuntimeEnvironment.getApplication()
+        val store = ShareDraftStore(app)
+        val original = draft(System.currentTimeMillis()).copy(title = "Restored title", artist = "Restored artist")
+        store.save(original)
+        val info = ApplicationInfo().apply { packageName = Contract.INTERMEDIARY_PACKAGE; uid = 12345 }
+        shadowOf(app.packageManager).installPackage(PackageInfo().apply {
+            packageName = Contract.INTERMEDIARY_PACKAGE; applicationInfo = info
+        })
+        val launcher = Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_LAUNCHER).setPackage(Contract.INTERMEDIARY_PACKAGE)
+        shadowOf(app.packageManager).addResolveInfoForIntent(launcher, ResolveInfo().apply {
+            activityInfo = ActivityInfo().apply {
+                packageName = Contract.INTERMEDIARY_PACKAGE; name = "MainActivity"; applicationInfo = info; exported = true
+            }
+        })
+        var delivered: Intent? = null
+        val netease = app.createPackageContext(Contract.INTERMEDIARY_PACKAGE, 0)
+        netease.registerReceiver(object : BroadcastReceiver() {
+            override fun onReceive(context: Context, intent: Intent) {
+                delivered = intent
+                resultCode = Contract.RESULT_OPENED
+            }
+        }, IntentFilter(Contract.OPEN), Context.RECEIVER_EXPORTED)
+        val controller = Robolectric.buildActivity(MomentsShareActivity::class.java,
+            Intent(Intent.ACTION_SEND).putExtra(Intent.EXTRA_TEXT, url).putExtra(Contract.TITLE, "Initial title"))
+        controller.get().metadataResolver = { MomentsSongMetadata("Other title", "Other artist", cover) }
+        try {
+            val activity = controller.setup().visible().get()
+            fun button(text: String) = views(activity.window.decorView).filterIsInstance<Button>().single { it.text == text }
+            await { button("Restore saved draft").visibility == View.VISIBLE }
+            assertNull(delivered) // Restoring is never an automatic send.
+            button("Restore saved draft").performClick()
+            val fields = views(activity.window.decorView).filterIsInstance<EditText>()
+            assertEquals("Restored title", fields[0].text.toString())
+            assertEquals("Restored artist", fields[1].text.toString())
+            button("Open NetEase sharing").performClick()
+            shadowOf(Looper.getMainLooper()).idleFor(Duration.ofSeconds(2))
+            assertEquals(Contract.withChinaStorefront(url, true), delivered?.getStringExtra(Contract.URL))
+            assertEquals("Restored title", delivered?.getStringExtra(Contract.TITLE))
+            assertEquals("Restored artist", delivered?.getStringExtra(Contract.ARTIST))
+            assertEquals(cover, delivered?.getStringExtra(Contract.ARTWORK))
+        } finally {
+            controller.pause().stop().destroy()
+            store.clear()
+        }
     }
     @Test fun `user restores saves and clears a draft without native sending or late metadata overwriting edits`() {
         val app = RuntimeEnvironment.getApplication(); val store = ShareDraftStore(app)
