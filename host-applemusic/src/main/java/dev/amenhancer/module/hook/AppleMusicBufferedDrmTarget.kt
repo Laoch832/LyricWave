@@ -11,6 +11,7 @@ import dev.amenhancer.module.playback.PlaybackFailurePolicy
 import org.json.JSONObject
 import java.lang.ref.WeakReference
 import java.lang.reflect.InvocationTargetException
+import java.lang.reflect.Field
 import java.lang.reflect.Method
 import java.lang.reflect.Proxy
 import java.nio.ByteBuffer
@@ -33,6 +34,19 @@ internal class AppleMusicBufferedDrmTarget(
     private val sessions = Collections.synchronizedMap(WeakHashMap<Any, WeakReference<AudioSession>>())
     private val armed = Collections.synchronizedMap(WeakHashMap<Any, AudioSession>())
     private val selectorConstraints = Collections.synchronizedMap(WeakHashMap<Any, AudioSession>())
+    private val mutedRenderers = Collections.synchronizedMap(WeakHashMap<Any, AudioSession>())
+    private data class CodecConfiguration(val native: WeakReference<Any>, val args: Array<out Any?>)
+    private val codecConfigurations = Collections.synchronizedMap(WeakHashMap<Any, CodecConfiguration>())
+    private val configuringCodec = ThreadLocal<Any?>()
+    private fun sinkField(renderer: Any): Field? = when {
+        field("codecSink").declaringClass.isInstance(renderer) -> field("codecSink")
+        field("sink").declaringClass.isInstance(renderer) -> field("sink")
+        else -> null
+    }
+    private fun copyArguments(args: Array<out Any?>) = args.map { if (it is IntArray) it.clone() else it }.toTypedArray()
+    private fun unmute(audio: AudioSession) {
+        synchronized(mutedRenderers) { mutedRenderers.keys.toList().forEach { if (mutedRenderers[it] === audio) mutedRenderers.remove(it) } }
+    }
     private val pendingStarts = Collections.synchronizedMap(WeakHashMap<Any, AudioSession>())
     private val lastAttempt = Collections.synchronizedMap(WeakHashMap<Any, Long>())
     private val workers = Collections.synchronizedMap(WeakHashMap<Any, Worker>())
@@ -62,12 +76,14 @@ internal class AppleMusicBufferedDrmTarget(
             }
             fun attach(renderer: Any, existing: Any? = null) {
                 if (!enabled() || sessions[renderer]?.get() != null) return
-                val original = field("sink").get(renderer) ?: return
+                val binding = sinkField(renderer) ?: return
+                val original = binding.get(renderer) ?: return
                 if (!field("nativeInput").declaringClass.isInstance(original)) return
                 val handler = Handler(checkNotNull(Looper.myLooper()))
-                val session = AudioSession(renderer, original, handler)
-                if (existing != null && !session.attachExisting(existing)) return
-                field("sink").set(renderer, session.proxy)
+                val codec = binding == field("codecSink")
+                val session = AudioSession(renderer, original, handler, codec)
+                if (existing != null && !(if (codec) session.attachCodecExisting(existing as Array<out Any?>) else session.attachExisting(existing))) return
+                binding.set(renderer, session.proxy)
                 sessions[renderer] = WeakReference(session)
                 session.begin()
             }
@@ -79,6 +95,34 @@ internal class AppleMusicBufferedDrmTarget(
                 }
                 if (enabled() && sessions[renderer]?.get() == null) {
                     field("inputFormat").get(renderer)?.let { attach(renderer, it) }
+                }
+            }
+            // Capture the exact native configure arguments even while the experiment is off. This
+            // allows live opt-in without applying encoder trimming or channel mapping a second time.
+            check(register(method("codecFormat"), object : ModernMethodHook() {
+                override fun beforeHookedMethod(param: MethodHookParam) {
+                    val renderer = param.thisObject ?: return
+                    configuringCodec.set(renderer)
+                    runCatching { attach(renderer) }.onFailure {
+                        ModernXposedRuntime.log("Buffered codec attachment failed: ${it.javaClass.simpleName}")
+                    }
+                }
+                override fun afterHookedMethod(param: MethodHookParam) { configuringCodec.remove() }
+            }, scope))
+            hook("nativeConfigure", false) { p ->
+                val renderer = configuringCodec.get() ?: return@hook
+                val original = p.thisObject ?: return@hook
+                if (field("codecSink").get(renderer) === original)
+                    codecConfigurations[renderer] = CodecConfiguration(WeakReference(original), copyArguments(p.args))
+            }
+            hook("codecRender", true) { p ->
+                val renderer = p.thisObject ?: return@hook
+                if (!field("codecSink").declaringClass.isInstance(renderer)) return@hook
+                sessions[renderer]?.get()?.renderFailure()?.let { p.throwable = it; return@hook }
+                if (enabled() && sessions[renderer]?.get() == null) {
+                    val original = field("codecSink").get(renderer) ?: return@hook
+                    val saved = codecConfigurations[renderer]?.takeIf { it.native.get() === original } ?: return@hook
+                    if (field("nativePendingConfig").get(original) == null) attach(renderer, saved.args)
                 }
             }
             // All three fatal catch branches call stopInternal(resetRenderers, false, false),
@@ -99,29 +143,29 @@ internal class AppleMusicBufferedDrmTarget(
                 if (2 in types) return@hook // Videos use additional output paths.
                 val audio = nativeRenderers.filterIndexed { index, _ -> types[index] == 1 }
                 val renderer = audio.singleOrNull() ?: return@hook
-                // Native no-crossfade selection and reset both use the first audio renderer.
-                if (call("rendererIndex", renderer) != 0) return@hook
                 val session = sessions[renderer]?.get() ?: return@hook
                 if (session.arm()) armed[internal] = session
             }
             hook("chooseRenderer", false) { p ->
-                if (selectorConstraints[p.thisObject] == null) return@hook
+                val held = selectorConstraints[p.thisObject] ?: return@hook
                 val capabilities = p.args[0] as Array<*>
                 val chosen = p.result as? Int ?: return@hook
                 val selected = capabilities.getOrNull(chosen) ?: return@hook
                 if (call("capType", selected) != 1) return@hook
-                // During this one transaction map every supported audio group to the held renderer.
-                // Otherwise the native selector can choose the second audio output on the next song.
-                // Reject an unsupported group instead of letting it reach another audible sink.
                 p.result = capabilities.size
-                val primary = capabilities.firstOrNull() ?: return@hook
-                if (call("capType", primary) != 1) return@hook
+                // The temporary item may use a different codec. Its renderer decodes under normal
+                // native control, but its sink cannot produce audio. Only the original item must
+                // return to the exact held renderer so its physical clock and reserve remain valid.
+                val index = if (held.restoringOriginal) held.rendererIndex else chosen
+                if (index !in held.permittedRenderers) return@hook
+                val renderer = capabilities.getOrNull(index) ?: return@hook
+                if (call("capType", renderer) != 1) return@hook
                 val group = p.args[1] ?: return@hook
-                val supported = (0 until field("groupLength").getInt(group)).any { index ->
-                    val format = call("groupFormat", group, index) ?: return@any false
-                    ((call("capSupport", primary, format) as Int) and 7) >= 3
+                val supported = (0 until field("groupLength").getInt(group)).any { n ->
+                    val format = call("groupFormat", group, n) ?: return@any false
+                    ((call("capSupport", renderer, format) as Int) and 7) >= 3
                 }
-                if (supported) p.result = 0
+                if (supported) p.result = index
             }
             hook("hostError", false) { p ->
                 val host = p.thisObject ?: return@hook
@@ -187,7 +231,7 @@ internal class AppleMusicBufferedDrmTarget(
             scope.onClose {
                 synchronized(workers) { workers.values.toList() }.forEach { it.disable() }
                 synchronized(sessions) { sessions.values.mapNotNull { it.get() } }.forEach { it.close() }
-                workers.clear(); sessions.clear(); armed.clear(); pendingStarts.clear(); lastAttempt.clear(); selectorConstraints.clear()
+                workers.clear(); sessions.clear(); armed.clear(); pendingStarts.clear(); lastAttempt.clear(); selectorConstraints.clear(); mutedRenderers.clear(); codecConfigurations.clear(); configuringCodec.remove()
                 BufferedDrmRecoveryStatus.available = false; BufferedDrmRecoveryStatus.bufferedMs = 0
             }
             scope.activate()
@@ -224,18 +268,28 @@ internal class AppleMusicBufferedDrmTarget(
         armed.remove(field("engineInternal").get(engine))?.close()
     }
 
-    private inner class AudioSession(renderer: Any, private val native: Any, val handler: Handler) {
+    private inner class AudioSession(renderer: Any, private val native: Any, val handler: Handler, private val codec: Boolean) {
         private val owner = WeakReference(renderer)
         private var adopting = field("nativeInput").get(native) as? ByteBuffer
-        private val adoptingPts = field("pendingTs").getLong(renderer)
+        private val adoptingPts = if (!codec) field("pendingTs").getLong(renderer) else {
+            val info = field("codecOutputInfo").get(renderer) as android.media.MediaCodec.BufferInfo
+            val last = field("codecLastInput").getLong(renderer)
+            if (field("codecEosWorkaround").getBoolean(renderer) && info.presentationTimeUs == 0L && info.flags and 4 != 0 && last >= 0) last
+            else info.presentationTimeUs
+        }
+        val rendererIndex = call("rendererIndex", renderer) as Int
+        @Volatile var permittedRenderers = emptySet<Int>()
+        @Volatile var restoringOriginal = true
+        @Volatile private var siblingPcm = false
         private var closed = false
         private var scheduled = false
-        private var running = call("rendererState", renderer) == 2
+        private var running = call("rendererState", renderer) == 2 && mutedRenderers[renderer] == null
         private var heldTeardown = false
         private var streamTrack: Long? = null
         private var output: BufferedPcmOutput? = null
         private var pendingConfiguration: Array<out Any?>? = null
         private var configured: Array<out Any?>? = null
+        private var latestConfiguration: Array<out Any?>? = null
         private var writeFailure: Throwable? = null
         private var leaseUntil = 0L
         private var originalGain = 1f
@@ -272,6 +326,7 @@ internal class AppleMusicBufferedDrmTarget(
             return BufferedPcmOutput.Format(rate, channels, bytes)
         }
         private fun configure(args: Array<out Any?>) {
+            latestConfiguration = copyArguments(args)
             val value = format(args)
             val out = output
             if (held != null && out != null) {
@@ -281,7 +336,7 @@ internal class AppleMusicBufferedDrmTarget(
                 // which is already seeking the original audible position, instead of playing bad data.
                 failed = true; held = null; out.finishHold(); out.reset()
             }
-            val copy = args.map { if (it is IntArray) it.clone() else it }.toTypedArray()
+            val copy = copyArguments(args)
             if (out != null && !out.isDrained) { pendingConfiguration = copy; schedule(); return }
             applyConfiguration(copy, value)
         }
@@ -333,12 +388,34 @@ internal class AppleMusicBufferedDrmTarget(
             prepareOutput(checkNotNull(format(args)), existing = true)
             return true
         }
-        fun begin() { if (running) schedule() }
+        fun attachCodecExisting(args: Array<out Any?>): Boolean {
+            val value = format(args) ?: return false
+            configured = copyArguments(args); latestConfiguration = configured
+            prepareOutput(value, existing = true)
+            return true
+        }
+        fun begin() {
+            if (owner.get()?.let { mutedRenderers[it] }?.let { it !== this } == true) {
+                output?.pause() ?: native("sinkPause"); running = false
+            } else if (running) schedule()
+        }
         private fun dispatch(m: Method, args: Array<out Any?>): Any? {
             check(handler.looper === Looper.myLooper())
             if (closed) return invoke(m, native, args)
             updateStream()
             val out = output
+            val heldOwner = owner.get()?.let { mutedRenderers[it] }?.takeUnless { it === this }
+            if (heldOwner != null) {
+                when (m) {
+                    method("sinkHandleBuffer") -> {
+                        if (streamTrack != heldOwner.held?.track) { heldOwner.siblingPcm = true; heldOwner.next = true }
+                        return false // No copy, no native write and no temporary next-track AudioTrack.
+                    }
+                    method("sinkPlay") -> { out?.pause() ?: native("sinkPause"); running = false; return null }
+                    method("sinkGetCurrentPositionUs") -> return owner.get()?.let { field("offset").getLong(it) } ?: 0L
+                    method("sinkIsEnded") -> return false
+                }
+            }
             return when (m) {
                 method("sinkConfigure") -> { configure(args); null }
                 method("sinkHandleBuffer") -> {
@@ -353,7 +430,7 @@ internal class AppleMusicBufferedDrmTarget(
                 method("sinkPause") -> { if (held == null) running = false; out?.pause() ?: invoke(m, native, args); null }
                 method("sinkPlay") -> { running = true; heldTeardown = false; out?.play() ?: invoke(m, native, args); schedule(); null }
                 method("sinkReset") -> { if (held != null) heldTeardown = true; if (held == null) { running = false; writeFailure = null; failed = false }; out?.reset() ?: invoke(m, native, args); reportBuffer(); null }
-                method("sinkFlush") -> { out?.flush() ?: invoke(m, native, args); if (held == null) writeFailure = null; reportBuffer(); null }
+                method("sinkFlush") -> { if (held != null) heldTeardown = true; out?.flush() ?: invoke(m, native, args); if (held == null) writeFailure = null; reportBuffer(); null }
                 method("sinkPlayToEndOfStream") -> { out?.requestEnd() ?: invoke(m, native, args); schedule(); null }
                 method("sinkHasPendingData") -> out?.pending ?: invoke(m, native, args)
                 method("sinkIsEnded") -> (out == null || out.isDrained) && native("sinkIsEnded") == true
@@ -377,7 +454,7 @@ internal class AppleMusicBufferedDrmTarget(
                     if (out?.isDrained != false) pendingConfiguration?.let { applyConfiguration(it) }
                     held = out?.hold
                     if (held != null) audibleMs = out?.audibleOriginalUs()?.div(1000)
-                    fresh = out?.freshOriginalPcm == true; next = out?.nextPcmSeen == true
+                    fresh = out?.freshOriginalPcm == true; next = out?.nextPcmSeen == true || siblingPcm
                     if (held == null && heldTeardown && out?.pending == false) { out.pause(); running = false }
                     bufferedMs = (out?.bufferedUs ?: 0) / 1000
                     if (refreshStatus || !running) reportBuffer()
@@ -400,7 +477,7 @@ internal class AppleMusicBufferedDrmTarget(
             if (failed || writeFailure != null) return false
             updateStream()
             val renderer = owner.get() ?: return false
-            originalGain = if (field("soundCheck").getBoolean(renderer)) field("gain").getFloat(renderer) else 1f
+            originalGain = if (!codec && field("soundCheck").getBoolean(renderer)) field("gain").getFloat(renderer) else 1f
             if (!originalGain.isFinite() || originalGain < 0) return false
             val value = output?.arm() ?: return false
             held = value; audibleMs = value.audibleUs / 1000; fresh = false; next = false
@@ -415,7 +492,7 @@ internal class AppleMusicBufferedDrmTarget(
             return call("unexpected", renderer, IllegalStateException("Buffered PCM output failed: ${error.javaClass.simpleName}")) as Throwable
         }
         fun prepareNextHop() {
-            next = false
+            next = false; siblingPcm = false
             if (handler.looper === Looper.myLooper()) output?.resetNextPcmSignal()
             else handler.post { output?.resetNextPcmSignal(); next = false }
         }
@@ -432,9 +509,10 @@ internal class AppleMusicBufferedDrmTarget(
                 // A native selection may already have adopted the temporary next song. Its initial
                 // configure was deferred during the bridge; rebuild using its actual renderer format.
                 val renderer = owner.get()
-                val value = renderer?.let { field("inputFormat").get(it) }
+                val value = renderer?.let { field(if (codec) "codecInputFormat" else "inputFormat").get(it) }
                 if (renderer != null && value != null) runCatching {
-                    call("initializeSink", renderer, value)
+                    if (codec) latestConfiguration?.let { applyConfiguration(it) }
+                    else call("initializeSink", renderer, value)
                     if (!pause && call("rendererState", renderer) == 2) { output?.play(); running = true; schedule() }
                 }.onFailure { failed = true; writeFailure = it; running = false }
             }
@@ -520,6 +598,7 @@ internal class AppleMusicBufferedDrmTarget(
             override fun audiblePositionMs() = audio.audibleMs
             override fun select(queueId: Long): Boolean {
                 if (queueId != originalId && audio.held?.track != originalContentId) return false
+                audio.restoringOriginal = queueId == originalId
                 if (queueId != originalId) audio.prepareNextHop()
                 return owner.get()?.let { call("hostSelect", it, queueId) == true } ?: false
             }
@@ -546,7 +625,7 @@ internal class AppleMusicBufferedDrmTarget(
                 return true
             }
             override fun finishOutput(result: DrmRoundTripRecovery.Stage) {
-                selectorConstraints.remove(selector)
+                selectorConstraints.remove(selector); unmute(audio)
                 BufferedDrmRecoveryStatus.stage = result; BufferedDrmRecoveryStatus.lastResult = result
                 val host = owner.get()
                 val paused = host == null || (!field("hostWants").getBoolean(host) && !field("hostPending").getBoolean(host))
@@ -577,8 +656,11 @@ internal class AppleMusicBufferedDrmTarget(
             val internal = field("engineInternal").get(engine) ?: return false
             val fade = field("fadeControl").get(internal) ?: return false
             if (call("fadeEnabled", fade) == true) return false
+            val renderers = (field("engineRenderers").get(engine) as Array<*>).filterNotNull().filter { sinkField(it) != null }
+            audio.permittedRenderers = renderers.map { call("rendererIndex", it) as Int }.toSet()
+            renderers.forEach { mutedRenderers[it] = audio }
             selectorConstraints[selector] = audio
-            if (!controller.start(true, false)) { selectorConstraints.remove(selector); return false }
+            if (!controller.start(true, false)) { selectorConstraints.remove(selector); unmute(audio); return false }
             BufferedDrmRecoveryStatus.stage = controller.stage
             handler.postDelayed(tick, 100)
             return true
@@ -587,9 +669,9 @@ internal class AppleMusicBufferedDrmTarget(
     companion object {
         private val USER_ACTIONS = setOf("hostPause", "hostStop", "hostRelease", "hostSeek", "hostSelect", "hostIndex", "hostChangeBy",
             "hostResetQueue", "hostRemoveItem", "hostMoveItem", "hostAddItems", "hostPrepare", "hostPrepare2", "hostPrepare4")
-        private val METHODS = USER_ACTIONS + setOf("hostQueueIndex", "engineSeek", "unexpected", "render", "initializeSink", "fatal", "hostError", "hostPlay", "hostVolume", "hostCurrent", "hostQueue", "hostNext", "hostAt", "hostRemoveCache",
+        private val METHODS = USER_ACTIONS + setOf("codecRender", "codecFormat", "nativeConfigure", "hostQueueIndex", "engineSeek", "unexpected", "render", "initializeSink", "fatal", "hostError", "hostPlay", "hostVolume", "hostCurrent", "hostQueue", "hostNext", "hostAt", "hostRemoveCache",
             "queueId", "payload", "downloaded", "queueUuid", "engineLoop", "engineError", "engineState", "engineWants", "engineRelease", "enginePlayWhen", "enginePlayWhen2", "rendererState", "rendererIndex", "rendererType", "fadeEnabled", "chooseRenderer", "capType", "capSupport", "groupFormat", "itemType", "stream", "asset", "assetStore", "itemStore",
             "sinkConfigure", "sinkDisableTunneling", "sinkEnableTunnelingV21", "sinkFlush", "sinkGetCurrentPositionUs", "sinkGetPlaybackParameters", "sinkHandleBuffer", "sinkHandleDiscontinuity", "sinkHasPendingData", "sinkIsEnded", "sinkPause", "sinkPlay", "sinkPlayToEndOfStream", "sinkReset", "sinkSetAudioAttributes", "sinkSetAudioSessionId", "sinkSetAuxEffectInfo", "sinkSetListener", "sinkSetPlaybackParameters", "sinkSetVolume", "sinkSupportsOutput")
-        private val FIELDS = setOf("selector", "groupLength", "fadeControl", "soundCheck", "gain", "rate", "channels", "bits", "encoderDelay", "encoderPadding", "mime", "nativeInput", "pendingTs", "inputFormat", "sink", "offset", "hostPlayer", "hostWants", "hostPending", "engineInternal", "engineRenderers", "internalEnabled", "internalWants")
+        private val FIELDS = setOf("codecSink", "codecInputFormat", "codecOutputInfo", "codecEosWorkaround", "codecLastInput", "nativePendingConfig", "selector", "groupLength", "fadeControl", "soundCheck", "gain", "rate", "channels", "bits", "encoderDelay", "encoderPadding", "mime", "nativeInput", "pendingTs", "inputFormat", "sink", "offset", "hostPlayer", "hostWants", "hostPending", "engineInternal", "engineRenderers", "internalEnabled", "internalWants")
     }
 }

@@ -6418,6 +6418,44 @@
         "static": true,
         "invocationOnly": false
       },
+      "codecRender": {
+        "owner": "com.google.android.exoplayer2.mediacodec.MediaCodecRenderer",
+        "name": "render",
+        "parameters": [
+          "long",
+          "long"
+        ],
+        "returns": "void",
+        "static": false,
+        "invocationOnly": false
+      },
+      "codecFormat": {
+        "owner": "com.google.android.exoplayer2.audio.MediaCodecAudioRenderer",
+        "name": "onOutputFormatChanged",
+        "parameters": [
+          "android.media.MediaCodec",
+          "android.media.MediaFormat"
+        ],
+        "returns": "void",
+        "static": false,
+        "invocationOnly": false
+      },
+      "nativeConfigure": {
+        "owner": "com.google.android.exoplayer2.audio.DefaultAudioSink",
+        "name": "configure",
+        "parameters": [
+          "int",
+          "int",
+          "int",
+          "int",
+          "[I",
+          "int",
+          "int"
+        ],
+        "returns": "void",
+        "static": false,
+        "invocationOnly": false
+      },
       "render": {
         "owner": "com.apple.android.music.playback.renderer.SVAudioRendererV2",
         "name": "render",
@@ -7089,6 +7127,36 @@
       }
     },
     "fields": {
+      "codecSink": {
+        "owner": "com.google.android.exoplayer2.audio.MediaCodecAudioRenderer",
+        "name": "audioSink",
+        "type": "com.google.android.exoplayer2.audio.AudioSink"
+      },
+      "codecInputFormat": {
+        "owner": "com.google.android.exoplayer2.audio.MediaCodecAudioRenderer",
+        "name": "inputFormat",
+        "type": "com.google.android.exoplayer2.Format"
+      },
+      "codecOutputInfo": {
+        "owner": "com.google.android.exoplayer2.mediacodec.MediaCodecRenderer",
+        "name": "outputBufferInfo",
+        "type": "android.media.MediaCodec$BufferInfo"
+      },
+      "codecEosWorkaround": {
+        "owner": "com.google.android.exoplayer2.audio.MediaCodecAudioRenderer",
+        "name": "codecNeedsEosBufferTimestampWorkaround",
+        "type": "boolean"
+      },
+      "codecLastInput": {
+        "owner": "com.google.android.exoplayer2.audio.MediaCodecAudioRenderer",
+        "name": "lastInputTimeUs",
+        "type": "long"
+      },
+      "nativePendingConfig": {
+        "owner": "com.google.android.exoplayer2.audio.DefaultAudioSink",
+        "name": "pendingConfiguration",
+        "type": "com.google.android.exoplayer2.audio.DefaultAudioSink$Configuration"
+      },
       "selector": {
         "owner": "com.apple.android.music.playback.player.ExoMediaPlayer",
         "name": "trackSelector",
@@ -7215,6 +7283,55 @@
             "createForUnexpected(Ljava/lang/RuntimeException;)Lcom/google/android/exoplayer2/ExoPlaybackException;": 9
           },
           "fields": {}
+        },
+        "Lcom/google/android/exoplayer2/mediacodec/MediaCodecRenderer;": {
+          "methods": {
+            "render(JJ)V": 1
+          },
+          "fields": {
+            "outputBufferInfo": {
+              "descriptor": "Landroid/media/MediaCodec$BufferInfo;",
+              "access": 18
+            }
+          }
+        },
+        "Lcom/google/android/exoplayer2/audio/MediaCodecAudioRenderer;": {
+          "methods": {
+            "onOutputFormatChanged(Landroid/media/MediaCodec;Landroid/media/MediaFormat;)V": 1
+          },
+          "fields": {
+            "audioSink": {
+              "descriptor": "Lcom/google/android/exoplayer2/audio/AudioSink;",
+              "access": 20
+            },
+            "inputFormat": {
+              "descriptor": "Lcom/google/android/exoplayer2/Format;",
+              "access": 2
+            },
+            "codecNeedsEosBufferTimestampWorkaround": {
+              "descriptor": "Z",
+              "access": 2
+            },
+            "lastInputTimeUs": {
+              "descriptor": "J",
+              "access": 2
+            }
+          }
+        },
+        "Lcom/google/android/exoplayer2/audio/DefaultAudioSink;": {
+          "methods": {
+            "configure(IIII[III)V": 1
+          },
+          "fields": {
+            "pendingConfiguration": {
+              "descriptor": "Lcom/google/android/exoplayer2/audio/DefaultAudioSink$Configuration;",
+              "access": 2
+            },
+            "inputBuffer": {
+              "descriptor": "Ljava/nio/ByteBuffer;",
+              "access": 2
+            }
+          }
         },
         "Lcom/apple/android/music/playback/renderer/SVAudioRendererV2;": {
           "methods": {
@@ -7459,15 +7576,6 @@
             "sampleMimeType": {
               "descriptor": "Ljava/lang/String;",
               "access": 17
-            }
-          }
-        },
-        "Lcom/google/android/exoplayer2/audio/DefaultAudioSink;": {
-          "methods": {},
-          "fields": {
-            "inputBuffer": {
-              "descriptor": "Ljava/nio/ByteBuffer;",
-              "access": 2
             }
           }
         }
