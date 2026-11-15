@@ -360,3 +360,21 @@ Day3（11-11）继续验收完整保存→恢复→编辑→原生中继流程�
 - [正式主线 Android CI 43682496331](https://github.com/Laoch832/LyricWave/actions/runs/43682496331) 与 [Website 43682496313](https://github.com/Laoch832/LyricWave/actions/runs/43682496313) 均于 2026-11-15 **success**，同一主线 SHA `a27d9c4c7bbbaf70959b39bbba80a8b139657be2`（本轮之前仅维护记录变更，保留原 1.7.5/137 正式候选源代码）。主线 Android 的 `Verify and sign APK` job **success**，在 [LyricWave-signed CI 构建产物](https://github.com/Laoch832/LyricWave/actions/runs/43682496331/artifacts/14149286787) 上传已验证固定签名的 `LyricWave-1.7.5.apk`。同源 unsigned ZIP digest=`bc4442baa7eca1996e4c87aac90a5455da0a5bd3acb45043380721ada33197df`，CI 签名校验所用证书 SHA-256=`4ec2f441139585083e476b596a503db7e6c459ec1ca1d9bcf59d815b6981da53`；以上为工作流证据，不把 ZIP digest 充当 APK 的哈希。
 - 主线发布作业 `Publish as Laoch832` **skipped**，本次没有触发 `workflow_dispatch publish`，也没有生成 `v1.7.5` 标签或正式 GitHub Release；当前最新正式仍是 [v1.7.4](https://github.com/Laoch832/LyricWave/releases/tag/v1.7.4)，其 `draft=false`、`prerelease=false`。**1.7.5 仅完成测试与固定签名 CI，未达到“正式发布完成”**。当前连接的 GitHub 写入动作不含创建 Tag/Release 或 workflow_dispatch，不能合规触发个人账号发布；不得以 CI artifact 代替正式 Release。
 - 本行是通过 GitHub 连接器追加的仅文档更改，因此上面主线 successful SHA 指追加前的完整代码+记录提交；追加后产生的新 SHA 还需重新检查 GitHub CI。已验证操作者 Laoch832/173591322，未对上游写入或修改正式签名凭据；Vercel 反馈项目权限仍 404，UTC 11-14/11-15 反馈尚未检查。
+
+### 2026-11-15：当前聊天续办，整合可验收功能（计划日 Day7）
+
+- 开始重新读取 AGENTS.md、CONTEXT.md、docs/ci-and-releases.md，基于 main `3d7f90d2ec3e0ce43d2ba77355568df1a2798c74`，保留此前提交及用户修改。复用下载分支 bc1ec418/cdda3c78/b441c8a2/fb9b56b5/b22a0680 与草稿分支 961244e2/d477c6e5/acb886de/551e977f/01f201b9/e29f8c5b/fa4e8641，使用 cherry-pick -x 保留来源；没有重复建 PR 或重新开发同一功能。1.7.5/137 曾通过签名 CI 但未发布，本次有新增实际功能，整合递增为 1.7.6/138；此前“CI 尚不可用”记录是历史状态，不能用于描述现在。
+- 上游仍为 [ad7b2475d98fbcba1d6c5e991c3dc290de6a1592](https://github.com/Zennmn/AM-plus-plus/commit/ad7b2475d98fbcba1d6c5e991c3dc290de6a1592)，相对已纳入基线 388164c7 多 26 个祖先提交；正式 Release v1.6.8 未变。新增审阅 [PR #141](https://github.com/Zennmn/AM-plus-plus/pull/141)（head 5329045f926d9334f1bf2b2cb6dd9d5ddedf88dd）的在线歌词、手动覆盖和偏移/缓存改动，作者说明仅构建验证；与本仓库歌词源身份及缓存重叠，暂不合入。Issue/讨论增量基线推进至 2026-11-15T11:32:50Z；#134 自然切歌歌词残留仍待本仓库复现，#139 等曲终停止为体验候选，#140 USB 独占按用户要求排除。没有上游写入。
+- 本次 [Google Play](https://play.google.com/store/apps/details?id=com.apple.android.music&gl=us) 返回 200，公开更新日期仍是 2026-10-29，未公开 versionCode；beta 入口重定向登录，未核实最新私测；APKMirror 本次 403，不能称查询无更新。已确认的正式宿主仍是官方签名 APK 7.0.0/1614，SHA256=49e83b64fccff79310c7dff174e02228dd0455a3d87df4d9655d1e4f8cd2e351。没有新增未经核对的支持版本。
+- Vercel MCP 连接仍 404，但用户完成的官方 CLI 登录已核实原团队 Owner 与同一项目 ID；以 CLI 只读取指定 FEEDBACK_ADMIN_TOKEN 单项，凭据仅在权限 0600 临时文件/请求内存，读取后删除。私有 Blob 权限不变，未提交原始日志/用户内容。UTC 11-12/13/14/15 全部分页分别 1/2/3/1 页、18/34/44/19 批，共 531 个唯一记录，其中 4 个已读、527 个新增；按本地私有 record ID 检查点去重。此前 11-09 至 11-11 的 559 个唯一记录已检查，历史“反馈未检查”阻塞已解除。
+- 匿名分类主要为模块 1.7.4、宿主 7.0.0/1614：DRM Native -20/component -42650 共 168、-25/-42671 共 51、DrmSessionException/RuntimeException 共 25；-20/-42668、-28/-42669、-26/0、DrmLicenseKeyException/-1 各 1。分享 result 102 共 70，表示拒绝而非超时，旧记录未含细分原因，不能断言全为某一根因。NoSuchMethodException 22、反射包装/IllegalArgumentException 2、IllegalStateException 1 仍待定位；不把无异常事件全算崩溃，不推断用户人数。未知原生码不重分类为账号问题，也不能据此断言自定义内核有错。
+
+#### 本轮验收标准与实现
+
+- 修复：真实官方 APK 的 AAC 使用 SVMediaCodecAudioRenderer，而旧缓冲仅连接 SVAudioRendererV2。现在两条原生 PCM 路径均可实时接入，采集原生 configure 参数，接续原先未完成的 ByteBuffer，避免重复 AAC 去首尾配置。暂时下一首可用不同 renderer，但其 sink 不允许写物理输出；原曲必须返回原输出。新增加的接口与访问标志已对官方 APK 核对，共 105 项精确方法/字段契约。旧全 profile 的 270 项历史 UI 符号不匹配并未因此修复，deviceValidated=false，不宣称整体宿主适配或真机通过。
+- 修复：下载通知的百分号不再触发格式化异常；换文件/停滞后清除旧速度估计；多连接采样串行保护。小功能验收：通知按真实字节与单调时间显示 KB/s 和剩余秒数，无可靠样本不虚报 ETA，取消仍可用。
+- 分享修复验收：Android 15+ 使用系统身份共享；结果调用关系缺失时仅接受系统初始调用者、安装 UID 与官方证书一致，拒绝自报包名/不可信来源。过期有效请求返回取消；拒绝仅附匿名枚举原因，方便后续定位 102，不上传链接、UID 或编辑内容。
+- 大功能：延续 Day1 已选的可恢复分享编辑流程，原 Day3/Day6 未交付如实保留，不重新计时。当前 Day7（下一周期交付日 11-17）补齐同曲草稿保存、恢复、清除与 24 小时过期的端到端流程；恢复不发送，用户再次明确点击才进入网易云原生面板。它是可使用的用户功能，不把内部契约或日志改名充数。实体机长播、网易云到微信封面和 OEM 分享身份仍未验收。
+- 最终测试、完整提交、CI 与正式 Release 核验将在下条追加；此处实现与本地测试进展不等于已发布。
+
+- 整合本地验证：1458 项 JVM/Android 单元测试零失败（含 core:jvmTest、31 项实际 AudioSink/宿主事务测试、分享草稿与身份拒绝/过期回归）；app Debug/VitalRelease 以及 glass、host-applemusic、host-netease、plugin-api、plugin-runtime 的 Debug Lint 通过，Debug/Release APK 均构建成功。33 项 Python 测试、架构、profile 数据、glass 源码和固定版 actionlint 通过；官方 APK 的新增 105 项缓冲契约验证通过。这些是模拟/静态/构建证据，未替代真机验证。
