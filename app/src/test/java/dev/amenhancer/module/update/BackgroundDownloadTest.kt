@@ -67,6 +67,19 @@ class BackgroundDownloadTest {
             service.onStartCommand(Intent(service, UpdateDownloadService::class.java).setAction("cancel").putExtra("ticket", ticket), 0, 2)
         } finally { gate.countDown(); controller.destroy() }
     }
+    @Test fun `active transfer notification exposes actual speed and remaining seconds`() {
+        val controller = Robolectric.buildService(UpdateDownloadService::class.java).create()
+        val service = controller.get()
+        UpdateTransfer.state = DownloadState(DownloadPhase.DOWNLOADING, asset.name, 2048, 8192, 8)
+        service.recordTransferRate(0, 8192, 100)
+        service.recordTransferRate(2048, 8192, 1100)
+        val subtext = service.notification().extras.getCharSequence(Notification.EXTRA_SUB_TEXT).toString()
+        assertTrue(subtext, subtext.contains("2 KB/s"))
+        assertTrue(subtext, subtext.contains("3"))
+        UpdateTransfer.state = DownloadState(DownloadPhase.FAILED, reason = "network")
+        assertNull(service.notification().extras.getCharSequence(Notification.EXTRA_SUB_TEXT))
+        controller.destroy()
+    }
     @Test fun `forged transfer ticket never reaches network or starts a foreground transfer`() {
         val controller = Robolectric.buildService(UpdateDownloadService::class.java).create()
         val service = controller.get(); service.checkRelease = { fail("Unexpected network"); release }
