@@ -102,7 +102,8 @@ class UpdateDownloadService : Service() {
         val message = when (state.phase) {
             DownloadPhase.VERIFIED -> ModuleText.UPDATE_READY_TO_INSTALL.text()
             DownloadPhase.FAILED -> ModuleText.UPDATE_DOWNLOAD_FAILED.text(state.reason)
-            DownloadPhase.DOWNLOADING -> "$percent% · %.1f / %.1f MB · %d".format(state.bytes / 1048576.0, state.total / 1048576.0, state.connections)
+            DownloadPhase.DOWNLOADING -> "${percent}% · " + "%.1f / %.1f MB · %d".format(
+                java.util.Locale.ROOT, state.bytes / 1048576.0, state.total / 1048576.0, state.connections)
             else -> ModuleText.UPDATE_CHECKING.text()
         }
         val launch = packageManager.getLaunchIntentForPackage("com.apple.android.music")
