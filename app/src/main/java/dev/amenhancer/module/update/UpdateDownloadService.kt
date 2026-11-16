@@ -69,8 +69,8 @@ class UpdateDownloadService : Service() {
                 val file = fetchFile(asset, build, directory, cancellation, request) { p ->
                     val now = android.os.SystemClock.elapsedRealtime(); val previous = updated.get()
                     recordTransferRate(p.bytes, p.total, now)
-                    if ((now - previous >= 300 || p.bytes == p.total) && updated.compareAndSet(previous, now)) {
-                        UpdateTransfer.state = DownloadState(DownloadPhase.DOWNLOADING, asset.name, p.bytes, p.total, p.connections)
+                    if ((now - previous >= 300 || p.bytes == p.total || p.bytes == 0L) && updated.compareAndSet(previous, now)) {
+                        UpdateTransfer.state = DownloadState(DownloadPhase.DOWNLOADING, asset.name, p.bytes, p.total, p.connections, official = p.official)
                         postProgress(manager)
                     }
                 }
@@ -107,11 +107,13 @@ class UpdateDownloadService : Service() {
                 java.util.Locale.ROOT, state.bytes / 1048576.0, state.total / 1048576.0, state.connections)
             else -> ModuleText.UPDATE_CHECKING.text()
         }
+        val displayMessage = if (state.phase == DownloadPhase.DOWNLOADING && state.official)
+            ModuleText.UPDATE_OFFICIAL_SOURCE.text() + " · " + message else message
         val launch = packageManager.getLaunchIntentForPackage("com.apple.android.music")
             ?.putExtra("lyricwave_show_download", true)?.addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP)
         val builder = Notification.Builder(this, CHANNEL).setSmallIcon(if (active) android.R.drawable.stat_sys_download else android.R.drawable.stat_sys_download_done)
             .setContentTitle(if (active) ModuleText.UPDATE_DOWNLOADER.text() else "LyricWave")
-            .setContentText(message).setCategory(Notification.CATEGORY_PROGRESS).setOngoing(active).setOnlyAlertOnce(true)
+            .setContentText(displayMessage).setCategory(Notification.CATEGORY_PROGRESS).setOngoing(active).setOnlyAlertOnce(true)
         launch?.let { builder.setContentIntent(PendingIntent.getActivity(this, 1, it, PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)) }
         if (state.phase == DownloadPhase.DOWNLOADING) {
             val speed = measuredRate.bytesPerSecond

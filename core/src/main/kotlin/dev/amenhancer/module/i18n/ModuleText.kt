@@ -604,6 +604,7 @@ enum class ModuleText(internal val english: String, internal val chinese: String
     UPDATE_DOWNLOADER("LyricWave update download", "澜音更新下载"),
     UPDATE_CONNECTIONS_VALUE("Download connections: %1\$s", "下载线程数：%1\$s"),
     UPDATE_CONNECTIONS("Download connections (maximum 128)", "下载线程数（最高 128）"),
+    UPDATE_OFFICIAL_SOURCE("GitHub original source", "GitHub 原始来源"),
     UPDATE_TRANSFER_RATE("%1\$s KB/s · about %2\$s s remaining", "%1\$s KB/s · 预计剩余 %2\$s 秒"),
     UPDATE_WAITING_DATA("Waiting for download data…", "正在等待下载数据…"),
     UPDATE_CONTROL_PERMISSION("The module service rejected this call. Restart Apple Music and try again; the built-in backup downloader is available below.", "模块服务拒绝了调用，请强停重开 Apple Music 后重试；也可使用下方备用内建下载器。"),

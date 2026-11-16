@@ -107,6 +107,7 @@ internal fun EmbeddedSettingsHost.showEmbeddedDownloadPanel(activity: Activity, 
         when (phase) {
             "CHECKING" -> Text(localizedText(ModuleText.UPDATE_CHECKING))
             "DOWNLOADING" -> {
+                if (snapshot.getBoolean("official", false)) Text(localizedText(ModuleText.UPDATE_OFFICIAL_SOURCE))
                 val fraction = if (total > 0) (bytes.toFloat() / total).coerceIn(0f, 1f) else 0f
                 Text("${(fraction * 100).toInt()}%", fontSize = 32.sp, fontWeight = androidx.compose.ui.text.font.FontWeight.Bold)
                 androidx.compose.foundation.layout.Box(Modifier.fillMaxWidth().height(6.dp).background(top.yukonga.miuix.kmp.theme.MiuixTheme.colorScheme.surfaceVariant)) {

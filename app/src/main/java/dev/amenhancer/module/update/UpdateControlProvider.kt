@@ -149,7 +149,7 @@ internal object UpdateTransfer {
         putLong("asset_id", assetId)
         putString("phase", value.phase.name); putString("name", value.name)
         putLong("bytes", value.bytes); putLong("total", value.total); putInt("connections", value.connections)
-        putString("reason", value.reason)
+        putString("reason", value.reason); putBoolean("official", value.official)
         putInt("module_version_code", BuildConfig.VERSION_CODE)
         putString("module_version_name", BuildConfig.VERSION_NAME)
         val manager = context.getSystemService(android.app.NotificationManager::class.java)

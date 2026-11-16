@@ -91,4 +91,58 @@ class AppUpdateDownloaderTest {
         assertTrue(UpdateCheckSchedule.due(now + UpdateCheckSchedule.FAILURE_INTERVAL, now, now - 1))
         assertTrue(UpdateCheckSchedule.due(now - 1, now, now))
     }
+    private fun httpError(url: URL, status: Int) = object : HttpURLConnection(url) {
+        override fun getResponseCode() = status
+        override fun connect() = Unit
+        override fun disconnect() = Unit
+        override fun usingProxy() = false
+    }
+    @Test fun `temporary mirror outage automatically uses the official file once and reports its source`() {
+        val calls = mutableListOf<String>(); val states = mutableListOf<UpdateDownloadProgress>()
+        val success = transport(ignoreRange = true)
+        val connect: (URL) -> HttpURLConnection = { url ->
+            calls.add(url.host)
+            if (url.host == "github.com") success(url) else httpError(url, 503)
+        }
+        val file = AppUpdateDownloader(connect).download(asset, build, temporary.root, UpdateDownloadCancellation(), progress = states::add)
+        assertArrayEquals(body, file.readBytes())
+        assertEquals(listOf("lyricwave.canz-monkey.cn", "github.com"), calls)
+        assertTrue(states.first().official); assertEquals(0L, states.first().bytes)
+        assertTrue(states.last().official); assertEquals(asset.size, states.last().bytes)
+        assertEquals(listOf(file), temporary.root.listFiles()!!.toList())
+    }
+    @Test fun `official failure never loops and integrity errors never switch sources`() {
+        val calls = mutableListOf<String>()
+        val connect: (URL) -> HttpURLConnection = { url -> calls.add(url.host); httpError(url, 503) }
+        val failure = runCatching { AppUpdateDownloader(connect).download(asset, build, temporary.root, UpdateDownloadCancellation()) }.exceptionOrNull()
+        assertEquals(503, (failure as AppUpdateException).httpStatus)
+        assertEquals(listOf("lyricwave.canz-monkey.cn", "github.com"), calls)
+        assertTrue(temporary.root.listFiles()!!.isEmpty())
+        calls.clear()
+        val success = transport(ignoreRange = true)
+        val badHash: (URL) -> HttpURLConnection = { url -> calls.add(url.host); success(url) }
+        assertEquals("checksum", (runCatching { AppUpdateDownloader(badHash).download(asset, build.copy(sha256 = "0".repeat(64)), temporary.root, UpdateDownloadCancellation()) }.exceptionOrNull() as AppUpdateException).reason)
+        assertEquals(listOf("lyricwave.canz-monkey.cn"), calls)
+    }
+    @Test fun `cancelling at source switch makes no official request`() {
+        val calls = mutableListOf<String>(); val cancellation = UpdateDownloadCancellation()
+        val connect: (URL) -> HttpURLConnection = { url -> calls.add(url.host); httpError(url, 404) }
+        assertTrue(runCatching {
+            AppUpdateDownloader(connect).download(asset, build, temporary.root, cancellation) { if (it.official) cancellation.cancel() }
+        }.exceptionOrNull() is CancellationException)
+        assertEquals(listOf("lyricwave.canz-monkey.cn"), calls); assertTrue(temporary.root.listFiles()!!.isEmpty())
+    }
+    @Test fun `permission denial never falls back and explicit official mode makes one attempt`() {
+        for (status in listOf(401, 403)) {
+            val calls = mutableListOf<String>()
+            val connect: (URL) -> HttpURLConnection = { url -> calls.add(url.host); httpError(url, status) }
+            assertTrue(runCatching { AppUpdateDownloader(connect).download(asset, build, temporary.root, UpdateDownloadCancellation()) }.isFailure)
+            assertEquals(listOf("lyricwave.canz-monkey.cn"), calls)
+        }
+        val calls = mutableListOf<String>()
+        val connect: (URL) -> HttpURLConnection = { url -> calls.add(url.host); httpError(url, 503) }
+        assertTrue(runCatching { AppUpdateDownloader(connect).download(asset, build, temporary.root, UpdateDownloadCancellation(), official = true) }.isFailure)
+        assertEquals(listOf("github.com"), calls)
+    }
+
 }

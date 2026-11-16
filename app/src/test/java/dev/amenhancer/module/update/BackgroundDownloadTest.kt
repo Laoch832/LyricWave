@@ -95,4 +95,38 @@ class BackgroundDownloadTest {
         assertTrue(runCatching { provider.call("install", null, null) }.isFailure)
         UpdateTransfer.file?.delete()
     }
+    @Test fun `real downloader failover reaches foreground source status and still verifies the APK`() {
+        val data = byteArrayOf(1, 2, 3, 4)
+        val routedAsset = asset.copy(downloadUrl = AppUpdateClient.ORIGIN + "/api/v1/download/42",
+            upstreamUrl = "https://github.com/Laoch832/LyricWave/releases/download/v9.0.0/" + asset.name)
+        val routedBuild = build.copy(sha256 = java.security.MessageDigest.getInstance("SHA-256").digest(data).joinToString("") { "%02x".format(it) })
+        val controller = Robolectric.buildService(UpdateDownloadService::class.java).create()
+        val service = controller.get(); val started = CountDownLatch(1); val gate = CountDownLatch(1)
+        service.checkRelease = { release.copy(apks = listOf(routedAsset), build = routedBuild) }
+        service.fetchFile = { a, b, directory, cancellation, request, progress ->
+            val downloader = AppUpdateDownloader(connect = { url -> object : java.net.HttpURLConnection(url) {
+                override fun getResponseCode() = if (url.host == "github.com") 200 else 503
+                override fun getHeaderField(name: String): String? = if (name == "Content-Length") "4" else null
+                override fun getInputStream() = java.io.ByteArrayInputStream(data)
+                override fun connect() = Unit
+                override fun disconnect() = Unit
+                override fun usingProxy() = false
+            } })
+            val file = downloader.download(a, b, directory, cancellation, request.official, progress)
+            started.countDown(); gate.await(5, TimeUnit.SECONDS); file
+        }
+        var verified = false
+        service.verifyFile = { file, metadata -> assertArrayEquals(data, file.readBytes()); assertEquals(routedBuild, metadata); verified = true }
+        try {
+            val ticket = UpdateTransfer.issue(42, 8, false)
+            service.onStartCommand(Intent(service, UpdateDownloadService::class.java).setAction("begin").putExtra("ticket", ticket), 0, 1)
+            assertTrue(started.await(5, TimeUnit.SECONDS))
+            assertTrue(UpdateTransfer.snapshot(service).getBoolean("official"))
+            assertTrue(service.notification().extras.getCharSequence(Notification.EXTRA_TEXT).toString().contains("GitHub"))
+            assertNull(shadowOf(service).nextStartedActivity)
+            gate.countDown(); waitUntil { UpdateTransfer.state.phase == DownloadPhase.VERIFIED }
+            assertTrue(verified)
+        } finally { gate.countDown(); controller.destroy() }
+    }
+
 }

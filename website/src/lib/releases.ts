@@ -57,7 +57,21 @@ export function parseReleases(input: unknown): ReleasesResult {
     ? { ok: true, releases }
     : { ok: false, reason: "empty" };
 }
-export async function getReleases(): Promise<ReleasesResult> {
+let refreshing: Promise<ReleasesResult> | undefined;
+let refreshed: { at: number; value: ReleasesResult } | undefined;
+export async function getReleases(fresh = false): Promise<ReleasesResult> {
+  if (!fresh) {
+    if (refreshed && Date.now() - refreshed.at >= 0 && Date.now() - refreshed.at < 60000) return refreshed.value;
+    return fetchReleases(false);
+  }
+  // A 128-connection client must not launch 128 identical release-list refreshes.
+  if (!refreshing) refreshing = fetchReleases(true).then(value => {
+    if (value.ok) refreshed = { at: Date.now(), value };
+    return value;
+  }).finally(() => { refreshing = undefined; });
+  return refreshing;
+}
+async function fetchReleases(fresh: boolean): Promise<ReleasesResult> {
   try {
     const response = await fetch(
       "https://api.github.com/repos/Laoch832/LyricWave/releases?per_page=20",
@@ -69,7 +83,7 @@ export async function getReleases(): Promise<ReleasesResult> {
             ? { Authorization: `Bearer ${process.env.GITHUB_TOKEN}` }
             : {}),
         },
-        next: { revalidate: 60, tags: ["github-releases"] },
+        ...(fresh ? { cache: "no-store" as const } : { next: { revalidate: 60, tags: ["github-releases"] } }),
         signal: AbortSignal.timeout(8000),
       },
     );

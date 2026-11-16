@@ -97,6 +97,8 @@ class UpdateDownloadActivity : Activity() {
             DownloadPhase.VERIFIED -> ModuleText.UPDATE_VERIFIED.text(state.name)
             DownloadPhase.FAILED -> ModuleText.UPDATE_DOWNLOAD_FAILED.text(state.reason)
         }
+        if (state.phase == DownloadPhase.DOWNLOADING && state.official)
+            status.text = ModuleText.UPDATE_OFFICIAL_SOURCE.text() + " · " + status.text
         start.visibility = if (!running && state.phase != DownloadPhase.VERIFIED) View.VISIBLE else View.GONE
         start.text = ModuleText.UPDATE_START.text()
         official.visibility = if (state.phase == DownloadPhase.FAILED) View.VISIBLE else View.GONE
@@ -136,7 +138,7 @@ class UpdateDownloadActivity : Activity() {
 
 internal enum class DownloadPhase { CHECKING, READY, DOWNLOADING, VERIFIED, FAILED }
 internal data class DownloadState(val phase: DownloadPhase = DownloadPhase.CHECKING, val name: String = "",
-    val bytes: Long = 0, val total: Long = 0, val connections: Int = 1, val reason: String = "", val file: File? = null)
+    val bytes: Long = 0, val total: Long = 0, val connections: Int = 1, val reason: String = "", val file: File? = null, val official: Boolean = false)
 
 internal class UpdateDownloadSession(
     private val context: Context, private val assetId: Long, val official: Boolean,
@@ -188,7 +190,7 @@ internal class UpdateDownloadSession(
                 val now = android.os.SystemClock.elapsedRealtime()
                 if (now - lastProgress >= 150 || current.bytes == current.total || current.bytes == 0L) {
                     lastProgress = now
-                    publish(DownloadState(DownloadPhase.DOWNLOADING, chosen.name, current.bytes, current.total, current.connections))
+                    publish(DownloadState(DownloadPhase.DOWNLOADING, chosen.name, current.bytes, current.total, current.connections, official = current.official))
                 }
             }
             try { verifyArchive(file) } catch (error: Exception) { file.delete(); throw error }

@@ -105,7 +105,7 @@ export function allowedDownloadUrl(value: string, initial = false): boolean {
 export async function downloadResponse(
   request: Request,
   assetId: string,
-  load: () => Promise<ReleasesResult> = getReleases,
+  load: (fresh?: boolean) => Promise<ReleasesResult> = getReleases,
   fetcher: typeof fetch = fetch,
   expectedName?: string,
 ) {
@@ -115,11 +115,18 @@ export async function downloadResponse(
     new URL(request.url).search
   )
     return apiError(400, "INVALID_ASSET_ID");
-  const result = await load();
+  let result = await load();
   if (!result.ok) return apiError(503, "UPSTREAM_UNAVAILABLE");
-  const asset = result.releases
+  let asset = result.releases
     .flatMap((r) => r.assets)
     .find((a) => String(a.id) === assetId);
+  // A newly published release may be visible to one route while another has an older
+  // cached list. Refresh once, still resolving the ID only from this repository's list.
+  if (!asset) {
+    result = await load(true);
+    if (!result.ok) return apiError(503, "UPSTREAM_UNAVAILABLE");
+    asset = result.releases.flatMap((r) => r.assets).find((a) => String(a.id) === assetId);
+  }
   if (!asset || (expectedName !== undefined && asset.name !== expectedName)) return apiError(404, "ASSET_NOT_FOUND");
   const range = request.headers.get("range");
   if (range && !/^bytes=(\d+-\d*|-\d+)$/.test(range))

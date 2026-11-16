@@ -227,3 +227,33 @@ test("verification JSON stays JSON instead of being renamed to an APK or bin", a
  assert.equal(response.headers.get("content-type"), "application/json");
  assert.match(response.headers.get("content-disposition")!, /filename="build-metadata\.json"/);
 });
+
+test("new public asset missing from cached releases is resolved by exactly one fresh lookup", async () => {
+  const current = await load(); assert.equal(current.ok, true);
+  if (!current.ok) return;
+  const calls: (boolean | undefined)[] = [];
+  const resolve = async (fresh?: boolean): Promise<ReleasesResult> => {
+    calls.push(fresh);
+    return fresh ? current : { ok: true, releases: current.releases.map(r => ({ ...r, assets: [] })) };
+  };
+  const response = await downloadResponse(new Request("https://x/d/12"), "12", resolve,
+    (async () => new Response("apk", { headers: { "content-length": "3" } })) as typeof fetch);
+  assert.equal(response.status, 200); assert.equal(await response.text(), "apk");
+  assert.deepEqual(calls, [undefined, true]);
+});
+
+test("fresh release lookup failure stays retryable and unknown IDs never become arbitrary fetches", async () => {
+  const current = await load(); assert.equal(current.ok, true);
+  if (!current.ok) return;
+  for (const failed of [false, true]) {
+    let calls = 0;
+    const resolve = async (fresh?: boolean): Promise<ReleasesResult> => {
+      calls++;
+      return fresh && failed ? { ok: false, reason: "network" } : current;
+    };
+    const response = await downloadResponse(new Request("https://x/d/99"), "99", resolve,
+      (async () => { throw Error("unknown asset must never be fetched"); }) as typeof fetch);
+    assert.equal(response.status, failed ? 503 : 404); assert.equal(calls, 2);
+    assert.equal(response.headers.get("cache-control"), "no-store");
+  }
+});

@@ -21,7 +21,7 @@ class UpdateDownloadCancellation {
     internal fun remove(connection: HttpURLConnection) { connections.remove(connection); connection.disconnect() }
 }
 
-data class UpdateDownloadProgress(val bytes: Long, val total: Long, val connections: Int)
+data class UpdateDownloadProgress(val bytes: Long, val total: Long, val connections: Int, val official: Boolean = false)
 
 /** Streaming, bounded ranges; no external download app, credentials, or retained signed URLs. */
 class AppUpdateDownloader(
@@ -33,6 +33,26 @@ class AppUpdateDownloader(
     fun download(asset: UpdateAsset, build: UpdateBuild, directory: File,
         cancellation: UpdateDownloadCancellation, official: Boolean = false,
         progress: (UpdateDownloadProgress) -> Unit = {},
+    ): File {
+        fun attempt(source: Boolean) = downloadOnce(asset, build, directory, cancellation, source) {
+            progress(it.copy(official = source))
+        }
+        try { return attempt(official) }
+        catch (error: Exception) {
+            cancellation.check()
+            val retryable = error is java.io.IOException || (error is AppUpdateException && error.reason == "http" &&
+                (error.httpStatus?.let { it in setOf(404, 408, 425, 429) || it in 500..599 } == true))
+            if (official || !retryable) throw error
+            // The first attempt has closed sockets and removed its partial file. Never mix sources.
+            progress(UpdateDownloadProgress(0, asset.size, 1, official = true))
+            cancellation.check()
+            return attempt(true)
+        }
+    }
+
+    private fun downloadOnce(asset: UpdateAsset, build: UpdateBuild, directory: File,
+        cancellation: UpdateDownloadCancellation, official: Boolean,
+        progress: (UpdateDownloadProgress) -> Unit,
     ): File {
         if (asset.name != build.apk || asset.id <= 0 || asset.size !in 1..MAX_APK_BYTES ||
             !build.sha256.matches(Regex("[a-f0-9]{64}"))) throw AppUpdateException("metadata")

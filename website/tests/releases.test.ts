@@ -83,3 +83,33 @@ test("invalid JSON and rejected HTTP requests preserve the official fallback", a
     globalThis.fetch = original;
   }
 });
+
+test("explicit release refresh bypasses the Next data cache", async () => {
+  const original = globalThis.fetch;
+  const options: RequestInit[] = [];
+  try {
+    globalThis.fetch = async (_url, init) => { options.push(init ?? {}); return new Response("[]"); };
+    await getReleases(); await getReleases(true);
+    assert.equal(options[0].cache, undefined);
+    assert.equal(options[1].cache, "no-store");
+    assert.equal((options[1] as RequestInit & { next?: unknown }).next, undefined);
+  } finally { globalThis.fetch = original; }
+});
+
+
+test("concurrent fresh lookups share one request and subsequent ranges use the refreshed list", async () => {
+  const original = globalThis.fetch;
+  let calls = 0; let releaseGate!: () => void;
+  const gate = new Promise<void>(resolve => { releaseGate = resolve; });
+  try {
+    globalThis.fetch = async () => {
+      calls++; await gate;
+      return Response.json([release(17, "2026-11-16T00:00:00Z")]);
+    };
+    const requests = Array.from({ length: 128 }, () => getReleases(true));
+    releaseGate();
+    const results = await Promise.all(requests);
+    assert.equal(calls, 1); assert.ok(results.every(result => result.ok));
+    assert.deepEqual(await getReleases(), results[0]); assert.equal(calls, 1);
+  } finally { releaseGate(); globalThis.fetch = original; }
+});
