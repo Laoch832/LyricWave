@@ -145,4 +145,32 @@ class AppUpdateDownloaderTest {
         assertEquals(listOf("github.com"), calls)
     }
 
+    @Test fun `interrupted mirror body is cleaned before official transfer resets progress`() {
+        val states = mutableListOf<UpdateDownloadProgress>()
+        val success = transport(ignoreRange = true)
+        val connect: (URL) -> HttpURLConnection = { url ->
+            if (url.host == "github.com") success(url) else object : HttpURLConnection(url) {
+                override fun getResponseCode() = 200
+                override fun getHeaderField(name: String): String? = if (name == "Content-Length") body.size.toString() else null
+                override fun getInputStream() = object : java.io.InputStream() {
+                    var sent = false
+                    override fun read(): Int = throw java.io.IOException("interrupted")
+                    override fun read(buffer: ByteArray, offset: Int, length: Int): Int {
+                        if (sent) throw java.io.IOException("interrupted")
+                        sent = true; body.copyInto(buffer, offset, 0, 1024); return 1024
+                    }
+                }
+                override fun connect() = Unit
+                override fun disconnect() = Unit
+                override fun usingProxy() = false
+            }
+        }
+        val file = AppUpdateDownloader(connect).download(asset, build, temporary.root, UpdateDownloadCancellation(), progress = states::add)
+        assertArrayEquals(body, file.readBytes())
+        assertEquals(1024L, states.first().bytes); assertFalse(states.first().official)
+        assertEquals(0L, states[1].bytes); assertTrue(states[1].official)
+        assertEquals(asset.size, states.last().bytes)
+        assertEquals(listOf(file), temporary.root.listFiles()!!.toList())
+    }
+
 }

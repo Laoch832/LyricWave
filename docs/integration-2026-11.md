@@ -405,3 +405,6 @@ Day3（11-11）继续验收完整保存→恢复→编辑→原生中继流程�
 - 验证进行中。网站新增缓存/并发路由回归已通过；首次 Android 全套在 Robolectric 原生库解压时瞬时耗尽磁盘，17项为临时目录创建/原生库载入失败，不能记作通过。将清理本次生成的依赖/构建缓存后重新完成整套验证，不更改测试断言或签名绕过失败。最终提交、CI、发布与原型证据在后续追加。
 
 - 本地重跑已完整成功：1463 项 JVM/Android 单元测试零失败；app Debug/VitalRelease 与 glass、host-applemusic、host-netease、plugin-api、plugin-runtime 的 Debug Lint 全部通过，assembleDebug/Release 成功。33 项 Python 测试、架构、profile/glass 检查和 actionlint 通过。网站29项测试、ESLint、TypeScript、生产构建、64篇文档内部链接检查通过；浏览器20项通过、1项视觉截图按配置跳过。网站构建/浏览器结束后删除本轮生成的 node_modules/.next 释放空间再跑 Android，没有放宽断言或改签名。端到端服务回归实际调用下载器从镜像503转到GitHub，确认通知/跨进程状态标明来源，仍进入 APK 校验；无实体机，真实网络/OEM流程尚待验收。
+
+- 发布前补充了“镜像已写入1024字节后抛 IOException”的真实下载器回归：原来源进度归零，官方来源重下完整文件，最终哈希/字节一致且目录不残留旧 part。新增用例后 core:jvmTest 475项通过；原1463项完整 Android 验证仍是上一提交的实际结果，新提交须等待对应云端整套检查，不能复用旧 SHA 结论。
+- Day8 独立续传原型已提交 [b1b2f6905ea7330567c90bdb9d04336a196ec3f8](https://github.com/Laoch832/LyricWave/commit/b1b2f6905ea7330567c90bdb9d04336a196ec3f8)，分支 [codex/download-resume-20261116](https://github.com/Laoch832/LyricWave/tree/codex/download-resume-20261116)。基于最新功能主线 a6e38dc4 后运行 core:jvmTest 478项及架构检查通过，覆盖精确资产ID/大小/版本/整包哈希身份、区块逐个重哈希、损坏或未写完区块排除、重叠/越界/小数偏移拒绝和取消。检查点不保存下载URL、凭据或文件路径；尚未接入下载器、原子持久化和恢复UI，不在 main，不计为今日已交付功能，Day9继续完成流程。
