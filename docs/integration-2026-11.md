@@ -389,7 +389,7 @@ Day3（11-11）继续验收完整保存→恢复→编辑→原生中继流程�
 - 补充反馈定位：22 条 NoSuchMethodException 的匿名栈集中在 AppleDataBindingMetadataHooks.refreshGenericRecyclerItems → AppleReflection.call，属于目录元数据刷新路径，待核对具体缺失契约，不当作本次 DRM 缓冲修复的已解决项。权限已恢复到可用 CLI 路径，不再要求用户重复登录。唯一尚缺的验收环境为实体 Android 手机：真实听音、DRM 长播、后台/蓝牙及网易云到微信卡片封面待测，不能用 1458 项测试宣称通过。
 - Day7 的每日修复与通知速度/ETA已正式交付；逾期的可恢复分享草稿流程本次补交付，旧未完成日期不抹去。下一个三天自然日交付点为 11-17，后续维护应以真实反馈与当前可用流程继续选择，不能重复计算本轮功能。本段是发布后仅文档记账，不另增功能版本；随后文档提交的 CI 不改变 v1.7.6 已核实的源码 SHA 或附件。
 
-### 2026-11-16（Day8）：更新下载可靠性与续传开发
+### 2026-11-17（北京时间计划日 Day9；UTC 11-16 执行）：更新下载可靠性与续传开发
 
 - 开始读取最新 AGENTS.md、CONTEXT.md、docs/ci-and-releases.md、目录指令和此前维护记录，重新获取 origin/main 与 upstream，基线 main 为 e9e61c486d2e8728fc8e5f49817652b3f6190b83。上一轮 v1.7.6 已正式发布，源码 98de438b、文档 e9e61c48 对应 Android/网站 CI 均成功；不重复计算昨天的缓冲、草稿或 ETA。当前没有未合并 fork PR，本仓库 Issues 已关闭，不能把查询受限记成不存在问题。
 - 上游 main 仍为 [ad7b2475d98fbcba1d6c5e991c3dc290de6a1592](https://github.com/Zennmn/AM-plus-plus/commit/ad7b2475d98fbcba1d6c5e991c3dc290de6a1592)，相对已纳入基线 388164c7 的 26 个祖先提交尚需逐项契约审查；正式 Release 仍 v1.6.8。开放 [PR #141](https://github.com/Zennmn/AM-plus-plus/pull/141) head 更新至 9571d7c6ad82b2435578add8968e446cebfa9b82，阅读了更新说明和讨论：实时歌词来源、TTML 偏移/缓存与 LLM 请求改动仍与本仓库架构重叠，不因其仅构建/Lint 通过就直接移植。#134 歌词自然切歌残留、#139 曲终停止候选和已关闭 #136/#137/#138 的既有状态未变；USB #140 继续排除，无上游写入。
@@ -401,10 +401,21 @@ Day3（11-11）继续验收完整保存→恢复→编辑→原生中继流程�
 
 - 修复：昨日实际发布验收出现新附件第一次404、索引刷新后成功。今天补充复现“缓存列表缺新 ID、最新公开列表含新 ID”，下载路由仅刷新一次本仓库公开列表；失败返回可重试503，不将未知 ID/错误文件名变成任意 URL 下载。128并发刷新在同一服务实例合并为一次请求，后续分段复用刷新后的列表，避免新增多线程请求风暴。
 - 小功能：镜像遇到 IOException 或HTTP404/408/425/429/5xx，内建下载自动尝试一次 GitHub 原始来源，通知与面板显示实际来源；显式选原始来源不循环换源。原尝试必须关闭连接并清理部分文件才启动新来源，源间不混写；取消优先；校验和、不安全跳转、权限拒绝等不触发换源。仍核对同一 APK 的大小、哈希和安装签名，无外置下载器、无自动安装。
-- Day8 大功能选定“中断下载续传”：目标在断网或模块进程重启后复用已验证分段，减少重下；验收需覆盖精确资产身份、分段哈希、损坏区块、取消/并发写入、进程重启和最终 APK/签名校验。实现隔离到 codex/download-resume-20261116，目标 Day9（11-17）交付完整流程，今日不把原型算成正式功能、不抵扣上述每日两项。
+- 本轮大功能选定“中断下载续传”：目标在断网或模块进程重启后复用已验证分段，减少重下；验收需覆盖精确资产身份、分段哈希、损坏区块、取消/并发写入、进程重启和最终 APK/签名校验。实现隔离到 codex/download-resume-20261116，原交付日为 Day9（11-17），本轮仅完成原型，未达完整交付标准；不把原型算成正式功能，不抵扣上述每日两项。
 - 验证进行中。网站新增缓存/并发路由回归已通过；首次 Android 全套在 Robolectric 原生库解压时瞬时耗尽磁盘，17项为临时目录创建/原生库载入失败，不能记作通过。将清理本次生成的依赖/构建缓存后重新完成整套验证，不更改测试断言或签名绕过失败。最终提交、CI、发布与原型证据在后续追加。
 
 - 本地重跑已完整成功：1463 项 JVM/Android 单元测试零失败；app Debug/VitalRelease 与 glass、host-applemusic、host-netease、plugin-api、plugin-runtime 的 Debug Lint 全部通过，assembleDebug/Release 成功。33 项 Python 测试、架构、profile/glass 检查和 actionlint 通过。网站29项测试、ESLint、TypeScript、生产构建、64篇文档内部链接检查通过；浏览器20项通过、1项视觉截图按配置跳过。网站构建/浏览器结束后删除本轮生成的 node_modules/.next 释放空间再跑 Android，没有放宽断言或改签名。端到端服务回归实际调用下载器从镜像503转到GitHub，确认通知/跨进程状态标明来源，仍进入 APK 校验；无实体机，真实网络/OEM流程尚待验收。
 
 - 发布前补充了“镜像已写入1024字节后抛 IOException”的真实下载器回归：原来源进度归零，官方来源重下完整文件，最终哈希/字节一致且目录不残留旧 part。新增用例后 core:jvmTest 475项通过；原1463项完整 Android 验证仍是上一提交的实际结果，新提交须等待对应云端整套检查，不能复用旧 SHA 结论。
-- Day8 独立续传原型已提交 [b1b2f6905ea7330567c90bdb9d04336a196ec3f8](https://github.com/Laoch832/LyricWave/commit/b1b2f6905ea7330567c90bdb9d04336a196ec3f8)，分支 [codex/download-resume-20261116](https://github.com/Laoch832/LyricWave/tree/codex/download-resume-20261116)。基于最新功能主线 a6e38dc4 后运行 core:jvmTest 478项及架构检查通过，覆盖精确资产ID/大小/版本/整包哈希身份、区块逐个重哈希、损坏或未写完区块排除、重叠/越界/小数偏移拒绝和取消。检查点不保存下载URL、凭据或文件路径；尚未接入下载器、原子持久化和恢复UI，不在 main，不计为今日已交付功能，Day9继续完成流程。
+- Day9 独立续传原型已提交 [b1b2f6905ea7330567c90bdb9d04336a196ec3f8](https://github.com/Laoch832/LyricWave/commit/b1b2f6905ea7330567c90bdb9d04336a196ec3f8)，分支 [codex/download-resume-20261116](https://github.com/Laoch832/LyricWave/tree/codex/download-resume-20261116)。基于最新功能主线 a6e38dc4 后运行 core:jvmTest 478项及架构检查通过，覆盖精确资产ID/大小/版本/整包哈希身份、区块逐个重哈希、损坏或未写完区块排除、重叠/越界/小数偏移拒绝和取消。检查点不保存下载URL、凭据或文件路径；尚未接入下载器、原子持久化和恢复UI，不在 main，不计为今日已交付功能，后续继续完成流程，不顺延原11-17交付日。
+
+#### 计划日期纠正与 1.7.7 正式核验
+
+- 本轮开始错误地以环境 UTC 日期11-16计为Day8，之后只读核对自动任务记录：日程明确为 Asia/Shanghai 每日03:00，last_run_time=2026-11-16T19:01:27Z，对应北京时间11-17，下一次为11-18T03:00+08:00。因此本轮应是计划日11-17/Day9；前面的开发进展属于本轮，标题已纠正。11-17本应额外交付续传大功能，实际只有隔离原型，**未交付、逾期**，不改成次日截止、不把两项日常改动冒充大功能。日程未被修改；任务较旧的已完成运行记录不代表本轮结果。上一夜1.7.6续办亦跨UTC/北京时间，三天计数今后须按任务计划的北京时间核对，不能直接取环境UTC日期。
+- 续传原型分支 [CI 43939301852](https://github.com/Laoch832/LyricWave/actions/runs/43939301852) 对 b1b2f6905ea7330567c90bdb9d04336a196ec3f8 的源码、Android单测/Lint/构建全部 success；按分支策略不签名、不发布。后续需接入私有原子检查点、下载器分段复用、取消/进程重启后的明确恢复入口，验证多个来源与并发写入以及最终整包哈希/固定签名。该未完成流程继续隔离，实际1.7.7 APK不含 UpdateResumeCheckpoint，已从下载的DEX核对。
+- 发行明细补查：[Apple Music正式7.0.0](https://www.apkmirror.com/apk/apple/apple-music/apple-music-7-0-0-release/) 1614，10-30；[beta明细](https://www.apkmirror.com/apk/apple/apple-music/apple-music-7-0-0-beta-release/) 1613（10-30）、1611（10-14）均HTTP200可见。1611为历史未适配版本，未据此新增支持；Google Play封闭私测仍未核实。设置#142进一步静态证据显示官方getPreferenceItems使用ji函数接口、PageContent使用z0.n，与现有pi/z0.m契约不同；还需整体核对原生行模型和构造器，不能仅替换包名就宣称适配成功。
+- 功能提交 [a6e38dc43d71876827e5d7c02e86ab65a8dd2d6b](https://github.com/Laoch832/LyricWave/commit/a6e38dc43d71876827e5d7c02e86ab65a8dd2d6b)，最终发布源码 [705fb2a9cd7845d29b3e3c6bff572b618df1a37a](https://github.com/Laoch832/LyricWave/commit/705fb2a9cd7845d29b3e3c6bff572b618df1a37a)。本地最终XML共1464项JVM/Android测试零失败；[最终Android CI 43939459871](https://github.com/Laoch832/LyricWave/actions/runs/43939459871) 源码/整套测试/Lint/两种构建/固定签名 success，[网站CI 43939459966](https://github.com/Laoch832/LyricWave/actions/runs/43939459966) success，Vercel检查success。验证个人身份Laoch832/173591322/User且远端main仍为同一SHA后，才触发publish=true。
+- [发布流程43940933157](https://github.com/Laoch832/LyricWave/actions/runs/43940933157) 对同一705fb2a9完整SHA的四项作业（源码、Android、固定签名、个人发布）均success。[Release v1.7.7](https://github.com/Laoch832/LyricWave/releases/tag/v1.7.7) 作者Laoch832/173591322，draft=false、prerelease=false；标签与target_commitish均指向705fb2a9cd7845d29b3e3c6bff572b618df1a37a，GitHub latest确认指向本次版本，无覆盖旧Release或更换密钥。
+- 实际下载五个附件：LyricWave-1.7.7.apk、SHA256SUMS.txt、SIGNATURE.txt、build-metadata.json、client-update.json。APK=12014496 bytes，SHA256=`f68987eb2dd43098919e7cee18cfad9bd4f0ecad87d537d55e906870f76c0b3e`，与校验和及同次构建元数据一致；apksigner确认v2有效、固定证书仍为`4ec2f441139585083e476b596a503db7e6c459ec1ca1d9bcf59d815b6981da53`。aapt2确认dev.amenhancer.module、1.7.7/139及桌面入口；草稿、分享身份和新图标保留，续传原型未混入正式包。
+- 发布刚结束时客户端API仍显示旧v1.7.6/138，在这个窗口中对新版本五个附件的首次实际下载全部成功，无昨日404；APK响应为application/vnd.android.package-archive，Content-Disposition同时含filename与filename*=LyricWave-1.7.7.apk。客户端API随后也已核对为v1.7.7/139，完整提交、APK哈希/证书、摘要、两项改动和提示均匹配本次附件；保留60秒客户端配置缓存，不把传播等待记成已更新。低于/等于/高于权威整数版本的比较路径有单元测试，等于或更高均显示最新。
+- 每日修复与自动换源已正式交付；续传大功能未完成。真机DRM长播、真实网络/OEM下载及分享封面未验收；设置#142契约风险、1.7.6导航生命周期异常待进一步适配/复现。Vercel反馈读取与GitHub权限本轮无阻塞，无需用户重复登录。此后提交仅补充核验记录，不再新增功能版本；后续文档CI不改变本次Release已核实源码与附件。
