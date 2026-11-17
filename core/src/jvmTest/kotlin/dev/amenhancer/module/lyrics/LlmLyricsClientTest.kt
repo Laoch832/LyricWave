@@ -255,4 +255,22 @@ class LlmLyricsClientTest {
 
     private fun translatedLines(translation: String) =
         """{"lines":[{"id":"L1","translation":${JSONObject.quote(translation)},"background":[]}]}"""
+    @Test fun `transliteration reports actual request outcome to the private activity journal`() {
+        val source="""<tt xmlns="http://www.w3.org/ns/ttml" xmlns:itunes="http://music.apple.com/lyric-ttml-internal" itunes:timing="Line" xml:lang="ja"><head/><body><div><p begin="1.000" end="2.000">鏡よ</p></div></body></tt>"""
+        val document=requireNotNull(LlmTransliterationDocument.prepare(source))
+        content="""{"lang":"ja-Latn","lines":[{"id":"L1","groups":[["kagami yo"]],"english_units":[[]]}]}"""
+        val directory=java.nio.file.Files.createTempDirectory("transliteration-journal").toFile()
+        try {
+            val activity=FileLlmLyricsActivityStore(directory);var id:String?=null;val configuration=config()
+            val result=LlmLyricsClient().transliterate(configuration,document,
+                onStarted={ id=activity.begin(LlmActivityKind.TRANSLITERATION,configuration,42) },
+                onCompleted={ activity.complete(id,it) })
+            assertTrue(result!!.contains("kagami yo"));val snapshot=FileLlmLyricsActivityStore(directory).snapshot()
+            assertEquals(1L,snapshot.apiCalls);assertEquals(1L,snapshot.successful)
+            assertEquals(LlmActivityKind.TRANSLITERATION,snapshot.records.single().kind)
+            val raw=java.io.File(directory,"activity.json").readText()
+            assertFalse(raw.contains("鏡よ"));assertFalse(raw.contains("kagami yo"))
+        } finally { directory.deleteRecursively() }
+    }
+
 }

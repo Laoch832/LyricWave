@@ -176,8 +176,11 @@ private fun EmbeddedSettingsHost.addAiActivityPanel(
         val calls = snapshot.records.filter { it.isApiCall }.takeLast(20).asReversed()
         if (calls.isEmpty()) body.addView(text(localizedText(ModuleText.AI_NO_REQUESTS)))
         calls.forEach { record ->
-            body.addView(text(listOfNotNull(if (record.kind == LlmActivityKind.TRANSLATION)
-                localizedText(ModuleText.AI_TRANSLATION_CALL) else localizedText(ModuleText.AI_TEST_CALL),
+            body.addView(text(listOfNotNull(when (record.kind) {
+                LlmActivityKind.TRANSLATION -> localizedText(ModuleText.AI_TRANSLATION_CALL)
+                LlmActivityKind.TRANSLITERATION -> localizedText(ModuleText.AI_TRANSLITERATION_CALL)
+                else -> localizedText(ModuleText.AI_TEST_CALL)
+            },
                 record.title ?: record.songId?.let { "Apple Music ID $it" }, aiActivityLabel(record)).joinToString(" · "), heading = true))
             body.addView(text(localizedText(ModuleText.AI_RECORD_INFO, stamp(record.startedAt), unknown(record.elapsedMs),
                 unknown(record.httpStatus), record.model, record.host, unknown(record.promptTokens),
@@ -243,6 +246,7 @@ private fun EmbeddedSettingsHost.addAiActivityPanel(
 }
 
 private fun EmbeddedSettingsHost.aiActivityLabel(record: LlmActivityRecord): String = localizedText(when (record.kind) {
+    LlmActivityKind.TRANSLITERATION -> ModuleText.AI_TRANSLITERATION_CALL
     LlmActivityKind.CACHE_HIT -> ModuleText.AI_CACHE_HIT
     LlmActivityKind.CACHE_SAVED -> ModuleText.AI_CACHE_SAVED
     LlmActivityKind.CACHE_SAVE_FAILED -> ModuleText.AI_CACHE_SAVE_FAILED

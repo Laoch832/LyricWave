@@ -28,7 +28,7 @@ class UpdateDownloadService : Service() {
     }
     internal var checkRelease: () -> AppUpdateRelease = { AppUpdateClient().check(BuildConfig.VERSION_CODE.toLong(), BuildConfig.APPLICATION_ID) }
     internal var fetchFile: (UpdateAsset, UpdateBuild, File, UpdateDownloadCancellation, TransferRequest, (UpdateDownloadProgress) -> Unit) -> File =
-        { asset, build, directory, cancel, request, progress -> AppUpdateDownloader(parallelism = request.connections).download(asset, build, directory, cancel, request.official, progress) }
+        { asset, build, directory, cancel, request, progress -> AppUpdateDownloader(parallelism = request.connections, resumable = request.resumable, resumeDirectory = File(cacheDir, "updates/resumable")).download(asset, build, directory, cancel, request.official, progress) }
     internal var verifyFile: (File, UpdateBuild) -> Unit = { file, build -> UpdateApkVerifier.verify(this, file, build) }
     override fun onBind(intent: Intent?): IBinder? = null
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
@@ -64,19 +64,24 @@ class UpdateDownloadService : Service() {
                 if (build.versionCode <= BuildConfig.VERSION_CODE) throw AppUpdateException("already_current")
                 val asset = release.apks.singleOrNull { it.id == request.id && it.name == build.apk } ?: throw AppUpdateException("asset")
                 val directory = File(cacheDir, "updates").apply { mkdirs() }
-                directory.listFiles()?.filter { it.isFile }?.forEach { it.delete() }
                 val updated = AtomicLong(-1000)
+                val progressLock = Any()
+                var lastBytes = -1L; var lastSource = request.official; var reused = 0L
                 val file = fetchFile(asset, build, directory, cancellation, request) { p ->
+                    synchronized(progressLock) {
+                    if (p.bytes > 0 && p.bytes < lastBytes && p.official == lastSource) return@synchronized
+                    lastBytes = p.bytes; lastSource = p.official; reused = p.resumedBytes
                     val now = android.os.SystemClock.elapsedRealtime(); val previous = updated.get()
                     recordTransferRate(p.bytes, p.total, now)
                     if ((now - previous >= 300 || p.bytes == p.total || p.bytes == 0L) && updated.compareAndSet(previous, now)) {
-                        UpdateTransfer.state = DownloadState(DownloadPhase.DOWNLOADING, asset.name, p.bytes, p.total, p.connections, official = p.official)
+                        UpdateTransfer.state = DownloadState(DownloadPhase.DOWNLOADING, asset.name, p.bytes, p.total, p.connections, official = p.official, resumedBytes = p.resumedBytes)
                         postProgress(manager)
+                    }
                     }
                 }
                 try { if (cancellation.cancelled) throw java.util.concurrent.CancellationException(); verifyFile(file, build); if (cancellation.cancelled) throw java.util.concurrent.CancellationException() } catch (error: Exception) { file.delete(); throw error }
                 UpdateTransfer.file = file; UpdateTransfer.build = build
-                UpdateTransfer.state = DownloadState(DownloadPhase.VERIFIED, asset.name, asset.size, asset.size, file = file)
+                UpdateTransfer.state = DownloadState(DownloadPhase.VERIFIED, asset.name, asset.size, asset.size, file = file, resumedBytes = reused)
                 UpdateTransfer.persist(this)
             } catch (_: java.util.concurrent.CancellationException) {
                 UpdateTransfer.state = DownloadState(DownloadPhase.FAILED, reason = "cancelled")
@@ -107,8 +112,9 @@ class UpdateDownloadService : Service() {
                 java.util.Locale.ROOT, state.bytes / 1048576.0, state.total / 1048576.0, state.connections)
             else -> ModuleText.UPDATE_CHECKING.text()
         }
-        val displayMessage = if (state.phase == DownloadPhase.DOWNLOADING && state.official)
+        var displayMessage = if (state.phase == DownloadPhase.DOWNLOADING && state.official)
             ModuleText.UPDATE_OFFICIAL_SOURCE.text() + " · " + message else message
+        if (state.resumedBytes > 0) displayMessage += " · " + ModuleText.UPDATE_RESUMED.text("%.1f".format(java.util.Locale.ROOT, state.resumedBytes / 1048576.0))
         val launch = packageManager.getLaunchIntentForPackage("com.apple.android.music")
             ?.putExtra("lyricwave_show_download", true)?.addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP)
         val builder = Notification.Builder(this, CHANNEL).setSmallIcon(if (active) android.R.drawable.stat_sys_download else android.R.drawable.stat_sys_download_done)

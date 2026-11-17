@@ -137,4 +137,24 @@ class UpdateDownloadActivityTest {
             assertNotEquals(foregroundFile.parentFile, session.state.file!!.parentFile)
         } finally { session.close(); foregroundFile.delete() }
     }
+    @Test fun `process recreation preserves saved connection and resume choices instead of stale launch extras`() {
+        val app=RuntimeEnvironment.getApplication()
+        UpdateDownloadActivity.createSession={ context,id,official -> UpdateDownloadSession(context,id,official,check={ release },
+            fetch={ _,_,_,_,_,_-> throw AssertionError("Must not download without a click") },archiveCheck={ _,_-> }) }
+        val intent=Intent(app,UpdateDownloadActivity::class.java).putExtra("asset_id",42L).putExtra("connections",128).putExtra("resumable",true)
+        val first=Robolectric.buildActivity(UpdateDownloadActivity::class.java,intent).setup().visible()
+        fun descendants(view:View):List<View> = listOf(view)+if(view is ViewGroup)(0 until view.childCount).flatMap { descendants(view.getChildAt(it)) } else emptyList()
+        val views=descendants(first.get().window.decorView)
+        val spinner=views.filterIsInstance<android.widget.Spinner>().single()
+        spinner.setSelection(3);spinner.onItemSelectedListener!!.onItemSelected(spinner,null,3,3)
+        views.filterIsInstance<android.widget.Switch>().single().isChecked=false
+        val saved=android.os.Bundle();first.saveInstanceState(saved).pause().stop().destroy()
+        val second=Robolectric.buildActivity(UpdateDownloadActivity::class.java,intent).create(saved).start().resume().visible()
+        try {
+            val restored=descendants(second.get().window.decorView)
+            assertEquals(16,restored.filterIsInstance<android.widget.Spinner>().single().selectedItem)
+            assertFalse(restored.filterIsInstance<android.widget.Switch>().single().isChecked)
+        } finally { second.pause().stop().destroy() }
+    }
+
 }

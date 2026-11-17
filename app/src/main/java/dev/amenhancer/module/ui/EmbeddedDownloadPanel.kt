@@ -37,6 +37,7 @@ internal fun EmbeddedSettingsHost.showEmbeddedDownloadPanel(activity: Activity, 
     showEmbeddedMiuixDialog(activity, localizedText(ModuleText.UPDATE_DOWNLOADER)) { dismiss ->
         val scope = rememberCoroutineScope()
         val preferences = remember { activity.getSharedPreferences("lyricwave_download_choices", Context.MODE_PRIVATE) }
+        var resumable by remember { mutableStateOf(preferences.getBoolean("resumable", true)) }
         var threads by remember { mutableIntStateOf(preferences.getInt("connections", 8)) }
         var snapshot by remember { mutableStateOf(Bundle()) }
         var commandFailure by remember { mutableStateOf<String?>(null) }
@@ -59,7 +60,7 @@ internal fun EmbeddedSettingsHost.showEmbeddedDownloadPanel(activity: Activity, 
             scope.launch {
                 try {
                     val id = if (assetId > 0) assetId else snapshot.getLong("asset_id", -1)
-                    val extras = Bundle().apply { putLong("asset_id", id); putInt("connections", threads); putBoolean("official", source) }
+                    val extras = Bundle().apply { putLong("asset_id", id); putInt("connections", threads); putBoolean("official", source); putBoolean("resumable", resumable) }
                     val result = updateTransferCommand(activity, method, extras)
                     needsInstallPermission = result.getBoolean("install_permission")
                     val action = result.getParcelable<PendingIntent>("action") ?: throw ModuleControlException("control_protocol")
@@ -104,6 +105,9 @@ internal fun EmbeddedSettingsHost.showEmbeddedDownloadPanel(activity: Activity, 
             }
         }
         Text(snapshot.getString("name").orEmpty().ifBlank { "LyricWave" })
+        EmbeddedSettingSwitch(localizedText(ModuleText.UPDATE_RESUMABLE), localizedText(ModuleText.UPDATE_RESUMABLE_SUMMARY),
+            checked = resumable, enabled = !running, onCheckedChange = { value -> resumable = value; preferences.edit().putBoolean("resumable", value).apply() })
+        if (snapshot.getLong("resumed_bytes") > 0) Text(localizedText(ModuleText.UPDATE_RESUMED, "%.1f".format(snapshot.getLong("resumed_bytes") / 1048576.0)))
         when (phase) {
             "CHECKING" -> Text(localizedText(ModuleText.UPDATE_CHECKING))
             "DOWNLOADING" -> {
@@ -129,7 +133,7 @@ internal fun EmbeddedSettingsHost.showEmbeddedDownloadPanel(activity: Activity, 
             EmbeddedSettingsNotice(localizedText(if (failure == "control_permission") ModuleText.UPDATE_CONTROL_PERMISSION else ModuleText.UPDATE_CONTROL_UNAVAILABLE))
             if (assetId > 0) TextButton(localizedText(ModuleText.UPDATE_BACKUP_DOWNLOADER), onClick = {
                 runCatching {
-                    activity.startActivity(backupDownloadIntent(assetId, threads, official))
+                    activity.startActivity(backupDownloadIntent(assetId, threads, official, resumable))
                 }.onFailure { dev.amenhancer.module.feedback.FeedbackRuntime.record("download", it) }
             })
         }

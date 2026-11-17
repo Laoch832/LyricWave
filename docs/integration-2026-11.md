@@ -419,3 +419,30 @@ Day3（11-11）继续验收完整保存→恢复→编辑→原生中继流程�
 - 实际下载五个附件：LyricWave-1.7.7.apk、SHA256SUMS.txt、SIGNATURE.txt、build-metadata.json、client-update.json。APK=12014496 bytes，SHA256=`f68987eb2dd43098919e7cee18cfad9bd4f0ecad87d537d55e906870f76c0b3e`，与校验和及同次构建元数据一致；apksigner确认v2有效、固定证书仍为`4ec2f441139585083e476b596a503db7e6c459ec1ca1d9bcf59d815b6981da53`。aapt2确认dev.amenhancer.module、1.7.7/139及桌面入口；草稿、分享身份和新图标保留，续传原型未混入正式包。
 - 发布刚结束时客户端API仍显示旧v1.7.6/138，在这个窗口中对新版本五个附件的首次实际下载全部成功，无昨日404；APK响应为application/vnd.android.package-archive，Content-Disposition同时含filename与filename*=LyricWave-1.7.7.apk。客户端API随后也已核对为v1.7.7/139，完整提交、APK哈希/证书、摘要、两项改动和提示均匹配本次附件；保留60秒客户端配置缓存，不把传播等待记成已更新。低于/等于/高于权威整数版本的比较路径有单元测试，等于或更高均显示最新。
 - 每日修复与自动换源已正式交付；续传大功能未完成。真机DRM长播、真实网络/OEM下载及分享封面未验收；设置#142契约风险、1.7.6导航生命周期异常待进一步适配/复现。Vercel反馈读取与GitHub权限本轮无阻塞，无需用户重复登录。此后提交仅补充核验记录，不再新增功能版本；后续文档CI不改变本次Release已核实源码与附件。
+
+
+### 2026-11-17（北京时间09:00计划；新每周三次规则）
+
+- 本轮按任务保存的 Asia/Shanghai 计划日期记账，实际启动 UTC11-17T01:43，不沿用前一轮03:00的旧日程和三天周期。任务已改为周二/四/六09:00，每次两个完整功能、目标六个真实 bug；旧 Day9 续传原型未交付的记录保留，本轮延续完成，不重复计算1.7.7自动换源。
+- 已读最新 AGENTS.md、CONTEXT.md、docs/ci-and-releases.md 与历史维护记录；origin/main 为399c255e1de8dcf5eda4d5bbf8ae29367769bf9c，v1.7.7已正式发布，无未合并fork PR，仓库Issues关闭。确认没有并发维护同一功能的任务，使用现有 drm-buffer 工作树建立 codex/integration-20261117，复用已存在的续传原型。
+- **完整同步**：已包含上游基线388164c74de63d05495d91f8a83164fb4772ca31 → [ad7b2475d98fbcba1d6c5e991c3dc290de6a1592](https://github.com/Zennmn/AM-plus-plus/commit/ad7b2475d98fbcba1d6c5e991c3dc290de6a1592)，26个新增祖先提交全部通过真实 merge 纳入，merge提交3b7dac74，保留全部历史和来源。14处冲突逐项整合；未用整树覆盖或ours策略。范围包括[#135](https://github.com/Zennmn/AM-plus-plus/pull/135)双轨音译与缓存v4、[#136](https://github.com/Zennmn/AM-plus-plus/pull/136)插件设置子页、[#137](https://github.com/Zennmn/AM-plus-plus/pull/137)全屏原生插件页和[#138](https://github.com/Zennmn/AM-plus-plus/pull/138)发音/标点对齐。上游正式版仍v1.6.8，开放PR#141不属于main新增历史，继续审阅不冒充已合并功能。无上游写入。
+- 同步后清理不适用部分：上游“仅原生歌词参与AI”的限制与本仓库已承诺的在线/导入来源冲突，修正为当前明确选中来源，保留来源hash、代次和手动抑制保护；保留澜音私有请求记录、缓存检查/删除、200首配额与验证后持久化规则，并移植到独立双槽v4，不退回不带来源检查的结果覆盖。设置导航保留HDR/AI记录入口，旧插件兼容路径保留。均有合成顺序、来源变化、缓存/页面/UI回归测试，未删除其他上游功能。本次同步历史不含需交付的USB独占实现；USB继续排除，不注入微信。
+- 上游Issues增量基线以本轮读取列表的updated_at记录为准，重点复核[#142](https://github.com/Zennmn/AM-plus-plus/issues/142)设置pi.l缺失及#141讨论，复用此前#134切歌歌词残留/#139曲终停止的待验证记录；不能把报告直接算作本仓库已复现缺陷。#142已在官方7.0.0/1614 APK确认另一组ji接口和z0.n组合，补齐整套方法/构造器/字段契约，精确选择唯一完整变体，原variant保留，缺失/歧义只降级设置注入。官方APK SHA256=49e83b64fccff79310c7dff174e02228dd0455a3d87df4d9655d1e4f8cd2e351，Apple签名88ba590ec2e1ea33c4458daf59489faee2cef297a9b4071e18cf82ef531100aa；verify-native-settings.py静态验证通过，3项变体回归通过，仍非真机认证、不增加泛化版本支持。
+- 私有反馈：CLI读取指定项目的单个管理员变量（0600临时文件，使用后删除），未输出密钥、未提交原始日志、未公开Blob。上次已覆盖UTC11-15/16，本轮补齐UTC11-16/17并逐页读取：16日2页26批，17日1页1批，共86条唯一record，42已读、44新增，以私有本地ID检查点去重。1.7.7/宿主7.0.0/1614有23条DRM native=-20/component=-42650/state1；旧1.7.6另有4条NoSuchMethodException及各1条下载/控制/导航包装异常，1.7.3有3条NetworkConnectionDenied。分类不等于用户人数。DRM仍存在，未宣称恢复实验已解决；导航生命周期错误和真实手势返回仍待复现。
+
+#### 两个功能的验收和真实缺陷
+
+1. **中断下载续传**：复用独立分支[b1b2f690](https://github.com/Laoch832/LyricWave/commit/b1b2f6905ea7330567c90bdb9d04336a196ec3f8)并保留merge历史6e50028d。验收：下载服务、内嵌面板、备用页均连接默认开启的真实续传开关；失败/新进程重试同一资产只请求未完成且未损坏分段；显示重新哈希通过的复用字节；共享暂存有单写者锁，输出目录隔离；换源、无Range降级、取消清理和整包/固定签名验证不丢失。核心9项端到端传输测试覆盖断点、损坏、跨版本、锁冲突、取消、无Range、全包复用、哈希失败和共享暂存/输出隔离；进程回收后选项恢复、原服务管线和通知继续由Robolectric验证。真实OEM网络/焦点通知待实体机。
+2. **AI歌词翻译与音译双轨补全**：验收：独立开关、共享API配置、当前选中TTML独立生成/缓存两轨，原时轴/主副唱保留，两任务任意完成顺序都保留已接受的另一轨，来源切换取消旧结果；真实调用和cache hit分开记录，不保存歌词或请求正文。已完成真实客户端fake HTTP与双完成顺序、非法响应/其他来源拒绝、原时间/文本保留、既有缓存和AI页面按钮测试；原生解析和真实API质量待用户设备确认。
+- 真实小bug目前确认**3项**：①上述#142精确设置接口变体缺失；②多连接迟到回调使通知/跨进程下载进度倒退，新增乱序回调复现并串行单调提交；③进程重建用旧Intent覆盖用户连接数/续传选择，新增保存/重建路径复现并只在首次启动播种。均以修复前条件和对应回归为证据。不把合并冲突、测试、文档拆成bug。DRM和导航手势缺少真机稳定复现，未为凑六项直接修改高风险播放路径。最终数量和发布状态待完整CI后追加。
+- 本地阶段：core/app/host定向测试通过；35项Python测试、架构边界、9个精确profile/592targets、glass参考检查通过。完整测试/Lint/两种APK构建正在执行；此前备用输出目录与后台共享导致原隔离断言失败，已修复生产代码并保留原断言，重跑通过。此段是开发记录，尚不表示发布。
+
+- 本轮重新查询[Google Play正式页](https://play.google.com/store/apps/details?id=com.apple.android.music&gl=us) HTTP200，公开更新日期仍2026-10-29、无versionCode；[测试入口](https://play.google.com/apps/testing/com.apple.android.music)转Google登录，最新封闭beta未核实。[APKMirror正式](https://www.apkmirror.com/apk/apple/apple-music/apple-music-7-0-0-release/)与[beta](https://www.apkmirror.com/apk/apple/apple-music/apple-music-7-0-0-beta-release/) HTTP200，正式仍7.0.0/1614（10-30），公开beta1613（10-30）、历史1611（10-14），与上一确认无差异。本轮只增加已知1614设置契约变体，不将发现发行记录等同全功能/真机支持。
+
+- 上游Issue检查基线：#142 updated_at=2026-11-17T01:42:45Z，已读新增设备截图讨论；#141=11-16T06:13:19Z，#140=11-14T18:08:40Z，#139=11-14T14:25:40Z，#134=11-13T18:12:58Z。上游main最终复查仍ad7b2475，fork开放PR为空，远端main仍399c255e；不把未变化的候选重复开发。
+
+- 第一轮完整本地验证成功（7m10s）：1487项JVM/Android单元测试零失败，app Debug/VitalRelease与glass、host-applemusic、host-netease、plugin-api、plugin-runtime Debug Lint全部通过，Debug/Release构建成功；35项Python、架构/profile/glass与固定版actionlint通过。无实体机，不将这些结果当作真实DRM/分享/OEM验收。逐字音译增加模型错误English标记的协议回归，后续结果另记；最终SHA仍须云端整套验证。
+
+- 同步后补充第4个实际缺陷：音译协议允许model用english_units把汉字/假名原文标为英文，从而绕过拉丁输出检查并缓存成伪音译。新增失败用例在原实现确实返回含“鏡よ”的ja-Latn轨道（expected null失败）；修复为英文片段仍需逐字保留且不含非拉丁字母。另测逐字英文保留、错误英文内容/索引拒绝、主副唱分组及时轴；原始字节比较排除写入引用key所需的namespace声明，未放宽正文/时间断言。最终目标按4/6真实bug报告，未将两个新测试算两个bug。
+
+- 最后新增协议修复后，core:jvmTest 495项、app:testDebugUnitTest 358项、host-applemusic:testDebugUnitTest 508项全部重跑成功（1m12s），含AiLyricsActivityUiTest；其余上一轮未变模块124项，最终本地XML合计1489项零失败。完整Lint/两种APK构建为上述第一轮成功结果；最终源码将等待云端同SHA重做整套检查和固定签名后才发布，不用旧构建替代。续传和双轨功能的自动化验收完成，真机项明确待验收；本轮真实bug实际4/6，缺少两个已确认且可安全验证的独立缺陷，不制造改动凑数。

@@ -129,4 +129,25 @@ class BackgroundDownloadTest {
         } finally { gate.countDown(); controller.destroy() }
     }
 
+    @Test fun `late lower parallel progress cannot move the notification backwards`() {
+        val controller=Robolectric.buildService(UpdateDownloadService::class.java).create()
+        val service=controller.get();val started=CountDownLatch(1);val gate=CountDownLatch(1)
+        service.checkRelease={ release }
+        service.fetchFile={ _,_,directory,_,request,progress ->
+            assertFalse(request.resumable)
+            progress(UpdateDownloadProgress(2,4,8));progress(UpdateDownloadProgress(4,4,8))
+            org.robolectric.shadows.ShadowSystemClock.advanceBy(java.time.Duration.ofMillis(400))
+            progress(UpdateDownloadProgress(3,4,8));started.countDown();gate.await(5,TimeUnit.SECONDS)
+            File(directory,"test.apk").apply { writeBytes(byteArrayOf(1,2,3,4)) }
+        }
+        service.verifyFile={ _,_-> }
+        try {
+            val ticket=UpdateTransfer.issue(42,8,false,resumable=false)
+            service.onStartCommand(Intent(service,UpdateDownloadService::class.java).setAction("begin").putExtra("ticket",ticket),0,1)
+            assertTrue(started.await(5,TimeUnit.SECONDS));assertEquals(4L,UpdateTransfer.state.bytes)
+            assertTrue(service.notification().extras.getCharSequence(Notification.EXTRA_TEXT).toString().contains("100%"))
+            gate.countDown();waitUntil { UpdateTransfer.state.phase==DownloadPhase.VERIFIED }
+        } finally { gate.countDown();controller.destroy() }
+    }
+
 }

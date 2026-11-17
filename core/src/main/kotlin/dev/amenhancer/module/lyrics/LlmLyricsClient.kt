@@ -205,6 +205,8 @@ class LlmLyricsClient(
         document: LlmTransliterationDocument,
         title: String? = null,
         artist: String? = null,
+        onStarted: () -> Unit = {},
+        onCompleted: (CallResult) -> Unit = {},
         isCancelled: () -> Boolean = { false },
     ): String? {
         val endpoint = config.endpoint ?: return null
@@ -228,11 +230,15 @@ class LlmLyricsClient(
                         .put("content", document.prompt(title, artist)),
                 ),
         ) ?: return null
-        val response = post(endpoint, config.apiKey, body, isCancelled) ?: return null
-        if (isCancelled()) return null
-        val content = messageContent(response) ?: return null
-        val result = document.withResponse(content) ?: return null
-        return result.takeUnless { isCancelled() }
+        val started = System.nanoTime()
+        runCatching(onStarted)
+        var reason: String? = null; var status: Int? = null
+        val response = post(endpoint, config.apiKey, body, isCancelled,
+            onStatus = { status = it }, onFailure = { failure, code -> reason = failure; if (code != null) status = code })
+        val result = if (response != null && !isCancelled()) messageContent(response)?.let(document::withResponse) else null
+        val failure = if (isCancelled()) "cancelled" else if (result == null) reason ?: "invalid_response" else null
+        completed(started, response, failure, status, onCompleted)
+        return result
     }
 
     /** Only fixed reason codes/statuses may cross into the settings UI. */

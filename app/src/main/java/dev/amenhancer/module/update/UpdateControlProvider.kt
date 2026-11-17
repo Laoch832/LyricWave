@@ -59,7 +59,7 @@ class UpdateControlProvider : ContentProvider() {
                 val id = extras?.getLong("asset_id", -1) ?: -1
                 require(id > 0)
                 val count = extras?.getInt("connections", 8)?.coerceIn(1, 128) ?: 8
-                val ticket = UpdateTransfer.issue(id, count, extras?.getBoolean("official", false) == true)
+                val ticket = UpdateTransfer.issue(id, count, extras?.getBoolean("official", false) == true, extras?.getBoolean("resumable", true) != false)
                 val action = Intent(app, UpdateDownloadService::class.java).setAction("begin").putExtra("ticket", ticket)
                 Bundle().apply { putParcelable("action", PendingIntent.getForegroundService(app, ticket.hashCode(), action, PendingIntent.FLAG_CANCEL_CURRENT or PendingIntent.FLAG_IMMUTABLE)) }
             }
@@ -107,7 +107,7 @@ class UpdateControlProvider : ContentProvider() {
     companion object { const val APPLE_CERT = "88ba590ec2e1ea33c4458daf59489faee2cef297a9b4071e18cf82ef531100aa" }
 }
 
-internal data class TransferRequest(val id: Long, val connections: Int, val official: Boolean, val created: Long = android.os.SystemClock.elapsedRealtime())
+internal data class TransferRequest(val id: Long, val connections: Int, val official: Boolean, val created: Long = android.os.SystemClock.elapsedRealtime(), val resumable: Boolean = true)
 internal object UpdateTransfer {
     private val tickets = ConcurrentHashMap<String, TransferRequest>()
     @Volatile var state = DownloadState(DownloadPhase.READY)
@@ -137,11 +137,11 @@ internal object UpdateTransfer {
             state = DownloadState(DownloadPhase.VERIFIED, metadata.apk, apk.length(), apk.length(), file = apk)
         }
     }
-    @Synchronized fun issue(id: Long, connections: Int, official: Boolean): String {
+    @Synchronized fun issue(id: Long, connections: Int, official: Boolean, resumable: Boolean = true): String {
         val now = android.os.SystemClock.elapsedRealtime()
         tickets.entries.removeIf { now - it.value.created > 60_000 }
         check(tickets.size < 8) { "Too many requests" }
-        return UUID.randomUUID().toString().also { tickets[it] = TransferRequest(id, connections, official) }
+        return UUID.randomUUID().toString().also { tickets[it] = TransferRequest(id, connections, official, resumable = resumable) }
     }
     fun take(ticket: String): TransferRequest? = tickets.remove(ticket)?.takeIf { android.os.SystemClock.elapsedRealtime() - it.created <= 60_000 }
     fun snapshot(context: Context) = Bundle().apply {
@@ -149,7 +149,7 @@ internal object UpdateTransfer {
         putLong("asset_id", assetId)
         putString("phase", value.phase.name); putString("name", value.name)
         putLong("bytes", value.bytes); putLong("total", value.total); putInt("connections", value.connections)
-        putString("reason", value.reason); putBoolean("official", value.official)
+        putString("reason", value.reason); putBoolean("official", value.official); putLong("resumed_bytes", value.resumedBytes)
         putInt("module_version_code", BuildConfig.VERSION_CODE)
         putString("module_version_name", BuildConfig.VERSION_NAME)
         val manager = context.getSystemService(android.app.NotificationManager::class.java)

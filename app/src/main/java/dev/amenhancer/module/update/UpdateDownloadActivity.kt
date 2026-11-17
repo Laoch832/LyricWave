@@ -29,6 +29,7 @@ import java.util.concurrent.Executors
 /** Runs under the module UID so APKs stay out of Apple Music's private storage. */
 class UpdateDownloadActivity : Activity() {
     private lateinit var session: UpdateDownloadSession
+    private lateinit var resumeOption: android.widget.Switch
     private lateinit var connections: android.widget.Spinner
     private lateinit var status: TextView
     private lateinit var progress: ProgressBar
@@ -56,7 +57,7 @@ class UpdateDownloadActivity : Activity() {
         layout.addView(TextView(this).apply { text = ModuleText.UPDATE_DOWNLOADER.text(); textSize = 22f })
         val preferences = getSharedPreferences("lyricwave_download_options", Context.MODE_PRIVATE)
         val choices = listOf(1, 4, 8, 16, 32, 64, 128)
-        if (retained == null && intent.getIntExtra("connections", -1) in choices)
+        if (retained == null && savedInstanceState == null && intent.getIntExtra("connections", -1) in choices)
             preferences.edit().putInt("connections", intent.getIntExtra("connections", 8)).apply()
         layout.addView(TextView(this).apply { text = ModuleText.UPDATE_CONNECTIONS.text() })
         connections = android.widget.Spinner(this).apply {
@@ -70,6 +71,12 @@ class UpdateDownloadActivity : Activity() {
             }
         }
         layout.addView(connections)
+        if (retained == null && savedInstanceState == null && intent.hasExtra("resumable")) preferences.edit().putBoolean("resumable", intent.getBooleanExtra("resumable", true)).apply()
+        resumeOption = android.widget.Switch(this).apply {
+            text = ModuleText.UPDATE_RESUMABLE.text(); isChecked = preferences.getBoolean("resumable", true)
+            setOnCheckedChangeListener { _, value -> preferences.edit().putBoolean("resumable", value).apply() }
+        }
+        layout.addView(resumeOption)
         status = TextView(this).apply { textSize = 16f; setTextIsSelectable(true) }; layout.addView(status)
         progress = ProgressBar(this, null, android.R.attr.progressBarStyleHorizontal).apply { max = 1000 }; layout.addView(progress)
         start = Button(this).apply { text = ModuleText.UPDATE_START.text(); setOnClickListener { session.download(session.official) } }; layout.addView(start)
@@ -86,7 +93,7 @@ class UpdateDownloadActivity : Activity() {
         if (isFinishing || isDestroyed) return
         val state = session.state
         val running = state.phase == DownloadPhase.CHECKING || state.phase == DownloadPhase.DOWNLOADING
-        connections.isEnabled = !running
+        connections.isEnabled = !running; resumeOption.isEnabled = !running
         progress.isIndeterminate = state.phase == DownloadPhase.CHECKING
         progress.progress = if (state.total > 0) (state.bytes * 1000 / state.total).toInt().coerceIn(0, 1000) else 0
         status.text = when (state.phase) {
@@ -99,6 +106,7 @@ class UpdateDownloadActivity : Activity() {
         }
         if (state.phase == DownloadPhase.DOWNLOADING && state.official)
             status.text = ModuleText.UPDATE_OFFICIAL_SOURCE.text() + " · " + status.text
+        if (state.resumedBytes > 0) status.append("\n" + ModuleText.UPDATE_RESUMED.text("%.1f".format(state.resumedBytes / 1048576.0)))
         start.visibility = if (!running && state.phase != DownloadPhase.VERIFIED) View.VISIBLE else View.GONE
         start.text = ModuleText.UPDATE_START.text()
         official.visibility = if (state.phase == DownloadPhase.FAILED) View.VISIBLE else View.GONE
@@ -138,7 +146,7 @@ class UpdateDownloadActivity : Activity() {
 
 internal enum class DownloadPhase { CHECKING, READY, DOWNLOADING, VERIFIED, FAILED }
 internal data class DownloadState(val phase: DownloadPhase = DownloadPhase.CHECKING, val name: String = "",
-    val bytes: Long = 0, val total: Long = 0, val connections: Int = 1, val reason: String = "", val file: File? = null, val official: Boolean = false)
+    val bytes: Long = 0, val total: Long = 0, val connections: Int = 1, val reason: String = "", val file: File? = null, val official: Boolean = false, val resumedBytes: Long = 0)
 
 internal class UpdateDownloadSession(
     private val context: Context, private val assetId: Long, val official: Boolean,
@@ -146,7 +154,7 @@ internal class UpdateDownloadSession(
     private val fetch: (UpdateAsset, UpdateBuild, File, UpdateDownloadCancellation, Boolean, (UpdateDownloadProgress) -> Unit) -> File =
         { asset, build, directory, cancellation, official, progress ->
             val count = context.getSharedPreferences("lyricwave_download_options", Context.MODE_PRIVATE).getInt("connections", 8).coerceIn(1, 128)
-            AppUpdateDownloader(parallelism = count).download(asset, build, directory, cancellation, official, progress)
+            AppUpdateDownloader(parallelism = count, resumable = context.getSharedPreferences("lyricwave_download_options", Context.MODE_PRIVATE).getBoolean("resumable", true), resumeDirectory = File(context.cacheDir, "updates/resumable")).download(asset, build, directory, cancellation, official, progress)
         },
     private val archiveCheck: ((File, UpdateBuild) -> Unit)? = null,
 ) {
@@ -183,18 +191,19 @@ internal class UpdateDownloadSession(
         runTask {
             val chosen = requireNotNull(asset); val build = requireNotNull(release?.build)
             directory.mkdirs()
-            directory.listFiles()?.filter { it.isFile }?.forEach { it.delete() }
             var lastProgress = 0L
+            var reused = 0L
             publish(DownloadState(DownloadPhase.DOWNLOADING, chosen.name, total = chosen.size))
             val file = fetch(chosen, build, directory, cancellation, useOfficial) { current ->
+                reused = current.resumedBytes
                 val now = android.os.SystemClock.elapsedRealtime()
                 if (now - lastProgress >= 150 || current.bytes == current.total || current.bytes == 0L) {
                     lastProgress = now
-                    publish(DownloadState(DownloadPhase.DOWNLOADING, chosen.name, current.bytes, current.total, current.connections, official = current.official))
+                    publish(DownloadState(DownloadPhase.DOWNLOADING, chosen.name, current.bytes, current.total, current.connections, official = current.official, resumedBytes = current.resumedBytes))
                 }
             }
             try { verifyArchive(file) } catch (error: Exception) { file.delete(); throw error }
-            publish(DownloadState(DownloadPhase.VERIFIED, chosen.name, chosen.size, chosen.size, file = file))
+            publish(DownloadState(DownloadPhase.VERIFIED, chosen.name, chosen.size, chosen.size, file = file, resumedBytes = reused))
         }
     }
     fun verifyArchive(file: File) {

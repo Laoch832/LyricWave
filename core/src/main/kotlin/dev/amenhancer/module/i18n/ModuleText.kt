@@ -494,8 +494,8 @@ enum class ModuleText(internal val english: String, internal val chinese: String
     ),
     LLM_LYRICS_TRANSLITERATION_ENABLED("Enable transliteration", "启用音译"),
     LLM_LYRICS_TRANSLITERATION_ENABLED_SUMMARY(
-        "Adds transliteration where official or third-party lyrics lack pronunciation; existing transliteration is kept.",
-        "为缺发音的官方和第三方歌词补音译，已有音译时跳过。",
+        "Adds missing pronunciation without replacing existing transliteration. Restart Apple Music after enabling.",
+        "为缺发音的官方和第三方歌词补音译，已有音译时跳过；开启后重开 Apple Music。",
     ),
     LLM_LYRICS_API_SETTINGS("API settings", "API 设置"),
     LLM_LYRICS_SHARED_API_CONFIG(
@@ -583,6 +583,7 @@ enum class ModuleText(internal val english: String, internal val chinese: String
     AI_RECORD_SUCCESS("Success", "调用成功"),
     AI_RECORD_FAILED("Failed", "调用失败"),
     AI_RECORD_CANCELLED("Cancelled / interrupted", "已取消或中断"),
+    AI_TRANSLITERATION_CALL("Transliteration request", "音译请求"),
     AI_TRANSLATION_CALL("Lyric translation", "歌词翻译请求"),
     AI_TEST_CALL("Connection test", "接口连接测试"),
     AI_CACHE_HIT("Used saved translation; no API request", "已读取翻译缓存，未调用 API"),
@@ -619,6 +620,9 @@ enum class ModuleText(internal val english: String, internal val chinese: String
     UPDATE_DOWNLOADER("LyricWave update download", "澜音更新下载"),
     UPDATE_CONNECTIONS_VALUE("Download connections: %1\$s", "下载线程数：%1\$s"),
     UPDATE_CONNECTIONS("Download connections (maximum 128)", "下载线程数（最高 128）"),
+    UPDATE_RESUMABLE("Resume interrupted downloads", "断点续传"),
+    UPDATE_RESUMABLE_SUMMARY("Reuse verified blocks after network loss or process restart. Cancel removes unfinished blocks.", "断网或进程重启后，再次下载复用已校验分段；取消会删除本次未完成缓存。"),
+    UPDATE_RESUMED("Reused %1\$s MB", "已复用 %1\$s MB"),
     UPDATE_OFFICIAL_SOURCE("GitHub original source", "GitHub 原始来源"),
     UPDATE_TRANSFER_RATE("%1\$s KB/s · about %2\$s s remaining", "%1\$s KB/s · 预计剩余 %2\$s 秒"),
     UPDATE_WAITING_DATA("Waiting for download data…", "正在等待下载数据…"),

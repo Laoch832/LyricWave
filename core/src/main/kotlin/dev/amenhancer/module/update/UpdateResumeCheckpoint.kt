@@ -7,7 +7,7 @@ import java.io.RandomAccessFile
 import java.nio.file.Files
 import java.security.MessageDigest
 
-/** Development-only foundation: no network URLs, credentials or caller-provided file paths. */
+/** Private durable checkpoint: no network URLs, credentials or caller-provided file paths. */
 data class UpdateResumeBlock(val start: Long, val length: Long, val sha256: String)
 
 class UpdateResumeCheckpoint private constructor(

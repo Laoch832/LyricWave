@@ -197,18 +197,27 @@ internal fun createAutoLyricsRuntime(
             if (isCancelled()) return@transliterate null
             val document = LlmTransliterationDocument.prepare(request.originalTtml) ?: return@transliterate null
             if (isCancelled()) return@transliterate null
+            val journal = FileLlmLyricsActivityStore(File(application.filesDir, FileLlmLyricsActivityStore.DIRECTORY))
             llmCache.read(request.appleMusicId, request.originalTtml, request.config, kind = "transliteration")
-                ?.let { return@transliterate it.takeUnless { isCancelled() } }
+                ?.let { cached ->
+                    if (isCancelled()) return@transliterate null
+                    journal.event(dev.amenhancer.module.lyrics.LlmActivityKind.CACHE_HIT, request.config, request.appleMusicId, request.title, request.artist)
+                    return@transliterate cached
+                }
+            var callId: String? = null
             llmClient.transliterate(
                 config = request.config,
                 document = document,
+                onStarted = { callId = journal.begin(dev.amenhancer.module.lyrics.LlmActivityKind.TRANSLITERATION,
+                    request.config, request.appleMusicId, request.title, request.artist) },
+                onCompleted = { result -> journal.complete(callId, result) },
                 title = request.title,
                 artist = request.artist,
                 isCancelled = isCancelled,
-            )?.takeUnless { isCancelled() }
-        },
-        onTransliterationPrepared = { request, ttml ->
-            llmCache.write(request.appleMusicId, request.originalTtml, request.config, ttml, kind = "transliteration")
+            )?.takeUnless { isCancelled() }?.also { ttml ->
+                llmCache.write(request.appleMusicId, request.originalTtml, request.config, ttml,
+                    title = request.title, artist = request.artist, kind = "transliteration")
+            }
         },
         discardPending = { llmExecutor.queue.clear() },
     )

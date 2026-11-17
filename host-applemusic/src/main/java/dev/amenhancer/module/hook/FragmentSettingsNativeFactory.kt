@@ -23,7 +23,9 @@ internal object FragmentSettingsNativeFactory {
             "Unverified native settings build: ${build.displayName}"
         }
         return if (loader == null) FragmentSettingsContract.from(profile.document.getJSONObject("settings"))
-        else FragmentSettingsContract.select(loader, profile.document)
+        else runCatching { FragmentSettingsContract.select(loader, profile.document) }.getOrElse { error ->
+            FragmentSettingsContract.from(profile.document.getJSONObject("settings")).copy(resolutionFailure = error.message ?: "Settings variant unavailable")
+        }
     }
 
     @Synchronized

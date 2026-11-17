@@ -30,6 +30,7 @@ internal data class FragmentSettingsContract(
     val categoryItemsField: String = "c",
     val actionCallbackField: String = "j",
     val members: JSONObject? = null,
+    val resolutionFailure: String? = null,
 ) {
     private fun profiledMethod(loader: ClassLoader, role: String): Method? = members?.let {
         require(it.getInt("contractVersion") == 1) { "Unsupported native settings member contract" }
@@ -38,6 +39,7 @@ internal data class FragmentSettingsContract(
     }
 
     fun preferenceItemsMethod(loader: ClassLoader): Method {
+        check(resolutionFailure == null) { resolutionFailure.orEmpty() }
         profiledMethod(loader, "preferenceItems")?.let { method ->
             require(method.declaringClass == loader.loadClass(viewModelClass) &&
                 method.name == preferenceItemsMethod && !Modifier.isStatic(method.modifiers) &&

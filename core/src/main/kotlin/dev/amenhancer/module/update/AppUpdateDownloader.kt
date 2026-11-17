@@ -21,7 +21,7 @@ class UpdateDownloadCancellation {
     internal fun remove(connection: HttpURLConnection) { connections.remove(connection); connection.disconnect() }
 }
 
-data class UpdateDownloadProgress(val bytes: Long, val total: Long, val connections: Int, val official: Boolean = false)
+data class UpdateDownloadProgress(val bytes: Long, val total: Long, val connections: Int, val official: Boolean = false, val resumedBytes: Long = 0)
 
 /** Streaming, bounded ranges; no external download app, credentials, or retained signed URLs. */
 class AppUpdateDownloader(
@@ -29,12 +29,14 @@ class AppUpdateDownloader(
     private val parallelThreshold: Long = 4L * 1024 * 1024,
     private val parallelism: Int = 8,
     private val minimumSegmentBytes: Long = 64 * 1024,
+    private val resumable: Boolean = false,
+    private val resumeDirectory: File? = null,
 ) {
     fun download(asset: UpdateAsset, build: UpdateBuild, directory: File,
         cancellation: UpdateDownloadCancellation, official: Boolean = false,
         progress: (UpdateDownloadProgress) -> Unit = {},
     ): File {
-        fun attempt(source: Boolean) = downloadOnce(asset, build, directory, cancellation, source) {
+        fun attempt(source: Boolean) = (if (resumable) ResumableUpdateDownload(this, parallelism, resumeDirectory)::download else ::downloadOnce)(asset, build, directory, cancellation, source) {
             progress(it.copy(official = source))
         }
         try { return attempt(official) }
@@ -43,12 +45,17 @@ class AppUpdateDownloader(
             val retryable = error is java.io.IOException || (error is AppUpdateException && error.reason == "http" &&
                 (error.httpStatus?.let { it in setOf(404, 408, 425, 429) || it in 500..599 } == true))
             if (official || !retryable) throw error
-            // The first attempt has closed sockets and removed its partial file. Never mix sources.
+            // The first attempt has closed all sockets. Resumable ranges are rehashed
+            // under the same asset identity before reuse; ordinary partial files are removed.
             progress(UpdateDownloadProgress(0, asset.size, 1, official = true))
             cancellation.check()
             return attempt(true)
         }
     }
+
+    internal fun downloadWithoutResume(asset: UpdateAsset, build: UpdateBuild, directory: File,
+        cancellation: UpdateDownloadCancellation, official: Boolean, progress: (UpdateDownloadProgress) -> Unit): File =
+        downloadOnce(asset, build, directory, cancellation, official, progress)
 
     private fun downloadOnce(asset: UpdateAsset, build: UpdateBuild, directory: File,
         cancellation: UpdateDownloadCancellation, official: Boolean,
@@ -136,7 +143,7 @@ class AppUpdateDownloader(
         } finally { temporary.delete() }
     }
 
-    private fun open(url: String, range: String?, validator: String?, cancel: UpdateDownloadCancellation): HttpURLConnection {
+    internal fun open(url: String, range: String?, validator: String?, cancel: UpdateDownloadCancellation): HttpURLConnection {
         var next = URI(url)
         repeat(5) {
             cancel.check()
@@ -160,11 +167,11 @@ class AppUpdateDownloader(
         throw AppUpdateException("redirect")
     }
 
-    private fun range(connection: HttpURLConnection, start: Long, end: Long, total: Long) {
+    internal fun range(connection: HttpURLConnection, start: Long, end: Long, total: Long) {
         if (connection.getHeaderField("Content-Range") != "bytes $start-$end/$total") throw AppUpdateException("range")
     }
 
-    private fun stream(connection: HttpURLConnection, file: File, offset: Long, expected: Long,
+    internal fun stream(connection: HttpURLConnection, file: File, offset: Long, expected: Long,
         cancel: UpdateDownloadCancellation, progress: (Int) -> Unit,
     ) {
         if (connection.getHeaderField("Content-Encoding")?.let { !it.equals("identity", true) } == true)

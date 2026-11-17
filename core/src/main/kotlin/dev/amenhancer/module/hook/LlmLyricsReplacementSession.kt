@@ -30,8 +30,7 @@ data class LlmLyricsRuntime(
 )
 
 /**
- * Enhances the exact selected document. The host permits translation only for
- * native input; transliteration also accepts selected custom lyrics. Requests
+ * Enhances the exact selected native, online or imported document. Requests
  * run independently, while composition and native publication are serialized.
  */
 class LlmLyricsReplacementSession(

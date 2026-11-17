@@ -11,7 +11,7 @@ import java.util.concurrent.ConcurrentHashMap
 import org.json.JSONArray
 import org.json.JSONObject
 
-enum class LlmActivityKind { TRANSLATION, CONNECTION_TEST, CACHE_HIT, CACHE_SAVED, CACHE_SAVE_FAILED, SOURCE_CHANGED, SETTINGS_CHANGED, SKIPPED, PLAYER_REJECTED }
+enum class LlmActivityKind { TRANSLITERATION, TRANSLATION, CONNECTION_TEST, CACHE_HIT, CACHE_SAVED, CACHE_SAVE_FAILED, SOURCE_CHANGED, SETTINGS_CHANGED, SKIPPED, PLAYER_REJECTED }
 enum class LlmActivityStatus { RUNNING, SUCCESS, FAILED, CANCELLED }
 
 data class LlmActivityRecord(
@@ -22,7 +22,7 @@ data class LlmActivityRecord(
     val promptTokens: Long? = null, val completionTokens: Long? = null, val totalTokens: Long? = null,
     internal val process: String = "",
 ) {
-    val isApiCall: Boolean get() = kind == LlmActivityKind.TRANSLATION || kind == LlmActivityKind.CONNECTION_TEST
+    val isApiCall: Boolean get() = kind == LlmActivityKind.TRANSLITERATION || kind == LlmActivityKind.TRANSLATION || kind == LlmActivityKind.CONNECTION_TEST
 }
 
 data class LlmActivitySnapshot(
@@ -43,7 +43,7 @@ class FileLlmLyricsActivityStore(private val directory: File, private val now: (
 
     fun begin(kind: LlmActivityKind, config: LlmLyricsConfig, songId: Long? = null,
               title: String? = null, artist: String? = null): String = synchronized(lock) {
-        require(kind == LlmActivityKind.TRANSLATION || kind == LlmActivityKind.CONNECTION_TEST)
+        require(kind == LlmActivityKind.TRANSLITERATION || kind == LlmActivityKind.TRANSLATION || kind == LlmActivityKind.CONNECTION_TEST)
         val record = record(kind, LlmActivityStatus.RUNNING, config, songId, title, artist)
         val previous = load()
         save(previous.copy(apiCalls = add(previous.apiCalls, 1), records = retain(previous.records + record)))
@@ -75,7 +75,7 @@ class FileLlmLyricsActivityStore(private val directory: File, private val now: (
 
     fun event(kind: LlmActivityKind, config: LlmLyricsConfig, songId: Long, title: String? = null,
               artist: String? = null, reason: String? = null) = synchronized(lock) {
-        require(kind != LlmActivityKind.TRANSLATION && kind != LlmActivityKind.CONNECTION_TEST)
+        require(kind != LlmActivityKind.TRANSLITERATION && kind != LlmActivityKind.TRANSLATION && kind != LlmActivityKind.CONNECTION_TEST)
         val previous = load()
         val record = record(kind, if (kind == LlmActivityKind.CACHE_SAVE_FAILED || kind == LlmActivityKind.PLAYER_REJECTED)
             LlmActivityStatus.FAILED else LlmActivityStatus.SUCCESS, config, songId, title, artist).copy(reason = safeReason(reason))

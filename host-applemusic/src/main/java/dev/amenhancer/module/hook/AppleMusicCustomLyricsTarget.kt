@@ -299,7 +299,7 @@ internal class AppleMusicCustomLyricsTarget(
                 isAllowed = { id ->
                     currentSong.current()?.details?.appleMusicId == id && config.settings().let {
                         it.llmLyricsTransliterationEnabled || (it.customLyricsEnabled && it.llmLyricsEnabled)
-                    }
+                    } && id !in autoLyricsRuntime.suppressedIds
                 },
                 onReplacementPublished = { id ->
                     mainHandler.post {

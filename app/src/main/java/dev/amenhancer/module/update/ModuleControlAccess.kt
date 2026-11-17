@@ -41,9 +41,9 @@ internal fun moduleControlFailure(error: Throwable): String = when (error) {
     else -> "control_unavailable"
 }
 
-internal fun backupDownloadIntent(id: Long, connections: Int, official: Boolean): android.content.Intent {
+internal fun backupDownloadIntent(id: Long, connections: Int, official: Boolean, resumable: Boolean = true): android.content.Intent {
     require(id > 0)
     return android.content.Intent().setClassName(BuildConfig.APPLICATION_ID, UpdateDownloadActivity::class.java.name)
-        .putExtra("asset_id", id).putExtra("official", official)
+        .putExtra("asset_id", id).putExtra("official", official).putExtra("resumable", resumable)
         .putExtra("connections", connections.takeIf { it in listOf(1, 4, 8, 16, 32, 64, 128) } ?: 8)
 }
