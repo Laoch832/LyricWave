@@ -5,6 +5,9 @@ import dev.amenhancer.module.i18n.ModuleText
 import android.app.Activity
 import android.net.Uri
 import android.os.Build
+import android.os.Handler
+import android.os.Looper
+import android.view.View
 import android.widget.Toast
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -14,6 +17,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.Stable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -23,12 +27,14 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.viewinterop.AndroidView
+import dev.amenhancer.plugin.api.PluginSettingsSession
 import dev.amenhancer.plugin.runtime.PluginRunState
 import dev.amenhancer.plugin.runtime.PluginStatus
+import java.lang.ref.WeakReference
 import java.util.concurrent.atomic.AtomicBoolean
 import top.yukonga.miuix.kmp.basic.HorizontalDivider
 import top.yukonga.miuix.kmp.basic.Text
+import top.yukonga.miuix.kmp.nav.core.NavKey
 import top.yukonga.miuix.kmp.theme.MiuixTheme
 
 @Composable
@@ -36,6 +42,7 @@ internal fun EmbeddedSettingsHost.EmbeddedPluginManagementPage(
     activity: Activity,
     revision: Int,
     active: Boolean,
+    onOpenSettings: (id: String, title: String) -> Unit,
 ) {
     val manager = plugins
     val state = remember(manager) { EmbeddedPluginManagementState() }
@@ -288,7 +295,7 @@ internal fun EmbeddedSettingsHost.EmbeddedPluginManagementPage(
                             title = localizedText(ModuleText.PLUGIN_SETTINGS),
                             icon = EmbeddedSvgIcon.Settings,
                             enabled = controlsEnabled,
-                            onClick = { openPluginSettings(activity, manifest.id) },
+                            onClick = { onOpenSettings(manifest.id, manifest.name) },
                         )
                     }
                     HorizontalDivider(Modifier.padding(horizontal = 16.dp))
@@ -411,42 +418,92 @@ internal fun EmbeddedSettingsHost.importPluginZip(uri: Uri) {
     }
 }
 
-internal fun EmbeddedSettingsHost.openPluginSettings(activity: Activity, id: String) {
-    if (activity.isFinishing || activity.isDestroyed || currentActivity() !== activity) return
-    val session = plugins?.openSettings(id, embeddedThemedContext(activity))
-        ?: return Toast.makeText(
-            activity,
-            localizedText(ModuleText.PLUGIN_NO_SETTINGS),
-            Toast.LENGTH_SHORT,
-        ).show()
-    val closed = AtomicBoolean()
-    fun closeSession() {
-        if (closed.compareAndSet(false, true)) runCatching { session.close() }
+internal class EmbeddedPluginSettingsPage(
+    val contentKey: String,
+    title: String,
+) : NavKey {
+    var title by mutableStateOf(title)
+    var largeTitle by mutableStateOf<String?>(null)
+    var supportsReportedScroll by mutableStateOf(false)
+    var reportedScrollFraction by mutableFloatStateOf(0f)
+    var isClosed = false
+        private set
+    lateinit var view: View
+        private set
+    private var session: PluginSettingsSession? = null
+
+    fun attachSession(session: PluginSettingsSession) {
+        check(!isClosed && this.session == null)
+        this.session = session
+        view = session.view.also { check(it.parent == null) { "Plugin settings View is already attached" } }
     }
-    try {
-        val pluginView = session.view
-        check(pluginView.parent == null) { localizedText(ModuleText.SETTINGS_OPEN_FAILED, id) }
-        showEmbeddedMiuixDialog(
-            activity = activity,
-            title = localizedText(ModuleText.PLUGIN_SETTINGS),
-            scrollContent = false,
-            onDismiss = ::closeSession,
-            footer = { dismiss ->
-                EmbeddedDialogActions(
-                    dismissText = localizedText(ModuleText.CLOSE),
-                    onDismiss = dismiss,
-                )
-            },
-        ) {
-            AndroidView(factory = { pluginView }, modifier = Modifier.fillMaxWidth())
+
+    fun close() {
+        if (isClosed) return
+        isClosed = true
+        PluginSettingsScrollBridge.release(this)
+        val previous = session
+        session = null
+        runCatching { previous?.close() }
+    }
+}
+
+/** Compatibility with plugins that already report scroll fractions instead of View nested scroll. */
+internal object PluginSettingsScrollBridge {
+    private val mainHandler = Handler(Looper.getMainLooper())
+    @Volatile private var currentPage: WeakReference<EmbeddedPluginSettingsPage>? = null
+
+    internal fun bind(page: EmbeddedPluginSettingsPage) {
+        if (!page.isClosed) currentPage = WeakReference(page)
+    }
+
+    internal fun release(page: EmbeddedPluginSettingsPage) {
+        if (currentPage?.get() === page) currentPage = null
+    }
+
+    private fun update(block: (EmbeddedPluginSettingsPage) -> Unit) {
+        val page = currentPage?.get() ?: return
+        val apply = {
+            if (currentPage?.get() === page && !page.isClosed) block(page)
+        }
+        if (Looper.myLooper() == Looper.getMainLooper()) apply() else mainHandler.post { apply() }
+    }
+
+    @JvmStatic fun updateTitle(value: String) = update { if (value.isNotBlank()) it.title = value }
+    @JvmStatic fun updateLargeTitle(value: String) = update { it.largeTitle = value.takeIf(String::isNotBlank) }
+    @JvmStatic fun updateSupportsScroll(value: Boolean) = update { it.supportsReportedScroll = value }
+    @JvmStatic fun report(fraction: Float) {
+        if (fraction.isFinite()) update { it.reportedScrollFraction = fraction.coerceIn(0f, 1f) }
+    }
+}
+
+internal fun EmbeddedSettingsHost.createPluginSettingsPage(
+    activity: Activity,
+    id: String,
+    title: String,
+    contentKey: String,
+): EmbeddedPluginSettingsPage? {
+    val page = EmbeddedPluginSettingsPage(contentKey, title)
+    // Plugins can publish their title/scroll capabilities from inside createSettings().
+    PluginSettingsScrollBridge.bind(page)
+    return try {
+        val session = plugins?.openSettings(id, embeddedThemedContext(activity))
+        if (session == null) {
+            page.close()
+            Toast.makeText(activity, localizedText(ModuleText.PLUGIN_NO_SETTINGS), Toast.LENGTH_SHORT).show()
+            null
+        } else {
+            page.attachSession(session)
+            page
         }
     } catch (error: Throwable) {
-        closeSession()
+        page.close()
         Toast.makeText(
             activity,
-            localizedText(ModuleText.SETTINGS_OPEN_FAILED, error.message),
+            localizedText(ModuleText.SETTINGS_OPEN_FAILED, error.message ?: id),
             Toast.LENGTH_LONG,
         ).show()
+        null
     }
 }
 

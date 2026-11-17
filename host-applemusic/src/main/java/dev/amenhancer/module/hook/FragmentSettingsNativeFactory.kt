@@ -16,13 +16,14 @@ import java.util.WeakHashMap
 internal object FragmentSettingsNativeFactory {
     private val runtimes = WeakHashMap<ClassLoader, FragmentSettingsRuntime>()
 
-    private fun names(context: Context): FragmentSettingsContract {
+    private fun names(context: Context, loader: ClassLoader? = null): FragmentSettingsContract {
         val build = targetBuild(context)
         val profile = checkNotNull(AppleMusicHostProfiles.find(build.packageName, build.versionName, build.versionCode))
         require(profile.productionEnabled && profile.family == "fragment-content") {
             "Unverified native settings build: ${build.displayName}"
         }
-        return FragmentSettingsContract.from(profile.document.getJSONObject("settings"))
+        return if (loader == null) FragmentSettingsContract.from(profile.document.getJSONObject("settings"))
+        else FragmentSettingsContract.select(loader, profile.document)
     }
 
     @Synchronized
@@ -37,14 +38,19 @@ internal object FragmentSettingsNativeFactory {
         FragmentSettingsActivityMatcher(names(context).mainActivity, context.packageName)
 
     fun viewBridge(context: Context, onOpen: (Activity) -> Unit): SettingsViewBridge {
-        val names = names(context)
         val loader = context.classLoader
+        val names = names(context, loader)
         val hostPackageName = context.packageName
         runtime(loader, names, hostPackageName).onOpen = onOpen
         return object : SettingsViewBridge {
             override val supportsViewFallback = false
             override fun supportsStartupPagePrewarm(activity: Activity): Boolean =
                 FragmentStartupPagePrewarmTarget.supports(activity)
+            override fun supportsLyricsPronunciation(activity: Activity): Boolean {
+                val build = targetBuild(activity)
+                val profile = AppleMusicHostProfiles.find(build.packageName, build.versionName, build.versionCode)
+                return profile?.productionEnabled == true && profile.document.optJSONObject("lyricPronunciation") != null
+            }
             override fun supportsGlassScrollCollapse(activity: Activity): Boolean {
                 val build = targetBuild(activity)
                 return android.os.Build.VERSION.SDK_INT >= 33 &&
@@ -70,7 +76,7 @@ internal object FragmentSettingsNativeFactory {
     }
 
     fun install(context: Context, loader: ClassLoader, observer: SettingsEntryObserver): TargetCapabilityInstall =
-        runtime(loader, names(context), context.packageName).install(observer).also {
+        runtime(loader, names(context, loader), context.packageName).install(observer).also {
             ModernXposedRuntime.log(it.message)
         }
 }

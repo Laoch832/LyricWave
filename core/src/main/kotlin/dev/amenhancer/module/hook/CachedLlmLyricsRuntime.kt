@@ -16,6 +16,11 @@ fun createCachedLlmLyricsRuntime(
     close: () -> Unit = {},
     client: LlmLyricsClient = LlmLyricsClient(),
     activity: FileLlmLyricsActivityStore? = null,
+    translationEnabled: () -> Boolean = { true },
+    transliterationEnabled: () -> Boolean = { false },
+    transliterate: ((LlmLyricsRequest, () -> Boolean) -> String?)? = null,
+    onTransliterationPrepared: (LlmLyricsRequest, String) -> Unit = { _, _ -> },
+    discardPending: () -> Unit = {},
 ): LlmLyricsRuntime = LlmLyricsRuntime(
     configuration = configuration,
     translate = { request, isCancelled ->
@@ -55,6 +60,11 @@ fun createCachedLlmLyricsRuntime(
         translated.takeUnless { isCancelled() }
       }
     },
+    translationEnabled = translationEnabled,
+    transliterationEnabled = transliterationEnabled,
+    transliterate = transliterate,
+    onTransliterationPrepared = onTransliterationPrepared,
+    discardPending = discardPending,
     executor = executor,
     close = close,
     onRejected = { request ->

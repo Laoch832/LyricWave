@@ -2,6 +2,7 @@ package dev.amenhancer.module.ui
 
 import android.app.Activity
 import android.app.Dialog
+import android.view.ViewTreeObserver
 import android.widget.Toast
 import androidx.compose.foundation.ScrollState
 import androidx.compose.foundation.layout.Arrangement
@@ -30,6 +31,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
@@ -43,11 +45,14 @@ import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
+import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.viewinterop.AndroidView
 import dev.amenhancer.glass.GlassPolicy
 import dev.amenhancer.module.config.TitleCorrectionMode
 import dev.amenhancer.module.i18n.ModuleText
@@ -61,6 +66,7 @@ import top.yukonga.miuix.kmp.basic.NavigationRail
 import top.yukonga.miuix.kmp.basic.NavigationRailItem
 import top.yukonga.miuix.kmp.basic.NavigationRailValue
 import top.yukonga.miuix.kmp.basic.Scaffold
+import top.yukonga.miuix.kmp.basic.ScrollBehavior
 import top.yukonga.miuix.kmp.basic.SmallTopAppBar
 import top.yukonga.miuix.kmp.basic.Text
 import top.yukonga.miuix.kmp.basic.TextField
@@ -86,6 +92,7 @@ internal fun EmbeddedSettingsHost.showSettingsDialog(activity: Activity) {
     var revision by mutableIntStateOf(0)
     val backStack = navBackStackOf()
     val pageScrollStates = mutableMapOf<EmbeddedSettingsPage, ScrollState>()
+    var pluginPageSequence = 0L
     var dialog: Dialog? = null
 
     fun update(next: ModuleSettings) {
@@ -98,7 +105,7 @@ internal fun EmbeddedSettingsHost.showSettingsDialog(activity: Activity) {
         // The root overlay host gets Back first. While a modal is exiting, keep its page in place.
         if (auxiliaryDialogs.isNotEmpty()) return
         if (backStack.size > 1) {
-            backStack.removeAt(backStack.lastIndex)
+            (backStack.removeAt(backStack.lastIndex) as? EmbeddedPluginSettingsPage)?.close()
         } else {
             dismiss()
         }
@@ -109,20 +116,31 @@ internal fun EmbeddedSettingsHost.showSettingsDialog(activity: Activity) {
         if (auxiliaryDialogs.isEmpty() && page !in backStack) backStack.add(page)
     }
 
+    fun canOpenPluginSettings(): Boolean =
+        backStack.lastOrNull() == EmbeddedSettingsPage.PLUGINS && auxiliaryDialogs.isEmpty() &&
+            activeSettingsDialog(activity) != null
+
+    fun openPluginSettings(id: String, title: String) {
+        if (!canOpenPluginSettings()) return
+        val page = createPluginSettingsPage(activity, id, title, "plugin-settings:${++pluginPageSequence}") ?: return
+        if (canOpenPluginSettings()) backStack.add(page) else page.close()
+    }
+
     fun selectCategory(page: EmbeddedSettingsPage) {
         if (auxiliaryDialogs.isNotEmpty() || page !in EmbeddedSettingsNavigationPages) return
         val target = listOf(page)
         if (backStack.toList() == target) return
+        val pluginPage = backStack.lastOrNull() as? EmbeddedPluginSettingsPage
         // A category is a destination, not another level in the previous category's history.
         Snapshot.withMutableSnapshot {
             backStack.clear()
             backStack.addAll(target)
         }
+        pluginPage?.close()
     }
 
     fun adaptNavigationToWidth(wide: Boolean) {
-        val pages = backStack.filterIsInstance<EmbeddedSettingsPage>()
-            .filterNot { it == EmbeddedSettingsPage.MAIN }
+        val pages = backStack.filterNot { it == EmbeddedSettingsPage.MAIN }
         val target = if (wide) {
             pages.ifEmpty { listOf(EmbeddedSettingsPage.CUSTOM_LYRICS) }
         } else {
@@ -143,6 +161,7 @@ internal fun EmbeddedSettingsHost.showSettingsDialog(activity: Activity) {
                 pageRefresh = null
                 dismissAuxiliarySettingsDialogs()
             }
+            (backStack.lastOrNull() as? EmbeddedPluginSettingsPage)?.close()
         }) { dismiss ->
             val goBack = { back(dismiss) }
             val swipeDirection = if (LocalLayoutDirection.current == LayoutDirection.Rtl) {
@@ -165,8 +184,11 @@ internal fun EmbeddedSettingsHost.showSettingsDialog(activity: Activity) {
                 val railScrollState = rememberScrollState()
                 val focusManager = LocalFocusManager.current
                 val keyboardController = LocalSoftwareKeyboardController.current
-                val selectedCategory = (navigationStack.lastOrNull() as? EmbeddedSettingsPage)?.navigationCategory
-                    ?: EmbeddedSettingsPage.CUSTOM_LYRICS
+                val selectedCategory = when (val page = navigationStack.lastOrNull()) {
+                    is EmbeddedSettingsPage -> page.navigationCategory
+                    is EmbeddedPluginSettingsPage -> EmbeddedSettingsPage.PLUGINS
+                    else -> EmbeddedSettingsPage.CUSTOM_LYRICS
+                }
                 LaunchedEffect(wide) {
                     adaptNavigationToWidth(wide)
                 }
@@ -230,7 +252,7 @@ internal fun EmbeddedSettingsHost.showSettingsDialog(activity: Activity) {
                                             EmbeddedLlmLyricsPage(activity, current, ::update, active = active,
                                                 onOpenActivity = { open(EmbeddedSettingsPage.AI_LYRICS_ACTIVITY) })
                                         EmbeddedSettingsPage.AI_LYRICS_ACTIVITY -> EmbeddedAiActivityPage(activity, current, active)
-                                        EmbeddedSettingsPage.PLUGINS -> EmbeddedPluginManagementPage(activity, refresh, active)
+                                        EmbeddedSettingsPage.PLUGINS -> EmbeddedPluginManagementPage(activity, refresh, active, ::openPluginSettings)
                                         EmbeddedSettingsPage.BOTTOM_BAR_ANIMATION ->
                                             EmbeddedAnimationSettingsPage(current) { edit -> update(edit(draft.settings)) }
                                         else -> EmbeddedSettingsCategory(
@@ -240,6 +262,76 @@ internal fun EmbeddedSettingsHost.showSettingsDialog(activity: Activity) {
                                             active = active,
                                         )
                                     }
+                                }
+                            }
+                            // The route owns a View; state saving only sees its per-session string key.
+                            entry<EmbeddedPluginSettingsPage>(
+                                contentKey = { it.contentKey },
+                                swipeDismiss = swipeDirection,
+                            ) { page ->
+                                val scrollBehavior = MiuixScrollBehavior()
+                                val reportedScroll = page.supportsReportedScroll
+                                val scrollFraction = page.reportedScrollFraction
+                                val hostView = LocalView.current
+                                fun applyReportedScroll() {
+                                    if (!page.isClosed && page.supportsReportedScroll) {
+                                        val state = scrollBehavior.state
+                                        val limit = state.heightOffsetLimit
+                                        if (limit.isFinite() && limit > -Float.MAX_VALUE) {
+                                            val offset = limit * page.reportedScrollFraction
+                                            if (state.heightOffset != offset) state.heightOffset = offset
+                                        }
+                                    }
+                                }
+                                LaunchedEffect(page, reportedScroll, scrollFraction, scrollBehavior) {
+                                    applyReportedScroll()
+                                }
+                                DisposableEffect(page, reportedScroll, scrollBehavior, hostView) {
+                                    if (!reportedScroll) {
+                                        onDispose {}
+                                    } else {
+                                        // Miuix's measured limit is a plain field, so layout changes do not recompose us.
+                                        val observer = hostView.viewTreeObserver
+                                        val listener = ViewTreeObserver.OnPreDrawListener {
+                                            applyReportedScroll()
+                                            true
+                                        }
+                                        observer.addOnPreDrawListener(listener)
+                                        onDispose {
+                                            val current = if (observer.isAlive) observer else hostView.viewTreeObserver
+                                            if (current.isAlive) current.removeOnPreDrawListener(listener)
+                                        }
+                                    }
+                                }
+                                DisposableEffect(page) {
+                                    val nestedScrollingEnabled = page.view.isNestedScrollingEnabled
+                                    // AndroidView forwards nested scroll only while its root View enables it.
+                                    page.view.isNestedScrollingEnabled = true
+                                    PluginSettingsScrollBridge.bind(page)
+                                    onDispose {
+                                        page.view.isNestedScrollingEnabled = nestedScrollingEnabled
+                                        PluginSettingsScrollBridge.release(page)
+                                    }
+                                }
+                                EmbeddedSettingsScaffold(
+                                    title = page.title,
+                                    wide = wide,
+                                    navigation = {
+                                        EmbeddedSettingsIconAction(EmbeddedSvgIcon.Back, localizedText(ModuleText.BACK), onClick = goBack)
+                                    },
+                                    scrollBehavior = scrollBehavior,
+                                    largeTitle = page.largeTitle ?: page.title,
+                                ) { bottomPadding ->
+                                    // The plugin owns scrolling; non-cooperating Views keep a fixed title.
+                                    AndroidView(
+                                        factory = { page.view },
+                                        modifier = Modifier.fillMaxWidth()
+                                            .padding(bottom = bottomPadding)
+                                            .then(
+                                                if (reportedScroll) Modifier
+                                                else Modifier.nestedScroll(scrollBehavior.nestedScrollConnection),
+                                            ),
+                                    )
                                 }
                             }
                         }
@@ -305,6 +397,34 @@ private fun EmbeddedSettingsHost.EmbeddedSettingsScreen(
         }
     }
 
+    EmbeddedSettingsScaffold(title, wide, navigation, actions, scrollBehavior) { bottomPadding ->
+        Column(
+            modifier = Modifier.fillMaxSize()
+                .nestedScroll(scrollBehavior.nestedScrollConnection)
+                .verticalScroll(scrollState)
+                // Scroll behind the gesture area; keep only the final item clear of it.
+                .padding(
+                    start = if (wide) 16.dp else 12.dp,
+                    top = contentSpacing,
+                    end = if (wide) 16.dp else 12.dp,
+                    bottom = 12.dp + bottomPadding,
+                ),
+            verticalArrangement = Arrangement.spacedBy(contentSpacing),
+            content = content,
+        )
+    }
+}
+
+@Composable
+private fun EmbeddedSettingsScaffold(
+    title: String,
+    wide: Boolean,
+    navigation: @Composable () -> Unit,
+    actions: @Composable RowScope.() -> Unit = {},
+    scrollBehavior: ScrollBehavior? = null,
+    largeTitle: String = title,
+    content: @Composable (bottomPadding: Dp) -> Unit,
+) {
     Scaffold(
         modifier = Modifier.fillMaxSize(),
         topBar = {
@@ -319,6 +439,7 @@ private fun EmbeddedSettingsHost.EmbeddedSettingsScreen(
             } else {
                 TopAppBar(
                     title = title,
+                    largeTitle = largeTitle,
                     navigationIcon = navigation,
                     actions = actions,
                     scrollBehavior = scrollBehavior,
@@ -335,20 +456,7 @@ private fun EmbeddedSettingsHost.EmbeddedSettingsScreen(
         Box(
             Modifier.fillMaxSize().padding(viewportPadding).consumeWindowInsets(padding).imePadding(),
         ) {
-            Column(
-                modifier = Modifier.fillMaxSize()
-                    .nestedScroll(scrollBehavior.nestedScrollConnection)
-                    .verticalScroll(scrollState)
-                    // Scroll behind the gesture area; keep only the final item clear of it.
-                    .padding(
-                        start = if (wide) 16.dp else 12.dp,
-                        top = contentSpacing,
-                        end = if (wide) 16.dp else 12.dp,
-                        bottom = 12.dp + padding.calculateBottomPadding(),
-                    ),
-                verticalArrangement = Arrangement.spacedBy(contentSpacing),
-                content = content,
-            )
+            content(padding.calculateBottomPadding())
         }
     }
 }
@@ -412,7 +520,7 @@ private fun EmbeddedSettingsHost.EmbeddedSettingsHome(
     val lyricsCount = remember(revision) { runCatching { controller.lyricsEntries().size }.getOrDefault(0) }
     val font = remember(revision) { runCatching { controller.currentSettings().fontManifest }.getOrDefault(settings.fontManifest) }
     val fontName = if (font.enabled) font.displayName else localizedText(ModuleText.ORIGINAL_FONT)
-    val effectCount = listOf(settings.futureBlurEnabled, settings.cjkKaraokeAnimationEnabled, settings.lyricEffectsOptimizationEnabled, settings.lyricsHdrEnabled)
+    val effectCount = listOf(settings.futureBlurEnabled, settings.cjkKaraokeAnimationEnabled, settings.lyricEffectsOptimizationEnabled, settings.lyricsHdrEnabled, settings.lyricsPronunciationEnabled && nativeBridge.supportsLyricsPronunciation(activity))
         .count { it }
     val dpi = if (settings.appleMusicDpiOverrideDpi == ModuleSettings.FOLLOW_SYSTEM_APPLE_MUSIC_DPI) {
         localizedText(ModuleText.SUMMARY_DPI_SYSTEM)
@@ -492,6 +600,12 @@ private fun EmbeddedSettingsHost.EmbeddedSettingsCategory(
                     settings.lyricsHdrEnabled && settings.lyricsHdrFlashbangEnabled, EmbeddedSvgIcon.LyricEffects
                 ) { value -> onEdit { it.copy(lyricsHdrEnabled = value || it.lyricsHdrEnabled, lyricsHdrFlashbangEnabled = value) } }
 
+                if (nativeBridge.supportsLyricsPronunciation(activity)) {
+                    Setting(ModuleText.LYRICS_PRONUNCIATION, ModuleText.LYRICS_PRONUNCIATION_SUMMARY,
+                        settings.lyricsPronunciationEnabled, EmbeddedSvgIcon.Translation) { value ->
+                        onEdit { it.copy(lyricsPronunciationEnabled = value) }
+                    }
+                }
                 Setting(ModuleText.BIDIRECTIONAL_LYRIC_BLUR, ModuleText.BIDIRECTIONAL_LYRIC_BLUR_SUMMARY,
                     settings.futureBlurEnabled, EmbeddedSvgIcon.LyricsBlur) { value -> onEdit { it.copy(futureBlurEnabled = value) } }
                 Setting(ModuleText.CJK_KARAOKE_ANIMATION, ModuleText.CJK_KARAOKE_ANIMATION_SUMMARY,
@@ -757,6 +871,8 @@ private fun EmbeddedSettingsHost.showEmbeddedPageDetails(activity: Activity, pag
             ModuleText.AI_CACHE_TITLE to ModuleText.AI_CACHE_RULE)
         EmbeddedSettingsPage.LLM_LYRICS -> listOf(
             ModuleText.LLM_LYRICS_ENABLED to ModuleText.LLM_LYRICS_ENABLED_SUMMARY,
+            ModuleText.LLM_LYRICS_TRANSLITERATION_ENABLED to
+                ModuleText.LLM_LYRICS_TRANSLITERATION_ENABLED_SUMMARY,
             ModuleText.LLM_LYRICS_BASE_URL to ModuleText.LLM_LYRICS_BASE_URL_SUMMARY,
             ModuleText.LLM_LYRICS_API_KEY to ModuleText.LLM_LYRICS_API_KEY_SUMMARY,
             ModuleText.LLM_LYRICS_MODEL to ModuleText.LLM_LYRICS_MODEL_SUMMARY,
