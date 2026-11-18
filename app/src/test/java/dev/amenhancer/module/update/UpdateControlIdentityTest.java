@@ -91,6 +91,16 @@ public class UpdateControlIdentityTest {
         assertNotNull(provider.call("share_prepare", null, null).getParcelable("action"));
         assertEquals(APPLE_UID, Binder.getCallingUid());
     }
+    @Test public void appleSigningRotationPreservesProviderAccess() throws Exception {
+        Context app = RuntimeEnvironment.getApplication();
+        PackageInfo apple = app.getPackageManager().getPackageInfo("com.apple.android.music", android.content.pm.PackageManager.GET_SIGNING_CERTIFICATES);
+        Signature original = apple.signingInfo.getApkContentsSigners()[0];
+        Signature rotated = new Signature(new byte[]{4, 5, 6});
+        shadowOf(apple.signingInfo).setSignatures(new Signature[]{rotated});
+        shadowOf(apple.signingInfo).setPastSigningCertificates(new Signature[]{original});
+        shadowOf(app.getPackageManager()).installPackage(apple);
+        assertTrue(provider.call("status", null, null).getBoolean("notifications"));
+    }
     @Test public void correctPackageNameWithAnUntrustedCertificateIsRejected() throws Exception {
         Context app = RuntimeEnvironment.getApplication();
         PackageInfo apple = app.getPackageManager().getPackageInfo("com.apple.android.music", android.content.pm.PackageManager.GET_SIGNING_CERTIFICATES);

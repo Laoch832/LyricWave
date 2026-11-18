@@ -6,10 +6,9 @@ import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Bundle
 import android.os.ResultReceiver
+import dev.amenhancer.module.AppleMusicSigningIdentity
 import dev.amenhancer.module.BuildConfig
 import dev.amenhancer.module.MomentsLinkContract as Contract
-import dev.amenhancer.module.update.UpdateControlProvider
-import java.security.MessageDigest
 
 /** Explicit Activity IPC works even when the host cannot resolve our provider. */
 internal object MomentsShareHandoff {
@@ -33,15 +32,12 @@ internal object MomentsShareHandoff {
     @Suppress("DEPRECATION")
     fun trustedOrigin(activity: Activity): Boolean = runCatching {
         val resultCaller = activity.callingPackage
-        if (resultCaller != null && resultCaller != "com.apple.android.music") return false
+        if (resultCaller != null && resultCaller != AppleMusicSigningIdentity.PACKAGE) return false
         val initial = if (resultCaller == null && Build.VERSION.SDK_INT >= 35) Api35.initialCaller(activity) else null
-        if (resultCaller == null && initial?.packageName != "com.apple.android.music") return false
-        val info = activity.packageManager.getPackageInfo("com.apple.android.music",
+        if (resultCaller == null && initial?.packageName != AppleMusicSigningIdentity.PACKAGE) return false
+        val info = activity.packageManager.getPackageInfo(AppleMusicSigningIdentity.PACKAGE,
             if (Build.VERSION.SDK_INT >= 28) PackageManager.GET_SIGNING_CERTIFICATES else PackageManager.GET_SIGNATURES)
-        val signers = if (Build.VERSION.SDK_INT >= 28) info.signingInfo?.apkContentsSigners else info.signatures
-        val officialSigner = signers?.singleOrNull()?.let { cert ->
-            MessageDigest.getInstance("SHA-256").digest(cert.toByteArray()).joinToString("") { "%02x".format(it) } == UpdateControlProvider.APPLE_CERT
-        } == true
+        val officialSigner = AppleMusicSigningIdentity.isOfficial(info)
         ShareCallerIdentity.accepts(resultCaller, initial, info.applicationInfo?.uid ?: -1, officialSigner)
     }.getOrDefault(false)
 

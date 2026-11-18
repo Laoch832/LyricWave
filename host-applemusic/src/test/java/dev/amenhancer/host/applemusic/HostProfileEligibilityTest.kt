@@ -33,6 +33,15 @@ class HostProfileEligibilityTest {
         assertFalse(supports(32, 1586, "6.5.2", false))
         assertFalse(supports(36, 1587, "6.5.2", false))
     }
+    @Test fun appleMusic701RequiresTheExact1622Profile() {
+        val packageName = "com.apple.android.music"
+        assertTrue(AppleMusicHostProfiles.isProductionBuild(packageName, "7.0.1", 1622))
+        assertFalse(AppleMusicHostProfiles.isProductionBuild(packageName, "7.0.1", 1614))
+        assertFalse(AppleMusicHostProfiles.isProductionBuild(packageName, "7.0.1", 1623))
+        assertFalse(AppleMusicHostProfiles.isProductionBuild(packageName, "7.0.1-beta", 1622))
+        assertTrue(AppleMusicHostProfiles.isProductionBuild(packageName, "7.0.0", 1614))
+    }
+
     @Test fun referenceAndUnverifiedTuplesAreNotProductionBuilds() {
         assertFalse(AppleMusicHostProfiles.isProductionBuild("com.apple.android.music","6.5.0",1580))
         assertTrue(AppleMusicHostProfiles.isProductionBuild("com.apple.android.music","7.0.0-beta",1606))

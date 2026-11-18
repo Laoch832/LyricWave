@@ -15,8 +15,8 @@ import android.os.Bundle
 import android.os.Process
 import android.provider.Settings
 import androidx.core.content.FileProvider
+import dev.amenhancer.module.AppleMusicSigningIdentity
 import dev.amenhancer.module.BuildConfig
-import java.security.MessageDigest
 import java.util.UUID
 import java.util.concurrent.ConcurrentHashMap
 
@@ -93,18 +93,16 @@ class UpdateControlProvider : ContentProvider() {
     private fun trustedCaller(app: Context, uid: Int): Boolean {
         if (uid == Process.myUid()) return true
         val packages = app.packageManager.getPackagesForUid(uid).orEmpty()
-        if ("com.apple.android.music" !in packages) return false
-        val info = app.packageManager.getPackageInfo("com.apple.android.music",
+        if (AppleMusicSigningIdentity.PACKAGE !in packages) return false
+        val info = app.packageManager.getPackageInfo(AppleMusicSigningIdentity.PACKAGE,
             if (Build.VERSION.SDK_INT >= 28) PackageManager.GET_SIGNING_CERTIFICATES else PackageManager.GET_SIGNATURES)
-        val signatures = if (Build.VERSION.SDK_INT >= 28) info.signingInfo?.apkContentsSigners else info.signatures
-        return signatures?.any { MessageDigest.getInstance("SHA-256").digest(it.toByteArray()).joinToString("") { b -> "%02x".format(b) } == APPLE_CERT } == true
+        return AppleMusicSigningIdentity.isOfficial(info)
     }
     override fun query(uri: Uri, projection: Array<out String>?, selection: String?, selectionArgs: Array<out String>?, sortOrder: String?): Cursor? = null
     override fun getType(uri: Uri): String? = null
     override fun insert(uri: Uri, values: ContentValues?): Uri? = null
     override fun delete(uri: Uri, selection: String?, selectionArgs: Array<out String>?) = 0
     override fun update(uri: Uri, values: ContentValues?, selection: String?, selectionArgs: Array<out String>?) = 0
-    companion object { const val APPLE_CERT = "88ba590ec2e1ea33c4458daf59489faee2cef297a9b4071e18cf82ef531100aa" }
 }
 
 internal data class TransferRequest(val id: Long, val connections: Int, val official: Boolean, val created: Long = android.os.SystemClock.elapsedRealtime(), val resumable: Boolean = true)

@@ -457,3 +457,11 @@ Day3（11-11）继续验收完整保存→恢复→编辑→原生中继流程�
 - 网站新附件首次实取成功，APK MIME=application/vnd.android.package-archive，Content-Disposition同时含filename及filename*=LyricWave-1.7.8.apk，无.bin后缀；[客户端配置API](https://lyricwave.canz-monkey.cn/api/v1/client-update)已实取为稳定v1.7.8/140，完整提交、固定证书、APK哈希、摘要、7项分项变化及提示全部匹配本版结构化配置。版本整数比较低于/等于/高于路径由现有测试覆盖，等于或高于不提示降级。
 - **本轮两个功能均已随正式版交付**：可操作的内建续传（默认开关、后台/备用入口、实测复用字节、锁与取消/降级/整包校验）及AI翻译/音译双轨补全（独立开关、真实客户端、独立缓存、串行合成与请求记录）。不是未接入的原型，不重复计算上一版自动换源。真实小bug完成4/6：#142设置变体、乱序通知倒退、进程重建覆盖选项、错误English标记绕过音译验证。检查范围已包含上游新旧Issues、44条新增反馈、下载/歌词/插件/宿主测试，尚无另外两个充分确认且可可靠验证的独立小bug，不降低验收或凑数。
 - 未完成项：1.7.7的23条DRM native=-20/component=-42650仍未解决；导航生命周期/左滑返回、真实DRM长播、原生设置加载、音译质量和网易云到微信封面/OEM通知仍需实体设备验收。新设置变体只有静态和模拟验证，绝不标成全设备兼容成功。GitHub/Vercel权限可用，不需要用户重新登录。后续安装1.7.8后强停重开Apple Music，继续采集真实反馈；本条记录为发布后记账，后续文档CI不改变已核实的Release源码SHA及附件，不另发功能版本。
+
+
+### 2026-11-18 手动热修：Apple Music 7.0.1/1622
+
+- Vector 日志中的澜音启动记录确认 7.0.1/1622 缺少生产 profile。目录本地化、Compose 状态和旧设置定位也出现成员不匹配。原始日志保留在私有工作区。
+- 隔离分支移植上游 [a3e6b3f5](https://github.com/Zennmn/AM-plus-plus/commit/a3e6b3f5cb7131560ccd6ef7b36e651492ad8b7e)，保留其作者与来源，延续澜音原有功能。本次仅移植宿主适配，其他上游更新留给计划维护。1622 的实验缓冲和下一首预加载仍缺本版专用契约。
+- 经 [公开发行记录](https://apkpure.net/apple-music-app/com.apple.android.music/versions) 取得 11 月 17 日的 1622 分包。二进制 Manifest 确认完整版本元组。base SHA-256 为 a77aa0d1e2bd8e3087dc3afff95bb6a65f64ef457ccfccb79b2e33d03b35f676。apksigner 验证 v3/v3.1 签名，签名链首证书与已有 Apple 指纹一致。实际 XAPK 的 723 项符号核验零失败。
+- 更新与分享入口继续核对系统提供的调用身份。对单签名 Apple Music 识别 Android 验证的签名轮换历史，对错误包名、陌生签名或多签名拒绝。新增 provider 跨进程轮换回归和精确版本门控回归。真机注入仍待验收。

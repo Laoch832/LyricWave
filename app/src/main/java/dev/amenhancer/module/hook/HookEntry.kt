@@ -108,7 +108,7 @@ class HookEntry : XposedModule() {
                         val build = targetBuild(application)
                         if (!bootstrap.supports(build)) {
                             ModernXposedRuntime.log(
-                                "embedded build ${build.displayName} is has no verified production profile",
+                                "embedded build ${build.displayName} has no verified production profile",
                             )
                             return
                         }
