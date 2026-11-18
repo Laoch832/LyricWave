@@ -860,3 +860,8 @@ HLE通过HleMetadataInstallation及AppleHookRegistrar.stageInstallation按表面
 回退先停新tuple或相应能力并恢复原生路径。配置/数据格式保持时通常无需反向迁移；格式变更须给出独立迁移/回退。已支持构建分别登记回归范围，未执行不填通过，不能扩大候选或改冻结基线替代证据。
 
 
+
+
+### Apple Music 7.0.1 / 1622
+
+复用上游适配提交 [a3e6b3f5](https://github.com/Zennmn/AM-plus-plus/commit/a3e6b3f5cb7131560ccd6ef7b36e651492ad8b7e)，新增独立精确 profile，不将1614映射套用于1622。设置、Compose状态、目录查询、歌词和布局等描述符须对实际1622安装包逐项核对；缺失的澜音独有实验契约继续降级，不能复制旧混淆名强行开启。静态核验不能替代实体设备注入和播放验收。
