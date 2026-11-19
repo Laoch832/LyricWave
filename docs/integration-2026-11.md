@@ -476,3 +476,10 @@ Day3（11-11）继续验收完整保存→恢复→编辑→原生中继流程�
 - 用户可见功能验收目标：播放页手选来源及切回自动时经过原生结果通道，失败保留歌词，切歌丢弃旧请求，成功时记住偏好。偏移按歌曲和来源分开持久化，基于原时轴反复调整，清理第三方缓存保留偏移和手动正文。实际挂载菜单仍需实体设备。
 - 完整合并提交 976c5c73a297d1e9f3d98242fda5b8ae2c8ad999。两项实际缺陷：无歌词后续曲目的缓存准备与宿主请求竞态（#145，实机源证据和本地 availability 策略测试），以及镜像返回 HTTP 200 的无效正文时后备源无法继续（回归模拟先返回 HTML，随后有效 TTML，并维持单次预算）。本轮只计 2/6，其他反馈和上游问题欠独立复现，热修与合并整理不重复计数。
 - 已运行核心、宿主和应用单元测试。真实播放控制测试验证后续曲目拒绝迟到结果、记住成功选项和失败降级、偏移按源分开、重复调整用原时间、清缓存保留偏移。AI 活动页含 Fake API 回归。局部失败包括合并编译修正及本地磁盘耗尽导致 Robolectric 临时文件错误，清理可重建旧产物后重跑应用测试成功。架构、10 profile/661 targets、glass、35 项 Python 和 actionlint 通过。Lint、构建、签名及正式发布以最终提交对应 CI 为准。
+
+#### 1.7.10 正式交付核验
+
+- 正式源码 [01ad1cdb](https://github.com/Laoch832/LyricWave/commit/01ad1cdbeaa048b5e7fd04ab5ab7ffdf598b4698)。北京时间 11 月 19 日计划执行。复核 [APKMirror 正式版](https://www.apkmirror.com/apk/apple/apple-music/apple-music-7-0-1-release/) 与 [公开 beta](https://www.apkmirror.com/apk/apple/apple-music/apple-music-7-0-0-beta-release/)，未发现较 1622 或 1613 新的对应渠道版本。
+- 本地 core 492、app 360、host-applemusic 509 项通过。最终提交的 [Android CI](https://github.com/Laoch832/LyricWave/actions/runs/44438198905) 与 [网站 CI](https://github.com/Laoch832/LyricWave/actions/runs/44438198984) 成功，完整单测、Lint、两种 APK、固定签名和部署检查通过后启动 [正式发布流程](https://github.com/Laoch832/LyricWave/actions/runs/44439284211)。发布四阶段均成功，目标为同一完整 SHA。
+- [v1.7.10](https://github.com/Laoch832/LyricWave/releases/tag/v1.7.10) 版本 142，发布者 Laoch832/173591322，draft=false、prerelease=false，标签与目标提交一致，GitHub 最新正式版指向本次。实际下载 5 个附件，APK 12239851 bytes，SHA256=f129f5d5fb7a0fcfa9c68278fb94bd5831245e7ac7de25f31dc33c19bcbd94f2。APK 签名及构建元数据匹配固定证书 4ec2f441139585083e476b596a503db7e6c459ec1ca1d9bcf59d815b6981da53。真实下载响应保留 .apk 文件名及 APK MIME，客户端 API 返回 1.7.10/142 及相同版本说明和包哈希。
+- 两项功能均随签名正式包交付，实际 APK 含换源和偏移运行路径。覆盖安装后的真机歌词菜单、切歌播放、DRM 偶发无声、网易云分享封面仍待验收。无账号或凭据阻塞。此段为发布后记账，源码提交和 Release 附件保持已核验状态。
