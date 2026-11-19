@@ -46,6 +46,15 @@ class EmbeddedLyricsPlaybackRuntimeTest {
         },
     )
 
+    private fun withRuntime(manager: EmbeddedContentManager, block: (EmbeddedLyricsPlaybackRuntime) -> Unit) {
+        val controls = runtime(manager)
+        try {
+            block(controls)
+        } finally {
+            controls.close()
+        }
+    }
+
     private fun drain() {
         while (jobs.isNotEmpty()) jobs.removeFirst().run()
         shadowOf(Looper.getMainLooper()).idle()
@@ -54,7 +63,7 @@ class EmbeddedLyricsPlaybackRuntimeTest {
     @Test fun switchPublishesOnlyTheCurrentSongAndKeepsPreferenceOnFailure() {
         val manager = manager()
         val ready = mutableListOf<Long>()
-        runtime(manager).use { controls ->
+        withRuntime(manager) { controls ->
             controls.bind({ id, raw -> "$id:$raw" }, { it is String }, ready::add)
             controls.onSongChanged(42)
             controls.select(42, "native", ttml, null, null)
@@ -90,7 +99,7 @@ class EmbeddedLyricsPlaybackRuntimeTest {
 
     @Test fun offsetIsAppliedToOriginalAndPersistsIndependentlyAcrossSources() {
         val manager = manager()
-        runtime(manager).use { controls ->
+        withRuntime(manager) { controls ->
             controls.bind({ _, raw -> raw }, { it is String }, {})
             controls.onSongChanged(42)
             controls.onSelected(42, native, ttml, ttml)
