@@ -105,6 +105,8 @@ data class ModuleSettings(
     val llmLyricsApiKey: String = "",
     /** Model name requested from the OpenAI-compatible endpoint. */
     val llmLyricsModel: String = "",
+    /** Optional HTTP headers shared by translation, transliteration and connection checks. */
+    val llmLyricsCustomHeaders: String = "",
     /** Send the user-selected thinking mode to the configured compatible endpoint. */
     val llmLyricsThinkingEnabled: Boolean = false,
     /** Selects the request shape used for thinking; [LlmLyricsThinkingFormat.NONE] sends none. */
@@ -138,11 +140,12 @@ data class ModuleSettings(
         const val MAX_LLM_LYRICS_BASE_URL_LENGTH = 2048
         const val MAX_LLM_LYRICS_API_KEY_LENGTH = 4096
         const val MAX_LLM_LYRICS_MODEL_LENGTH = 256
+        const val MAX_LLM_LYRICS_CUSTOM_HEADERS_LENGTH = 16 * 1024
 
         val DEFAULT_AUTOMATIC_LYRICS_SOURCE_ORDER: List<String> = listOf(
+            CustomLyricsSources.AM_NATIVE,
             CustomLyricsSources.AMLL,
             CustomLyricsSources.AM_LYRICS,
-            CustomLyricsSources.AM_NATIVE,
             CustomLyricsSources.LUNABEAT,
         )
 
@@ -186,6 +189,10 @@ data class ModuleSettings(
 
         fun normalizeLlmLyricsModel(value: String): String =
             value.trim().take(MAX_LLM_LYRICS_MODEL_LENGTH)
+
+        fun normalizeLlmLyricsCustomHeaders(value: String): String =
+            value.replace("\r\n", "\n").trim(' ', '\t', '\n')
+                .take(MAX_LLM_LYRICS_CUSTOM_HEADERS_LENGTH)
 
         fun normalizePhoneLiquidGlassBottomGapDp(value: Int): Int =
             value.coerceIn(MIN_PHONE_LIQUID_GLASS_BOTTOM_GAP_DP, MAX_PHONE_LIQUID_GLASS_BOTTOM_GAP_DP)

@@ -50,6 +50,19 @@ class GitHubContentEndpointsTest {
     }
 
     @Test
+    fun `an HTML success response from a mirror does not hide valid fallback lyrics`() {
+        val requested = mutableListOf<String>()
+        val transport = object : LyricHttpTransport {
+            override fun get(url: String): String {
+                requested.add(url)
+                return if (requested.size == 1) "<html>Mirror maintenance</html>" else AMLL_BODY
+            }
+        }
+        assertEquals(AMLL_BODY, AmllTtmlClient(transport).fetch(42L))
+        assertEquals(2, requested.size)
+    }
+
+    @Test
     fun `am lyrics index walks the same fallback`() {
         val transport = ScriptedTransport(failFirst = 1, body = INDEX_JSON)
 
@@ -128,7 +141,7 @@ class GitHubContentEndpointsTest {
     }
 
     private companion object {
-        const val AMLL_BODY = "<tt>lyrics</tt>"
+        const val AMLL_BODY = "<tt><body><div><p>lyrics</p></div></body></tt>"
         const val INDEX_JSON = """{"version":1,"layout":"artist-title-id","entries":[]}"""
     }
 }

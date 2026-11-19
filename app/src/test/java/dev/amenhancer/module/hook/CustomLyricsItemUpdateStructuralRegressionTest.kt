@@ -83,12 +83,12 @@ class CustomLyricsItemUpdateStructuralRegressionTest {
         assertTrue(target.contains("Handler(Looper.getMainLooper())"))
         assertTrue(target.contains("mainHandler.post {"))
         assertTrue(target.contains("resultBridge.onReplacementPublished(appleMusicId)"))
-        assertEquals(
-            // Configured lyrics, automatic fallback, cache refresh, LLM,
-            // native-ID submission repair and automatic lookup misses each publish.
-            7,
-            Regex("resultBridge\\.onReplacementPublished").findAll(target).count(),
-        )
+        val cacheObserver = target.substringAfter("LlmLyricsCacheUpdates.subscribe").substringBefore("registration.onClose(unsubscribeAiCache)")
+        assertTrue(cacheObserver.contains("llmSession?.onCacheChanged(id)"))
+        assertTrue(cacheObserver.contains("resultBridge.onReplacementPublished(id)"))
+        val sourceControls = target.substringAfter("registration.onClose(controls.bind(").substringBefore("val parseMethodResolution")
+        assertTrue(sourceControls.contains("currentSong.current()?.details?.appleMusicId == id"))
+        assertTrue(sourceControls.contains("resultBridge.onReplacementPublished(id)"))
         assertTrue(
             target.indexOf("CustomLyricsReplacementSession(") <
                 target.indexOf("LyricsResultSubmissionBridge.create("),
@@ -107,8 +107,9 @@ class CustomLyricsItemUpdateStructuralRegressionTest {
         assertTrue(target.contains("automaticLyricsLookupSources(settings, native != null, metadata)"))
         assertTrue(target.contains("autoSession?.configureSources(id, sources)"))
         assertTrue(target.contains("if (sources.isNotEmpty()) autoSession?.replacementFor(id) else null"))
-        assertTrue(target.contains("val base = manual ?: automatic ?: native"))
-        assertTrue(target.contains("parser.forSubmission(enhanced ?: base, id, nativeId)"))
+        assertTrue(target.contains("playback?.select(id, native, nativeRaw, manual, manualRaw)"))
+        assertTrue(target.contains("val base = explicit?.payload ?: manual ?: automatic ?: native"))
+        assertTrue(target.contains("parser.forSubmission(adjusted, id, nativeId)"))
         assertTrue(
             target.indexOf("val selectReplacement:") <
                 target.indexOf("LyricsResultSubmissionBridge.create("),
@@ -166,8 +167,16 @@ class CustomLyricsItemUpdateStructuralRegressionTest {
 
         assertTrue(target.contains("metadataOfAppleMusicId(id)"))
         assertTrue(target.contains("automaticLyricsLookupSources(config.settings(), true, metadata)"))
-        assertTrue(target.contains("(!session.isMapped(appleMusicId) || session.isAutoManaged(appleMusicId))"))
-        assertTrue(target.contains("if (manual == null && automaticEnabled)"))
+        assertTrue(
+            target.contains(
+                "!session.isMapped(appleMusicId) && playback?.preferredSource(appleMusicId) == null",
+            ),
+        )
+        assertTrue(
+            target.contains(
+                "if (explicit == null && manual == null && automaticEnabled && playback?.preferredSource(id) == null)",
+            ),
+        )
     }
 
     @Test

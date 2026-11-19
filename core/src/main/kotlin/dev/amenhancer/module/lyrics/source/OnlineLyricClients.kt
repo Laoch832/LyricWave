@@ -15,9 +15,16 @@ import org.json.JSONObject
 /**
  * AMLL TTML DB client. Direct, fixed URL per Adam ID; failures return null.
  */
-class AmllTtmlClient(private val transport: LyricHttpTransport, private val customRoot: String? = null) {
-    fun fetch(adamId: Long): String? =
-        transport.getFirstBytes(urls(adamId))?.toString(Charsets.UTF_8)
+class AmllTtmlClient(private val transport: LyricHttpTransport, private val customRoot: String? = null, private val onFailure: ((LyricFetchFailure) -> Unit)? = null) {
+    fun fetch(adamId: Long): String? {
+        if (adamId <= 0) return null
+        var invalid = false
+        val bytes = transport.getFirstValidBytes(urls(adamId)) { candidate ->
+            TtmlInputPolicy.isAcceptable(candidate.toString(Charsets.UTF_8)).also { if (!it) invalid = true }
+        }
+        if (bytes == null && invalid) onFailure?.invoke(LyricFetchFailure.INVALID)
+        return bytes?.toString(Charsets.UTF_8)
+    }
 
     /**
      * Every endpoint that can serve this track's TTML, most reachable first.
@@ -57,6 +64,27 @@ class AutoLyricsSourceResolver(
     fun fetch(appleMusicId: Long, budgetMs: Long = DEFAULT_CHAIN_BUDGET_MS): AutoLyricsCandidate? =
         fetch(appleMusicId, sources.map { it.name }, budgetMs = budgetMs)
 
+    /** Explicit user choice accepts timed line lyrics as well as word lyrics. */
+    fun fetchSelected(
+        appleMusicId: Long,
+        source: String,
+        onInvalid: (() -> Unit)? = null,
+    ): AutoLyricsCandidate? {
+        if (appleMusicId <= 0L) return null
+        val provider = sources.firstOrNull { it.name == source } ?: return null
+        val ttml = try {
+            provider.fetch(appleMusicId)
+        } catch (error: Throwable) {
+            onInvalid?.invoke()
+            return null
+        } ?: return null
+        if (!TtmlInputPolicy.isAcceptable(ttml)) {
+            onInvalid?.invoke()
+            return null
+        }
+        return AutoLyricsCandidate(source, ttml)
+    }
+
     /** Uses the caller's provider order and consults [cached] only at its recorded source. */
     fun fetch(
         appleMusicId: Long,
@@ -89,10 +117,18 @@ class AutoLyricsSourceResolver(
             amll: AmllTtmlClient,
             amLyrics: AmLyricsClient,
             lunabeat: LunabeatClient,
+            onFailure: ((LyricFetchFailure) -> Unit)? = null,
         ): AutoLyricsSourceResolver = AutoLyricsSourceResolver(
             listOf(
                 AutoLyricsSource(CustomLyricsSources.AMLL) { raw ->
-                    amll.fetch(raw)?.let { AmllTtmlFormatConverter.toAppleFormat(it).ttml }
+                    amll.fetch(raw)?.let { ttml ->
+                        try {
+                            AmllTtmlFormatConverter.toAppleFormat(ttml).ttml
+                        } catch (error: Throwable) {
+                            onFailure?.invoke(LyricFetchFailure.INVALID)
+                            null
+                        }
+                    }
                 },
                 AutoLyricsSource(CustomLyricsSources.LUNABEAT, lunabeat::fetch),
                 AutoLyricsSource(CustomLyricsSources.AM_LYRICS, amLyrics::fetch),
@@ -125,27 +161,58 @@ data class AmLyricsIndex(
 
 fun interface AmLyricsIndexProvider { fun index(): AmLyricsIndex? }
 
-class AmLyricsClient(private val transport: LyricHttpTransport, private val customRoot: String? = null,
-    private val indexProvider: AmLyricsIndexProvider? = null) {
+class AmLyricsClient(
+    private val transport: LyricHttpTransport,
+    private val customRoot: String? = null,
+    private val indexProvider: AmLyricsIndexProvider? = null,
+    private val onFailure: ((LyricFetchFailure) -> Unit)? = null,
+) {
     fun fetch(adamId: Long): String? {
         if (adamId <= 0L) return null
-        val entry = (indexProvider?.index() ?: fetchIndex())?.entryFor(adamId) ?: return null
+        val index = (indexProvider?.index() ?: fetchIndex()) ?: return null
+        val entry = index.entryFor(adamId)
+        if (entry == null) {
+            onFailure?.invoke(LyricFetchFailure.NOT_FOUND)
+            return null
+        }
         return fetchTtml(entry)
     }
 
-    fun fetchIndex(): AmLyricsIndex? = runCatching {
-        val bytes = transport.getFirstBytes(urls(INDEX_PATH)) ?: return@runCatching null
-        parseIndex(bytes.toString(Charsets.UTF_8))
-    }.getOrNull()
+    fun fetchIndex(): AmLyricsIndex? {
+        val bytes = transport.getFirstBytes(urls(INDEX_PATH)) ?: return null
+        val index = try {
+            parseIndex(bytes.toString(Charsets.UTF_8))
+        } catch (error: Throwable) {
+            onFailure?.invoke(LyricFetchFailure.INVALID)
+            return null
+        }
+        if (index == null) {
+            onFailure?.invoke(LyricFetchFailure.INVALID)
+            return null
+        }
+        return index
+    }
 
     fun fetchTtml(entry: AmLyricsIndexEntry): String? {
         if (!entry.enabled) return null
-        val path = encodePath(entry.path) ?: return null
+        val path = encodePath(entry.path)
+        if (path == null) {
+            onFailure?.invoke(LyricFetchFailure.INVALID)
+            return null
+        }
         val bytes = transport.getFirstBytes(urls(path)) ?: return null
-        if (bytes.size.toLong() != entry.sizeBytes) return null
-        if (!sha256(bytes).equals(entry.sha256, ignoreCase = true)) return null
+        if (bytes.size.toLong() != entry.sizeBytes ||
+            !sha256(bytes).equals(entry.sha256, ignoreCase = true)
+        ) {
+            onFailure?.invoke(LyricFetchFailure.INVALID)
+            return null
+        }
         val ttml = bytes.toString(Charsets.UTF_8)
-        return ttml.takeIf(TtmlInputPolicy::isAcceptable)
+        if (!TtmlInputPolicy.isAcceptable(ttml)) {
+            onFailure?.invoke(LyricFetchFailure.INVALID)
+            return null
+        }
+        return ttml
     }
 
     /**

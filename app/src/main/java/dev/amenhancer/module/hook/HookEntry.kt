@@ -174,12 +174,18 @@ class HookEntry : XposedModule() {
                         runCatching { application.contentResolver.call(android.net.Uri.parse("content://${dev.amenhancer.module.BuildConfig.APPLICATION_ID}.update-control"),
                             "feedback_config", null, android.os.Bundle().apply { putBoolean("enabled", config.settings().automaticFeedbackEnabled) }) }
                         val currentSong = CurrentSongIdentityCache()
+                        val settingsController = EmbeddedRuntimeSettingsController(
+                            application,
+                            session,
+                            currentSong = { currentSong.current()?.details },
+                        )
                         runCatching {
                             FeatureInstallation.installEmbedded(
                                 config,
                                 application,
                                 targetClassLoader,
                                 currentSong,
+                                settingsController,
                             )
                         }.onFailure { error ->
                             ModernXposedRuntime.log("embedded feature installation failed open", error)
@@ -189,11 +195,7 @@ class HookEntry : XposedModule() {
                         }.getOrNull()
                         val host = EmbeddedSettingsHost.install(
                             application,
-                            EmbeddedRuntimeSettingsController(
-                                application,
-                                session,
-                                currentSong = { currentSong.current()?.details },
-                            ),
+                            settingsController,
                             activityMatcher = AppleMusicHostFactory.settingsActivityMatcher(application, playerActivityClass),
                             nativeBridgeFactory = { onOpen -> AppleMusicHostFactory.settingsViewBridge(application, onOpen) },
                         )

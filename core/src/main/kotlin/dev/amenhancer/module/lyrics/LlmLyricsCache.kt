@@ -193,6 +193,13 @@ class FileLlmLyricsCache(
         val endpoint = config.endpoint ?: return null
         val model = config.normalizedModel
         if (model.isEmpty()) return null
+        val headers = config.requestHeaders ?: return null
+        // Header values may contain credentials: keep only their identity in this cache.
+        val headersFingerprint = if (headers.isEmpty()) "" else CustomLyricsFilePolicy.sha256(
+            JSONArray().apply {
+                headers.toSortedMap().forEach { (name, value) -> put(JSONArray().put(name).put(value)) }
+            }.toString().toByteArray(Charsets.UTF_8),
+        )
         val (targetLanguage, promptVersion) = when (kind) {
             TRANSLATION_KIND -> LlmLyricsClient.TARGET_LANGUAGE to LlmLyricsClient.PROMPT_VERSION
             TRANSLITERATION_KIND ->
@@ -203,6 +210,7 @@ class FileLlmLyricsCache(
             targetLanguage = targetLanguage,
             endpoint = endpoint,
             model = model,
+            headersFingerprint = headersFingerprint,
             thinkingFormat = config.thinkingFormat,
             thinkingEnabled = config.effectiveThinkingEnabled,
             thinkingEffort = config.effectiveThinkingEffort,
@@ -231,6 +239,7 @@ class FileLlmLyricsCache(
         .put("targetLanguage", slot.targetLanguage)
         .put("endpoint", slot.endpoint)
         .put("model", slot.model)
+        .put("headersFingerprint", slot.headersFingerprint)
         .put("thinkingFormat", slot.thinkingFormat.storageValue)
         .put("thinkingEnabled", slot.thinkingEnabled)
         .put("thinkingEffort", slot.thinkingEffort.storageValue)
@@ -245,7 +254,7 @@ class FileLlmLyricsCache(
             LEGACY_EFFORT_ENTRY_VERSION,
             LEGACY_THINKING_FORMAT_ENTRY_VERSION
             -> readLegacyEntry(raw, raw.optInt("version", 0))
-            ENTRY_VERSION -> readCurrentEntry(raw)
+            LEGACY_SLOT_ENTRY_VERSION, ENTRY_VERSION -> readCurrentEntry(raw)
             else -> null
         }
     }.getOrNull()
@@ -297,10 +306,15 @@ class FileLlmLyricsCache(
         if (!isAcceptableTtml(ttml)) return null
         val thinkingFormat = decodeFormat(raw) ?: return null
         val thinkingEffort = decodeEffort(raw) ?: return null
+        val headersFingerprint = raw.optString("headersFingerprint")
+        if (headersFingerprint.isNotEmpty() &&
+            (headersFingerprint.length != SHA256_LENGTH || headersFingerprint.any { it !in "0123456789abcdef" })
+        ) return null
         return Slot(
             targetLanguage = raw.optString("targetLanguage"),
             endpoint = raw.optString("endpoint"),
             model = raw.optString("model"),
+            headersFingerprint = headersFingerprint,
             thinkingFormat = thinkingFormat,
             thinkingEnabled = raw.optBoolean("thinkingEnabled", false),
             thinkingEffort = thinkingEffort,
@@ -465,6 +479,7 @@ class FileLlmLyricsCache(
         val targetLanguage: String,
         val endpoint: String,
         val model: String,
+        val headersFingerprint: String = "",
         val thinkingFormat: LlmLyricsThinkingFormat,
         val thinkingEnabled: Boolean,
         val thinkingEffort: LlmLyricsThinkingEffort,
@@ -475,6 +490,7 @@ class FileLlmLyricsCache(
             targetLanguage == identity.targetLanguage &&
                 endpoint == identity.endpoint &&
                 model == identity.model &&
+                headersFingerprint == identity.headersFingerprint &&
                 thinkingFormat == identity.thinkingFormat &&
                 thinkingEnabled == identity.thinkingEnabled &&
                 thinkingEffort == identity.thinkingEffort &&
@@ -486,6 +502,7 @@ class FileLlmLyricsCache(
         val targetLanguage: String,
         val endpoint: String,
         val model: String,
+        val headersFingerprint: String,
         val thinkingFormat: LlmLyricsThinkingFormat,
         val thinkingEnabled: Boolean,
         val thinkingEffort: LlmLyricsThinkingEffort,
@@ -496,6 +513,7 @@ class FileLlmLyricsCache(
             targetLanguage = targetLanguage,
             endpoint = endpoint,
             model = model,
+            headersFingerprint = headersFingerprint,
             thinkingFormat = thinkingFormat,
             thinkingEnabled = thinkingEnabled,
             thinkingEffort = thinkingEffort,
@@ -517,8 +535,9 @@ class FileLlmLyricsCache(
         const val TRANSLITERATION_KIND = "transliteration"
         const val TRANSLITERATION_TARGET_LANGUAGE = "Latn"
         val SLOT_KINDS = listOf(TRANSLATION_KIND, TRANSLITERATION_KIND)
-        // Old clients must reject the two-slot envelope.
-        const val ENTRY_VERSION = 4
+        // Old clients must not reuse results produced with custom request headers.
+        const val ENTRY_VERSION = 5
+        const val LEGACY_SLOT_ENTRY_VERSION = 4
         const val LEGACY_ENTRY_VERSION = 1
         const val LEGACY_EFFORT_ENTRY_VERSION = 2
         const val LEGACY_THINKING_FORMAT_ENTRY_VERSION = 3

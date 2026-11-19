@@ -1,6 +1,7 @@
 package dev.amenhancer.module.hook
 
 import android.app.Application
+import android.app.Activity
 import android.content.res.Resources
 import android.view.Gravity
 import android.view.View
@@ -98,6 +99,7 @@ object AppleMusicHostFactory {
         lyricsTypefaceSession: LyricsTypefaceResourceBinding,
         currentSong: CurrentSongIdentityCache = CurrentSongIdentityCache(),
         autoLyricsRuntime: AutoLyricsRuntime? = null,
+        onOpenLyricsMenu: (Activity) -> Unit = {},
     ): TargetAdaptation {
         val build = targetBuild(application)
         val profile = checkNotNull(dev.amenhancer.host.applemusic.AppleMusicHostProfiles.find(build.packageName, build.versionName, build.versionCode))
@@ -115,6 +117,7 @@ object AppleMusicHostFactory {
             symbols = resolver,
             currentSong = currentSong,
             autoLyricsRuntime = autoLyricsRuntime,
+            installMenu = { registration -> AppleMusicLyricsMenuTarget(profile, classLoader, onOpenLyricsMenu).install(registration) },
         )
         val karaokeAnimation = AppleMusicCjkKaraokeAnimationTarget(
             symbols = resolver,
