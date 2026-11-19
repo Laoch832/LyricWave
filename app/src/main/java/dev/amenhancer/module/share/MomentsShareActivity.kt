@@ -242,7 +242,7 @@ internal class MomentsSharePanel(private val owner: Activity, private val intent
             tick.run(); handler.postDelayed(timeout, (deadline - SystemClock.elapsedRealtime()).coerceAtLeast(0))
             if (owner is MomentsShareActivity || owner is MomentsShareHandoffActivity) {
                 try {
-                    val launch = packageManager.getLaunchIntentForPackage(Contract.INTERMEDIARY_PACKAGE)
+                    val launch = NetEaseShareLaunch.resolve(packageManager)
                     if (launch == null) fail(Contract.RESULT_MISSING)
                     else { startActivity(launch); handler.postDelayed(poll, 800) }
                 } catch (_: Exception) { fail(Contract.RESULT_LAUNCH) }

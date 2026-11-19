@@ -69,6 +69,7 @@ class EmbeddedShareRelayTest {
     private val url = "https://music.apple.com/tr/album/title/111?i=123&ls=1"
     private val expected = url.replace("/tr/", "/cn/")
     private val artwork = "https://is1-ssl.mzstatic.com/image/thumb/cover/100x100bb.jpg"
+    private val netEaseLauncher = "com.netease.cloudmusic.activity.IconChangeDefaultAlias"
     private lateinit var provider: UnavailableProvider
     private fun views(v: View): List<View> = listOf(v) + if (v is ViewGroup) (0 until v.childCount).flatMap { views(v.getChildAt(it)) } else emptyList()
     private fun drain() { repeat(30) { shadowOf(Looper.getMainLooper()).idle(); Thread.sleep(10) } }
@@ -87,9 +88,18 @@ class EmbeddedShareRelayTest {
         shadowOf(app.packageManager).installPackage(apple)
         val info = ApplicationInfo().apply { packageName = Contract.INTERMEDIARY_PACKAGE; uid = 34567 }
         shadowOf(app.packageManager).installPackage(PackageInfo().apply { packageName = info.packageName; applicationInfo = info })
-        shadowOf(app.packageManager).addResolveInfoForIntent(Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_LAUNCHER).setPackage(info.packageName), ResolveInfo().apply {
-            activityInfo = ActivityInfo().apply { packageName = info.packageName; name = "MainActivity"; applicationInfo = info; exported = true }
-        })
+        val launcher = Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_LAUNCHER).setPackage(info.packageName)
+        fun registerLauncher(component: String, process: String, priority: Int) {
+            shadowOf(app.packageManager).addResolveInfoForIntent(launcher, ResolveInfo().apply {
+                this.priority = priority
+                activityInfo = ActivityInfo().apply {
+                    packageName = info.packageName; name = component; applicationInfo = info; exported = true
+                    processName = process
+                }
+            })
+        }
+        registerLauncher("com.squareup.leakcanary.internal.DisplayLeakActivity", "${info.packageName}:leakcanary", 100)
+        registerLauncher(netEaseLauncher, info.packageName, 0)
     }
     private fun editor(resolver: (String) -> MomentsSongMetadata? = { MomentsSongMetadata("Title", "Artist", artwork) }): org.robolectric.android.controller.ActivityController<AppleActivity> {
         val controller = Robolectric.buildActivity(AppleActivity::class.java).setup().visible()
@@ -99,7 +109,7 @@ class EmbeddedShareRelayTest {
             .putExtra(Intent.EXTRA_INITIAL_INTENTS, arrayOf(relay)), resolver))
         return controller
     }
-    private fun handoff(host: Activity): org.robolectric.android.controller.ActivityController<MomentsShareHandoffActivity> {
+    private fun handoff(host: Activity, focus: Boolean = true): org.robolectric.android.controller.ActivityController<MomentsShareHandoffActivity> {
         val launched = shadowOf(host).nextStartedActivityForResult
         shadowOf(host).nextStartedActivity
         assertEquals(MomentsShareHandoff.REQUEST_CODE, launched.requestCode)
@@ -110,7 +120,7 @@ class EmbeddedShareRelayTest {
         val input = Intent.CREATOR.createFromParcel(parcel); parcel.recycle()
         val controller = Robolectric.buildActivity(MomentsShareHandoffActivity::class.java, input)
         shadowOf(controller.get()).setCallingPackage("com.apple.android.music")
-        return controller.setup().visible().postResume()
+        return controller.setup().visible().postResume().apply { get().onWindowFocusChanged(focus) }
     }
     @Test fun `framework result receiver survives parcel roundtrip`() {
         var result = -99
@@ -133,14 +143,15 @@ class EmbeddedShareRelayTest {
             views(root).filterIsInstance<EditText>()[0].setText("Edited title")
             views(root).filterIsInstance<EditText>()[1].setText("Edited artist")
             views(root).filterIsInstance<Button>().single { it.text == "Open NetEase sharing" }.performClick()
-            val module = handoff(host.get())
+            val module = handoff(host.get(), focus = false)
             drain()
             try {
+                assertNull("NetEase must not launch before the relay owns the foreground window", shadowOf(module.get()).nextStartedActivity)
+                module.get().onWindowFocusChanged(true)
                 drain()
                 assertTrue(views(module.get().window.decorView).filterIsInstance<EditText>().isEmpty())
                 val launched = shadowOf(module.get()).nextStartedActivity
-                assertNotNull("no launch; approved=" + module.get().javaClass.getDeclaredField("approved").apply { isAccessible = true }.get(module.get()) + "; callback=" + module.get().javaClass.getDeclaredField("callback").apply { isAccessible = true }.get(module.get()), launched)
-                assertEquals(Contract.INTERMEDIARY_PACKAGE, launched!!.component!!.packageName)
+                assertEquals(ComponentName(Contract.INTERMEDIARY_PACKAGE, netEaseLauncher), launched?.component)
                 shadowOf(Looper.getMainLooper()).idleFor(Duration.ofSeconds(2)); drain()
                 assertEquals(expected, delivered!!.getStringExtra(Contract.URL))
                 assertEquals("Edited title", delivered!!.getStringExtra(Contract.TITLE))
@@ -178,6 +189,7 @@ class EmbeddedShareRelayTest {
         try {
             shadowOf(Looper.getMainLooper()).idleFor(Duration.ofSeconds(31)); drain()
             assertFalse(views(root).filterIsInstance<TextView>().any { it.text.toString().startsWith("NetEase share panel opened") })
+            assertTrue(views(root).filterIsInstance<TextView>().any { "[N0]" in it.text })
             assertTrue(module.get().isFinishing); assertEquals(0, provider.calls)
         } finally { module.pause().stop().destroy(); dialog.dismiss(); host.pause().stop().destroy() }
     }

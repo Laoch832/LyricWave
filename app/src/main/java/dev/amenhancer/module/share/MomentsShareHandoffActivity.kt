@@ -20,6 +20,7 @@ class MomentsShareHandoffActivity : Activity() {
     private var completed = false
     private var started = false
     private var resumed = false
+    private var focused = false
     private var approved = false
     private val handler = Handler(Looper.getMainLooper())
     private val timeout = Runnable { complete(MomentsShareHandoff.CANCELLED) }
@@ -74,11 +75,24 @@ class MomentsShareHandoffActivity : Activity() {
         resumed = true
         startIfApproved()
     }
+    override fun onWindowFocusChanged(hasFocus: Boolean) {
+        super.onWindowFocusChanged(hasFocus)
+        focused = hasFocus
+        startIfApproved()
+    }
+    override fun onPause() {
+        resumed = false
+        focused = false
+        super.onPause()
+    }
     private fun startIfApproved() {
-        if (!completed && !started && resumed && approved) {
+        if (!completed && !started && resumed && focused && approved) {
             started = true
-            if (deadline <= SystemClock.elapsedRealtime()) complete(MomentsShareHandoff.CANCELLED)
-            else panel?.startConfirmedShare(requestId, deadline)
+            // Leave time for the relay's terminal diagnosis to reach the caller before
+            // either Activity's watchdog ends the handoff.
+            val panelDeadline = deadline - 1_500
+            if (panelDeadline <= SystemClock.elapsedRealtime()) complete(MomentsShareHandoff.CANCELLED)
+            else panel?.startConfirmedShare(requestId, panelDeadline)
         }
     }
     private fun complete(code: Int, detail: String? = null, rejection: Int = 0) {

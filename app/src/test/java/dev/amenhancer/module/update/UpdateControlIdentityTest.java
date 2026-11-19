@@ -84,6 +84,7 @@ public class UpdateControlIdentityTest {
         android.content.pm.ResolveInfo launch = new android.content.pm.ResolveInfo();
         launch.activityInfo = new android.content.pm.ActivityInfo();
         launch.activityInfo.packageName = "com.netease.cloudmusic"; launch.activityInfo.name = "MainActivity";
+        launch.activityInfo.exported = true;
         launch.activityInfo.applicationInfo = new ApplicationInfo();
         launch.activityInfo.applicationInfo.packageName = launch.activityInfo.packageName;
         shadowOf(app.getPackageManager()).addResolveInfoForIntent(new Intent(Intent.ACTION_MAIN)

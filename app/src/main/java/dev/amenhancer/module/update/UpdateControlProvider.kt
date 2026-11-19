@@ -37,7 +37,7 @@ class UpdateControlProvider : ContentProvider() {
     private fun execute(app: Context, method: String, extras: Bundle?): Bundle {
         return when (method) {
             "share_prepare" -> {
-                val launch = app.packageManager.getLaunchIntentForPackage(dev.amenhancer.module.MomentsLinkContract.INTERMEDIARY_PACKAGE)
+                val launch = dev.amenhancer.module.share.NetEaseShareLaunch.resolve(app.packageManager)
                 Bundle().apply {
                     if (launch == null) putInt("code", dev.amenhancer.module.MomentsLinkContract.RESULT_MISSING)
                     else putParcelable("action", PendingIntent.getActivity(app, 7101, launch,
