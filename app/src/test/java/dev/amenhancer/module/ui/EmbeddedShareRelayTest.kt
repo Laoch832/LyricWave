@@ -154,7 +154,7 @@ class EmbeddedShareRelayTest {
                 .single { it.text == "Open NetEase sharing" }.performClick()
             assertEquals(MomentsShareHandoff.ACTION, shadowOf(host.get()).nextStartedActivity?.action)
             val options = requireNotNull(host.get().shareLaunchOptions)
-            assertTrue(android.app.ActivityOptions.fromBundle(options).isShareIdentityEnabled)
+            assertTrue(options.getBoolean("android:activity.shareIdentity"))
             assertTrue("No positive request code should be sent to Apple Music", (host.get().shareResultCode ?: -1) < 0)
             assertTrue(views(dialog.window!!.decorView).filterIsInstance<Button>().single { it.text == "Stop waiting" }.isShown)
         } finally { dialog.dismiss(); host.pause().stop().destroy() }
