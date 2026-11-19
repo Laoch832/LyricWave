@@ -52,6 +52,19 @@ class EmbeddedShareRelayTest {
     }
 
     class AppleActivity : Activity() {
+        var shareLaunchOptions: Bundle? = null
+        var shareResultCode: Int? = null
+
+        override fun startActivity(intent: Intent, options: Bundle?) {
+            if (intent.action == MomentsShareHandoff.ACTION) shareLaunchOptions = options
+            super.startActivity(intent, options)
+        }
+
+        override fun startActivityForResult(intent: Intent, requestCode: Int, options: Bundle?) {
+            if (intent.action == MomentsShareHandoff.ACTION) shareResultCode = requestCode
+            super.startActivityForResult(intent, requestCode, options)
+        }
+
         override fun sendOrderedBroadcast(intent: Intent, receiverPermission: String?, resultReceiver: BroadcastReceiver?, scheduler: Handler?, initialCode: Int, initialData: String?, initialExtras: Bundle?) {
             throw AssertionError("Apple Music must not impersonate the module broadcast sender")
         }
@@ -131,6 +144,20 @@ class EmbeddedShareRelayTest {
         val restored = ResultReceiver.CREATOR.createFromParcel(parcel); parcel.recycle()
         restored.send(100, Bundle()); drain()
         assertEquals(100, result)
+    }
+    @Config(sdk = [35])
+    @Test fun `modern handoff shares system identity without requesting a native Apple Music result`() {
+        val host = editor()
+        val dialog = ShadowAlertDialog.getLatestAlertDialog()
+        try {
+            views(dialog.window!!.decorView).filterIsInstance<Button>()
+                .single { it.text == "Open NetEase sharing" }.performClick()
+            assertEquals(MomentsShareHandoff.ACTION, shadowOf(host.get()).nextStartedActivity?.action)
+            val options = requireNotNull(host.get().shareLaunchOptions)
+            assertTrue(android.app.ActivityOptions.fromBundle(options).isShareIdentityEnabled)
+            assertTrue("No positive request code should be sent to Apple Music", (host.get().shareResultCode ?: -1) < 0)
+            assertTrue(views(dialog.window!!.decorView).filterIsInstance<Button>().single { it.text == "Stop waiting" }.isShown)
+        } finally { dialog.dismiss(); host.pause().stop().destroy() }
     }
     @Test fun `confirmed edited sharing works without any provider and has no second editor`() {
         var delivered: Intent? = null

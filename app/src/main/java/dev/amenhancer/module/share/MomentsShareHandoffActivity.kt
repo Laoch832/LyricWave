@@ -99,8 +99,6 @@ class MomentsShareHandoffActivity : Activity() {
         if (completed) return
         completed = true; handler.removeCallbacks(timeout); panel?.close()
         callback?.send(code, Bundle().apply { detail?.let { putString(MomentsShareRelay.DETAIL, it) }; if (rejection in 1..7) putInt(MomentsShareHandoff.REJECTION, rejection) })
-        // The capability reports the outcome; do not feed an unrelated success into native Activity results.
-        setResult(RESULT_CANCELED)
         finish()
     }
     override fun onDestroy() {

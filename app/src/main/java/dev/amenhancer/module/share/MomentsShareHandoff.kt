@@ -28,7 +28,7 @@ internal object MomentsShareHandoff {
             .putExtra(Contract.ARTWORK, artwork).putExtra(Contract.REQUEST_ID, id)
             .putExtra(DEADLINE, deadline).putExtra(CALLBACK, callback)
 
-    /** getCallingPackage is supplied by Android's Activity result relationship, never by intent extras. */
+    /** Android supplies either the result relationship or the initial Activity caller. */
     @Suppress("DEPRECATION")
     fun trustedOrigin(activity: Activity): Boolean = runCatching {
         val resultCaller = activity.callingPackage

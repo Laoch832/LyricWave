@@ -265,7 +265,9 @@ internal class MomentsSharePanel(private val owner: Activity, private val intent
                 try {
                     val handoff = MomentsShareHandoff.intent(url, title, artist, artwork, id, deadline, callback)
                     if (android.os.Build.VERSION.SDK_INT >= 35) {
-                        owner.startActivityForResult(handoff, MomentsShareHandoff.REQUEST_CODE,
+                        // The ResultReceiver already reports the outcome. Android 15+ can
+                        // authenticate the caller without delivering a result to Apple Music.
+                        owner.startActivity(handoff,
                             android.app.ActivityOptions.makeBasic().setShareIdentityEnabled(true).toBundle())
                     } else owner.startActivityForResult(handoff, MomentsShareHandoff.REQUEST_CODE)
                 } catch (error: Exception) {
