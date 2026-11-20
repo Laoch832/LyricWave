@@ -25,6 +25,7 @@ class MediaDownloadActivity : Activity() {
     private lateinit var progress: ProgressBar
     private lateinit var tokenInput: EditText
     private lateinit var choose: Spinner
+    private lateinit var identityInput: EditText
     private val handler = Handler(Looper.getMainLooper())
     private var polling = false
 
@@ -37,6 +38,10 @@ class MediaDownloadActivity : Activity() {
         "ALAC Hi-Res · >48 kHz" to "alac-hires",
         "Dolby Atmos · E-AC-3 JOC" to "atmos",
         "Dolby Digital · AC-3" to "ac3",
+        "MV MP4 · H.264 720p" to "video:h264:720",
+        "MV MP4 · H.264 1080p" to "video:h264:1080",
+        "MV MP4 · H.265 1080p" to "video:h265:1080",
+        "MV MP4 · H.265 2160p（需要高等级 DRM）" to "video:h265:2160",
     )
     private val mediaId get() = intent.getLongExtra(MediaDownloadService.EXTRA_MEDIA_ID, -1L)
     private val mediaTitle get() = intent.getStringExtra(MediaDownloadService.EXTRA_TITLE).orEmpty()
@@ -63,12 +68,19 @@ class MediaDownloadActivity : Activity() {
         }
         label(mediaTitle.ifBlank { "Apple Music · " + mediaId }, 21f)
         if (mediaArtist.isNotBlank()) label(mediaArtist, 14f)
-        label("选择下载音质（以该曲目和当前授权实际支持为准）")
+        label("选择下载音质／MV 视频画质（以资源及授权为准）")
         choose = Spinner(this)
         choose.adapter = ArrayAdapter(
             this, android.R.layout.simple_spinner_dropdown_item, formats.map { it.first }
         )
         root.addView(choose, LinearLayout.LayoutParams(-1, px(52)))
+        label("可选：粘贴 Apple Music 歌曲/MV 链接或资源 ID。下载 MV 时应提供 MV 的 ID，而非歌曲的 ID。")
+        identityInput = EditText(this).apply {
+            hint = "https://music.apple.com/... 或媒体 ID"
+            inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_URI
+            setSingleLine(true)
+        }
+        root.addView(identityInput, LinearLayout.LayoutParams(-1, px(52)))
         val prefs = getSharedPreferences("lyricwave_media_options", MODE_PRIVATE)
         val last = prefs.getString("codec", "aac")
         choose.setSelection(formats.indexOfFirst { it.second == last }.coerceAtLeast(0))
@@ -97,14 +109,21 @@ class MediaDownloadActivity : Activity() {
                     toast("请先配置媒体访问凭据")
                     return@setOnClickListener
                 }
-                val codec = formats[choose.selectedItemPosition].second
-                prefs.edit().putString("codec", codec).apply()
+                val selection = formats[choose.selectedItemPosition].second
+                val sections = selection.split(":")
+                val kind = if (sections[0] == "video") "video" else "song"
+                val codec = if (kind == "video") sections[1] else selection
+                val height = if (kind == "video") sections[2].toInt() else 0
+                val requestedId = parseRequestedId(identityInput.text.toString()) ?: mediaId
+                prefs.edit().putString("codec", selection).apply()
                 val service = Intent(this, MediaDownloadService::class.java)
                     .setAction(MediaDownloadService.ACTION_START)
-                    .putExtra(MediaDownloadService.EXTRA_MEDIA_ID, mediaId)
+                    .putExtra(MediaDownloadService.EXTRA_MEDIA_ID, requestedId)
                     .putExtra(MediaDownloadService.EXTRA_TITLE, mediaTitle)
                     .putExtra(MediaDownloadService.EXTRA_ARTIST, mediaArtist)
                     .putExtra(MediaDownloadService.EXTRA_CODEC, codec)
+                    .putExtra(MediaDownloadService.EXTRA_KIND, kind)
+                    .putExtra(MediaDownloadService.EXTRA_HEIGHT, height)
                 if (Build.VERSION.SDK_INT >= 26) startForegroundService(service) else startService(service)
                 tokenInput.text.clear()
             } catch (_: Exception) {
@@ -134,6 +153,18 @@ class MediaDownloadActivity : Activity() {
         status = label("尚未开始")
     }
 
+    private fun parseRequestedId(raw: String): Long? {
+        val value = raw.trim()
+        if (value.isEmpty()) return null
+        value.toLongOrNull()?.takeIf { it > 0 }?.let { return it }
+        return runCatching {
+            val uri = android.net.Uri.parse(value)
+            require(uri.scheme == "https" && uri.host == "music.apple.com")
+            (uri.getQueryParameter("i") ?: uri.lastPathSegment)
+                ?.toLongOrNull()?.takeIf { it > 0 }
+        }.getOrNull() ?: throw IllegalArgumentException("invalid Apple Music URL")
+    }
+
     private fun toast(value: String) = Toast.makeText(this, value, Toast.LENGTH_SHORT).show()
 
     private val refresh = object : Runnable {
@@ -144,7 +175,7 @@ class MediaDownloadActivity : Activity() {
             progress.isIndeterminate = MediaDownloadTransfer.running.get() && s.total <= 0
             progress.progress = percent
             status.text = when (s.phase) {
-                MediaDownloadPhase.COMPLETED -> "已保存到 Music/LyricWave/：" + s.outputName
+                MediaDownloadPhase.COMPLETED -> "已保存到 Android 媒体库：" + s.outputName
                 MediaDownloadPhase.FAILED -> "下载失败：无法获取媒体或授权，或引擎不受当前设备支持"
                 MediaDownloadPhase.CANCELLED -> "下载已取消"
                 MediaDownloadPhase.READY -> "尚未开始"

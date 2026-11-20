@@ -35,4 +35,31 @@ internal object MediaStorePublisher {
             throw failure
         }
     }
+
+    fun publishVideo(context: Context, input: File, artist: String, title: String): String {
+        require(Build.VERSION.SDK_INT >= 29) { "android_storage_unsupported" }
+        require(input.isFile && input.length() > 0) { "empty_video_output" }
+        val invalid = Regex("[\\p{Cntrl}/\\\\:*?\"<>|]")
+        val name = (artist.take(72) + " - " + title.take(96))
+            .replace(invalid, "_").trim().ifBlank { "Apple Music MV" } + ".mp4"
+        val resolver = context.contentResolver
+        val values = ContentValues().apply {
+            put(MediaStore.MediaColumns.DISPLAY_NAME, name)
+            put(MediaStore.MediaColumns.MIME_TYPE, "video/mp4")
+            put(MediaStore.MediaColumns.RELATIVE_PATH, "Movies/LyricWave/")
+            put(MediaStore.MediaColumns.IS_PENDING, 1)
+        }
+        val uri = resolver.insert(MediaStore.Video.Media.EXTERNAL_CONTENT_URI, values)
+            ?: error("video_store_insert_failed")
+        try {
+            resolver.openOutputStream(uri, "w")?.use { output ->
+                input.inputStream().use { source -> source.copyTo(output, 1024 * 1024) }
+            } ?: error("video_store_open_failed")
+            resolver.update(uri, ContentValues().apply { put(MediaStore.MediaColumns.IS_PENDING, 0) }, null, null)
+            return name
+        } catch (failure: Exception) {
+            resolver.delete(uri, null, null)
+            throw failure
+        }
+    }
 }
