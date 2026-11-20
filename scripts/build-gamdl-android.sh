@@ -59,8 +59,7 @@ mkdir -p "$DEST"
 rm -f "$DEST"/gamdl-4.1.1-*.whl
 (
     cd "$TEMP"
-    "$PYTHON" -m cibuildwheel --platform android \
-        --only cp313-android_arm64_v8a \
+    "$PYTHON" -m cibuildwheel --only cp313-android_arm64_v8a \
         --output-dir "$DEST"
 )
 mapfile -t WHEELS < <(find "$DEST" -maxdepth 1 -type f -name 'gamdl-4.1.1-*.whl')
