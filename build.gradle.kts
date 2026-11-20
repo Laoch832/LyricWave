@@ -1,4 +1,5 @@
 plugins {
+    id("com.chaquo.python") version "17.2.0" apply false
     id("com.android.application") version "9.3.2" apply false
     id("com.android.library") version "9.3.2" apply false
     id("com.android.kotlin.multiplatform.library") version "9.3.2" apply false

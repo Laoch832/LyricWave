@@ -2,6 +2,7 @@ import java.util.Properties
 
 plugins {
     id("com.android.application")
+    id("com.chaquo.python")
     id("org.jetbrains.kotlin.plugin.compose")
 }
 
@@ -37,6 +38,7 @@ android {
         applicationId = "dev.amenhancer.module"
         minSdk = 26
         targetSdk = 37
+        ndk { abiFilters += listOf("arm64-v8a") }
         versionCode = 144
         versionName = "1.7.12"
 
@@ -91,6 +93,22 @@ android {
     packaging {
         resources {
             merges += "META-INF/xposed/*"
+        }
+    }
+}
+
+// Pin the Android-native Gamdl wheel to a reproducible upstream commit.
+val gamdlAndroidWheel = fileTree("gamdl-wheels") {
+    include("gamdl-4.1.1-*.whl")
+}.files.singleOrNull() ?: throw GradleException(
+    "Missing Gamdl Android wheel: run bash scripts/build-gamdl-android.sh before Gradle."
+)
+chaquopy {
+    defaultConfig {
+        version = "3.13"
+        pip {
+            install("gamdl-wheels/" + gamdlAndroidWheel.name)
+            install("pywidevine==1.9.0")
         }
     }
 }
