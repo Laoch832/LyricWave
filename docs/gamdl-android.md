@@ -65,3 +65,5 @@ CI 的 Android job 也按同样顺序运行完整源检查、测试、Lint 和 A
 未满足这些项目时 PR 维持 Draft，不合并、不生成稳定 Release。
 
 当前 `pywidevine==1.9.0` 需要 `pycryptodome>=3.23.0`，因此 Android 源码构建也会固定产出 pycryptodome 3.23.0 wheel，不能仅使用 Chaquopy 预编译仓库较旧的 3.21.0。
+
+此外，pymp4 1.4.0 原始依赖为 construct==2.8.8。Android 构建脚本使用官方 pymp4 原始 wheel 生成只更改依赖声明的本地派生 wheel（construct==2.8.10），并重建 RECORD。**这是待验证的兼容性变更，不表示上游保证这两版可互换。**

@@ -99,3 +99,43 @@ if [[ "${#CRYPTO_WHEELS[@]}" -ne 1 ]]; then
 fi
 echo "Verified Android crypto wheel: $(basename "${CRYPTO_WHEELS[0]}")"
 
+
+
+# pymp4 1.4.0 declares construct==2.8.8 (2016); Chaquopy's CPython
+# 3.13 index supports construct==2.8.10, a same-series patch version.
+# Do NOT silently relax requirements in pip: generate an explicit
+# local derivative wheel with fixed RECORD and keep original program files.
+"$PYTHON" -m pip install --disable-pip-version-check "wheel==0.46.1"
+mkdir -p "$TEMP/pymp4-original" "$TEMP/pymp4-unpacked"
+"$PYTHON" -m pip download --no-deps --only-binary=:all: \
+    "pymp4==1.4.0" --dest "$TEMP/pymp4-original"
+mapfile -t PYMP4_ORIGINAL < <(find "$TEMP/pymp4-original" -name 'pymp4-1.4.0-*.whl' -type f)
+if [[ "${#PYMP4_ORIGINAL[@]}" -ne 1 ]]; then
+    echo "Expected one pinned pymp4 1.4.0 wheel." >&2
+    exit 7
+fi
+"$PYTHON" -m wheel unpack "${PYMP4_ORIGINAL[0]}" --dest "$TEMP/pymp4-unpacked"
+PYMP4_DIR="$TEMP/pymp4-unpacked/pymp4-1.4.0"
+export PYMP4_DIR
+"$PYTHON" - <<'PY'
+import os, pathlib, re
+root = pathlib.Path(os.environ["PYMP4_DIR"])
+paths = list(root.glob("*.dist-info/METADATA"))
+assert len(paths) == 1, "pymp4 metadata missing"
+path = paths[0]
+source = path.read_text(encoding="utf-8")
+updated, count = re.subn(
+    r"(Requires-Dist:\s*construct\s*(?:\(\s*)?==\s*)2\.8\.8(\s*\)?)",
+    r"\g<1>2.8.10\2",
+    source,
+)
+assert count == 1, "pymp4 upstream pin changed: inspect before patching"
+path.write_text(updated, encoding="utf-8")
+PY
+"$PYTHON" -m wheel pack "$PYMP4_DIR" --dest "$DEST"
+mapfile -t PYMP4_WHEELS < <(find "$DEST" -maxdepth 1 -name "pymp4-1.4.0-*.whl" -type f)
+if [[ "${#PYMP4_WHEELS[@]}" -ne 1 ]]; then
+    echo "Expected one patched pymp4 1.4.0 wheel." >&2
+    exit 8
+fi
+echo "Validated local pymp4 Android compatibility wheel: $(basename "${PYMP4_WHEELS[0]}")"
