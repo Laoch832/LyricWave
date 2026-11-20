@@ -16,6 +16,8 @@ import android.os.Process
 import android.provider.Settings
 import androidx.core.content.FileProvider
 import dev.amenhancer.module.AppleMusicSigningIdentity
+import dev.amenhancer.module.media.MediaDownloadActivity
+import dev.amenhancer.module.media.MediaDownloadService
 import dev.amenhancer.module.BuildConfig
 import java.util.UUID
 import java.util.concurrent.ConcurrentHashMap
@@ -57,6 +59,22 @@ class UpdateControlProvider : ContentProvider() {
                 app.getSharedPreferences("lyricwave_feedback_config", Context.MODE_PRIVATE).edit().putBoolean("enabled", enabled).apply()
                 dev.amenhancer.module.feedback.FeedbackRuntime.changed(enabled)
                 Bundle()
+            }
+            "media_download_prepare" -> {
+                val id = extras?.getLong(MediaDownloadService.EXTRA_MEDIA_ID, -1) ?: -1
+                require(id > 0) { "Missing catalog song ID" }
+                val title = extras?.getString(MediaDownloadService.EXTRA_TITLE).orEmpty().take(160)
+                val artist = extras?.getString(MediaDownloadService.EXTRA_ARTIST).orEmpty().take(160)
+                val launch = Intent(app, MediaDownloadActivity::class.java)
+                    .putExtra(MediaDownloadService.EXTRA_MEDIA_ID, id)
+                    .putExtra(MediaDownloadService.EXTRA_TITLE, title)
+                    .putExtra(MediaDownloadService.EXTRA_ARTIST, artist)
+                Bundle().apply {
+                    putParcelable("action", PendingIntent.getActivity(
+                        app, id.hashCode(), launch,
+                        PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+                    ))
+                }
             }
             "status" -> UpdateTransfer.snapshot(app)
             "begin" -> {

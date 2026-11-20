@@ -2,6 +2,7 @@ import java.util.Properties
 
 plugins {
     id("com.android.application")
+    id("com.chaquo.python")
     id("org.jetbrains.kotlin.plugin.compose")
 }
 
@@ -37,6 +38,7 @@ android {
         applicationId = "dev.amenhancer.module"
         minSdk = 26
         targetSdk = 37
+        ndk { abiFilters += listOf("arm64-v8a") }
         versionCode = 145
         versionName = "1.7.13"
 
@@ -91,6 +93,35 @@ android {
     packaging {
         resources {
             merges += "META-INF/xposed/*"
+        }
+    }
+}
+
+// Pin the Android-native Gamdl wheel to a reproducible upstream commit.
+val gamdlAndroidWheel = fileTree("gamdl-wheels") {
+    include("gamdl-4.1.1-*.whl")
+}.files.singleOrNull() ?: throw GradleException(
+    "Missing Gamdl Android wheel: run bash scripts/build-gamdl-android.sh before Gradle."
+)
+val cryptoAndroidWheel = fileTree("gamdl-wheels") {
+    include("pycryptodome-3.23.0-*.whl")
+}.files.singleOrNull() ?: throw GradleException(
+    "Missing pycryptodome Android wheel: run bash scripts/build-gamdl-android.sh before Gradle."
+)
+val pymp4AndroidWheel = fileTree("gamdl-wheels") {
+    include("pymp4-1.4.0-*.whl")
+}.files.singleOrNull() ?: throw GradleException(
+    "Missing Android-compatible pymp4 wheel: run bash scripts/build-gamdl-android.sh before Gradle."
+)
+chaquopy {
+    defaultConfig {
+        version = "3.13"
+        pip {
+            install(gamdlAndroidWheel.absolutePath)
+            install(cryptoAndroidWheel.absolutePath)
+            install(pymp4AndroidWheel.absolutePath)
+            install("construct==2.8.10")
+            install("pywidevine==1.9.0")
         }
     }
 }

@@ -38,6 +38,11 @@
             android:grantUriPermissions="true">
             <meta-data android:name="android.support.FILE_PROVIDER_PATHS" android:resource="@xml/update_file_paths" />
         </provider>
+        <!-- Gamdl's runtime is started only in this app's own process. -->
+        <activity android:name=".media.MediaDownloadActivity"
+            android:exported="false" android:label="澜音 · 下载歌曲" />
+        <service android:name=".media.MediaDownloadService"
+            android:exported="false" android:foregroundServiceType="dataSync" />
         <service android:name=".update.UpdateDownloadService" android:exported="false" android:foregroundServiceType="dataSync" />
         <provider android:name=".update.UpdateControlProvider" android:authorities="${applicationId}.update-control" android:exported="true" />
     </application>

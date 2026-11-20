@@ -1,6 +1,12 @@
 package dev.amenhancer.module.ui
 
 import android.app.Activity
+import kotlinx.coroutines.launch
+import androidx.compose.runtime.rememberCoroutineScope
+import android.os.Bundle
+import android.os.Build
+import android.app.ActivityOptions
+import android.app.PendingIntent
 import android.app.Dialog
 import android.view.ViewTreeObserver
 import android.widget.Toast
@@ -729,7 +735,44 @@ private fun EmbeddedSettingsHost.EmbeddedSettingsCategory(
         }
         EmbeddedSettingsPage.PLAYBACK -> EmbeddedPlaybackSettings(settings, active, onEdit)
         EmbeddedSettingsPage.ADVANCED -> {
+            val downloadScope = rememberCoroutineScope()
             EmbeddedSettingsGroup {
+                EmbeddedSettingLink(
+                    "下载当前歌曲",
+                    "一键保存；可选择 AAC、ALAC、Atmos 音质",
+                    EmbeddedSvgIcon.Music,
+                ) {
+                    val song = controller.currentSongDetails()
+                    if (song == null || song.appleMusicId <= 0) {
+                        Toast.makeText(activity, "未能确认当前曲目的身份", Toast.LENGTH_SHORT).show()
+                    } else {
+                        val request = Bundle().apply {
+                            putLong(dev.amenhancer.module.media.MediaDownloadService.EXTRA_MEDIA_ID, song.appleMusicId)
+                            putString(dev.amenhancer.module.media.MediaDownloadService.EXTRA_TITLE, song.title.orEmpty())
+                            putString(dev.amenhancer.module.media.MediaDownloadService.EXTRA_ARTIST, song.artist.orEmpty())
+                        }
+                        downloadScope.launch {
+                            try {
+                                val reply = updateTransferCommand(activity, "media_download_prepare", request)
+                                val intent = reply.getParcelable<PendingIntent>("action")
+                                    ?: error("missing_download_activity")
+                                if (Build.VERSION.SDK_INT >= 34) {
+                                    val options = ActivityOptions.makeBasic().apply {
+                                        setPendingIntentBackgroundActivityStartMode(
+                                            if (Build.VERSION.SDK_INT >= 36)
+                                                ActivityOptions.MODE_BACKGROUND_ACTIVITY_START_ALLOW_IF_VISIBLE
+                                            else ActivityOptions.MODE_BACKGROUND_ACTIVITY_START_ALLOWED
+                                        )
+                                    }
+                                    intent.send(activity, 0, null, null, null, null, options.toBundle())
+                                } else intent.send()
+                            } catch (_: Exception) {
+                                Toast.makeText(activity, "下载入口不可用，请检查澜音授权与模块版本", Toast.LENGTH_SHORT).show()
+                            }
+                        }
+                    }
+                }
+
             if (nativeBridge.supportsStartupPagePrewarm(activity)) Setting(
                 ModuleText.STARTUP_PAGE_PREWARM, ModuleText.STARTUP_PAGE_PREWARM_SUMMARY,
                 settings.startupPagePrewarmEnabled, EmbeddedSvgIcon.StartupPrewarm,
