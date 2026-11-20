@@ -26,7 +26,7 @@ class BufferedPlaybackContractTest(unittest.TestCase):
             self.assertTrue(buffered.verify(changed, self.contract))
     def test_buffering_is_gated_to_verified_exact_host_and_device_support_is_not_claimed(self):
         profiles = ROOT/'host-applemusic/src/main/resources/host-profiles'
-        self.assertEqual(['7.0.0-1614.json'], [p.name for p in profiles.glob('*.json') if 'bufferedDrmRecovery' in json.loads(p.read_text())])
+        self.assertEqual(['7.0.0-1614.json', '7.0.1-1622.json'], sorted(p.name for p in profiles.glob('*.json') if 'bufferedDrmRecovery' in json.loads(p.read_text())))
         self.assertFalse(self.contract['verification']['deviceValidated'])
         self.assertEqual(64, len(self.contract['verification']['apkSha256']))
         # The native helper may evict a streaming asset only after the runtime's downloaded guard.

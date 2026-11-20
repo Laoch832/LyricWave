@@ -65,7 +65,6 @@ import top.yukonga.miuix.kmp.basic.DropdownEntry
 import top.yukonga.miuix.kmp.basic.DropdownItem
 import top.yukonga.miuix.kmp.basic.HorizontalDivider
 import top.yukonga.miuix.kmp.basic.Text
-import top.yukonga.miuix.kmp.basic.TextButton
 import top.yukonga.miuix.kmp.basic.TextField
 import top.yukonga.miuix.kmp.preference.OverlayDropdownPreference
 import top.yukonga.miuix.kmp.theme.MiuixTheme
@@ -119,7 +118,6 @@ internal fun EmbeddedSettingsHost.EmbeddedLlmLyricsPage(
         modifier = Modifier.fillMaxWidth(),
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
-        EmbeddedAiLyricsSummary(activity, settings, onOpenActivity)
         LlmLyricsStatusSection(
             settings = settings,
             snapshot = liveLlmStatus,
@@ -156,7 +154,11 @@ internal fun EmbeddedSettingsHost.EmbeddedLlmLyricsPage(
 
         EmbeddedSettingsSection(
             title = localizedText(ModuleText.LLM_LYRICS_API_SETTINGS),
-            summary = localizedText(ModuleText.LLM_LYRICS_SHARED_API_CONFIG),
+            endAction = {
+                EmbeddedSettingsInfo(localizedText(ModuleText.LLM_LYRICS_API_SETTINGS)) {
+                    Text(localizedText(ModuleText.LLM_LYRICS_SHARED_API_CONFIG))
+                }
+            },
         )
         EmbeddedSettingsGroup {
             LlmEditableField.entries.forEach { field ->
@@ -252,11 +254,9 @@ internal fun EmbeddedSettingsHost.EmbeddedLlmLyricsPage(
                     enabled = effortEnabled,
                 )
             }
-        }
 
-        EmbeddedSettingsGroup {
-            TextButton(
-                text = localizedText(
+            EmbeddedSettingLink(
+                title = localizedText(
                     if (testingConnection) ModuleText.LLM_LYRICS_TEST_RUNNING
                     else ModuleText.LLM_LYRICS_TEST_CONNECTION,
                 ),
@@ -309,9 +309,13 @@ internal fun EmbeddedSettingsHost.EmbeddedLlmLyricsPage(
                         }
                     }
                 },
-                modifier = Modifier.fillMaxWidth(),
+                icon = EmbeddedSvgIcon.ApiEndpoint,
                 enabled = currentActive && !testingConnection,
             )
+        }
+        EmbeddedSettingsGroup {
+            EmbeddedSettingLink(localizedText(ModuleText.AI_ACTIVITY_TITLE), icon = EmbeddedSvgIcon.Document,
+                onClick = onOpenActivity)
         }
     }
 }

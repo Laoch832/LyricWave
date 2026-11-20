@@ -34,17 +34,13 @@ private val aiTranslateWorker = Executors.newSingleThreadExecutor { task -> Thre
 internal fun EmbeddedSettingsHost.aiActivityStore() =
     FileLlmLyricsActivityStore(File(application.filesDir, FileLlmLyricsActivityStore.DIRECTORY))
 
-internal fun EmbeddedSettingsHost.addAiLyricsSummary(activity: Activity, parent: LinearLayout, onOpen: () -> Unit) {
-    addAiActivityPanel(activity, parent, compact = true, onOpen = onOpen)
-}
-
 internal fun EmbeddedSettingsHost.renderEmbeddedAiLyricsActivityPage(activity: Activity, parent: LinearLayout, settings: ModuleSettings) {
-    addAiActivityPanel(activity, parent, compact = false, settings = settings)
+    addAiActivityPanel(activity, parent, settings)
 }
 
 /** Lifecycle-bound polling; all journal/cache reads and API calls run away from the UI thread. */
 private fun EmbeddedSettingsHost.addAiActivityPanel(
-    activity: Activity, parent: LinearLayout, compact: Boolean, onOpen: (() -> Unit)? = null, settings: ModuleSettings? = null,
+    activity: Activity, parent: LinearLayout, settings: ModuleSettings,
 ) {
     val journal = aiActivityStore()
     val cache = FileLlmLyricsCache(File(application.filesDir, FileLlmLyricsCache.DIRECTORY))
@@ -56,14 +52,10 @@ private fun EmbeddedSettingsHost.addAiActivityPanel(
     var listedEpoch = -1L
     var listedSongs = emptyList<FileLlmLyricsCache.CachedSong>()
     var last: Pair<LlmActivitySnapshot, List<FileLlmLyricsCache.CachedSong>>? = null
-    val card = embeddedCard(activity, localizedText(ModuleText.AI_ACTIVITY_TITLE)) {}
+    val card = embeddedCard(activity, null) {}
     val body = LinearLayout(activity).apply { orientation = LinearLayout.VERTICAL }
     card.addView(body, matchWidthWrapContent())
     parent.addView(card, matchWidthWrapContent())
-    if (compact) {
-        card.isClickable = true
-        card.setOnClickListener { onOpen?.invoke() }
-    }
     fun text(value: String, heading: Boolean = false) = TextView(activity).apply {
         text = value
         textSize = if (heading) 16f else 13f
@@ -105,41 +97,16 @@ private fun EmbeddedSettingsHost.addAiActivityPanel(
             finally { translating.set(false); main.post { last = null } }
         }
     }
-    fun showCache(song: FileLlmLyricsCache.CachedSong) {
-        aiStatsWorker.execute {
-            val preview = runCatching { cache.preview(song.appleMusicId) }.getOrNull()
-            main.post {
-                if (!alive()) return@post
-                embeddedDialogBuilder(activity).setTitle(song.title ?: "Apple Music ID ${song.appleMusicId}")
-                    .setMessage(preview ?: localizedText(ModuleText.AI_PREVIEW_EMPTY))
-                    .setPositiveButton(localizedText(ModuleText.CLOSE), null)
-                    .setNeutralButton(localizedText(ModuleText.AI_DELETE_CACHE)) { _, _ ->
-                        embeddedDialogBuilder(activity).setMessage(localizedText(ModuleText.AI_DELETE_CACHE_CONFIRM))
-                            .setNegativeButton(localizedText(ModuleText.CANCEL), null)
-                            .setPositiveButton(localizedText(ModuleText.DELETE)) { _, _ ->
-                                aiStatsWorker.execute {
-                                    val deleted = runCatching { cache.delete(song.appleMusicId) }.getOrDefault(false)
-                                    if (deleted) LlmLyricsCacheUpdates.publish(song.appleMusicId, refresh = false)
-                                    else postMessage(ModuleText.AI_STORAGE_ERROR)
-                                    main.post { last = null }
-                                }
-                            }.show()
-                    }.show()
-            }
-        }
-    }
     fun render(snapshot: LlmActivitySnapshot, songs: List<FileLlmLyricsCache.CachedSong>) {
         body.removeAllViews()
         body.addView(text(localizedText(ModuleText.AI_STAT_CALLS, snapshot.apiCalls, snapshot.successful,
             snapshot.failed, snapshot.cancelled, snapshot.running)))
         body.addView(text(localizedText(ModuleText.AI_STAT_CACHE, songs.size, snapshot.cacheHits, snapshot.cacheSaves)))
-        if (!compact) body.addView(text(localizedText(ModuleText.AI_STAT_USAGE, snapshot.reportedTokens, snapshot.callsWithoutUsage)))
+        body.addView(text(localizedText(ModuleText.AI_STAT_USAGE, snapshot.reportedTokens, snapshot.callsWithoutUsage)))
         snapshot.records.lastOrNull()?.let { body.addView(text(localizedText(ModuleText.AI_LAST_STATUS, aiActivityLabel(it)))) }
-        if (compact) return
         val busy = translating.get()
-        val ready = settings != null && settings.customLyricsEnabled && settings.llmLyricsEnabled && LlmLyricsConfig.fromSettings(settings).isConfigured
+        val ready = settings.customLyricsEnabled && settings.llmLyricsEnabled && LlmLyricsConfig.fromSettings(settings).isConfigured
         if (!ready) body.addView(text(localizedText(ModuleText.AI_REQUIRES_CONFIG)))
-        body.addView(text(localizedText(ModuleText.AI_CACHE_RULE)))
         action(localizedText(if (busy) ModuleText.AI_TRANSLATING else ModuleText.AI_TRANSLATE_CURRENT), !busy && ready) {
             val song = controller.currentSongDetails()
             val id = song?.appleMusicId
@@ -159,18 +126,6 @@ private fun EmbeddedSettingsHost.addAiActivityPanel(
                         }.setNegativeButton(localizedText(ModuleText.CANCEL), null).show()
                 }
             }
-        }
-        body.addView(text(localizedText(ModuleText.AI_CACHE_TITLE), heading = true))
-        if (songs.isEmpty()) body.addView(text(localizedText(ModuleText.AI_CACHE_EMPTY)))
-        songs.take(20).forEach { song ->
-            body.addView(embeddedNavigationRow(activity, song.title ?: "Apple Music ID ${song.appleMusicId}",
-                localizedText(ModuleText.AI_CACHE_INFO, song.appleMusicId, song.model, stamp(song.savedAt), (song.bytes + 1023) / 1024),
-                 onClick = { showCache(song) }))
-        }
-        if (songs.size > 20) action("${localizedText(ModuleText.AI_CACHE_TITLE)} (${songs.size})") {
-            embeddedDialogBuilder(activity).setTitle(localizedText(ModuleText.AI_CACHE_TITLE))
-                .setItems(songs.map { "${it.title ?: it.appleMusicId} · ${it.model}" }.toTypedArray()) { _, i -> showCache(songs[i]) }
-                .setNegativeButton(localizedText(ModuleText.CLOSE), null).show()
         }
         body.addView(text(localizedText(ModuleText.AI_HISTORY), heading = true))
         val calls = snapshot.records.filter { it.isApiCall }.takeLast(20).asReversed()
@@ -201,7 +156,6 @@ private fun EmbeddedSettingsHost.addAiActivityPanel(
                     }
                 }.show()
         }
-        body.addView(text(localizedText(ModuleText.AI_LOG_LOCAL_NOTICE)))
     }
     val poll = object : Runnable {
         override fun run() {
@@ -222,7 +176,7 @@ private fun EmbeddedSettingsHost.addAiActivityPanel(
                     }.onFailure {
                         body.removeAllViews()
                         body.addView(text(localizedText(ModuleText.AI_STORAGE_ERROR)))
-                        if (!compact) action(localizedText(ModuleText.AI_CLEAR_LOG)) {
+                        action(localizedText(ModuleText.AI_CLEAR_LOG)) {
                             embeddedDialogBuilder(activity).setMessage(localizedText(ModuleText.AI_CLEAR_LOG_CONFIRM))
                                 .setNegativeButton(localizedText(ModuleText.CANCEL), null)
                                 .setPositiveButton(localizedText(ModuleText.DELETE)) { _, _ ->

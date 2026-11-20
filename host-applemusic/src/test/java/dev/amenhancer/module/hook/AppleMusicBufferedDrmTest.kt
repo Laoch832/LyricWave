@@ -209,8 +209,8 @@ class AppleMusicBufferedDrmTest {
     private val hooks = mutableMapOf<Method, Hook>()
     private var enabled = true
     private lateinit var host: Host
-    private fun profile(): JSONObject {
-        val original = JSONObject(javaClass.getResourceAsStream("/host-profiles/7.0.0-1614.json")!!.bufferedReader().readText()).getJSONObject("bufferedDrmRecovery")
+    private fun profile(filename: String = "7.0.0-1614"): JSONObject {
+        val original = JSONObject(javaClass.getResourceAsStream("/host-profiles/$filename.json")!!.bufferedReader().readText()).getJSONObject("bufferedDrmRecovery")
         val names = mapOf("SVAudioRendererV2" to Renderer::class.java, "BaseRenderer" to Base::class.java,
             "MediaCodecAudioRenderer" to CodecRenderer::class.java, "MediaCodecRenderer" to CodecRenderer::class.java,
             "RendererCapabilities" to Caps::class.java, "TrackGroup" to Group::class.java, "PlayerTrackSelector" to Selector::class.java,
@@ -253,8 +253,8 @@ class AppleMusicBufferedDrmTest {
         val m = receiver.javaClass.methods.single { it.name == name && it.parameterCount == args.size }
         return invoke(receiver, m, args)
     }
-    private fun install(code: Long = 1614, document: JSONObject = profile()): TargetCapabilityInstall = AppleMusicBufferedDrmTarget(
-        TargetBuild("com.apple.android.music", "7.0.0", code), document, javaClass.classLoader!!, { enabled },
+    private fun install(code: Long = 1614, document: JSONObject = profile(), name: String = "7.0.0"): TargetCapabilityInstall = AppleMusicBufferedDrmTarget(
+        TargetBuild("com.apple.android.music", name, code), document, javaClass.classLoader!!, { enabled },
         invokeNative = { method, target, args -> invoke(target, method, args) },
         register = { method, hook, scope -> hooks[method] = Hook(hook, scope); true },
     ).install()
@@ -303,6 +303,16 @@ class AppleMusicBufferedDrmTest {
         host.renderer.physical.blocked = false; tick()
         assertEquals((1..5).flatMap { v -> List(16000) { v.toByte() } }, host.renderer.physical.bytes)
         assertEquals(0, host.evictions)
+    }
+    @Test fun `7_0_1 host requires its own playback contract`() {
+        assertTrue(install(1622, name = "7.0.1") is TargetCapabilityInstall.Unsupported)
+        assertTrue(hooks.isEmpty())
+        assertTrue(install(1622, profile("7.0.1-1622"), "7.0.1") is TargetCapabilityInstall.Active)
+        fill()
+        fault()
+        tick(500)
+        assertEquals(listOf(17L, 81L), host.requests)
+        assertEquals(DrmRoundTripRecovery.Stage.COMPLETE, BufferedDrmRecoveryStatus.stage)
     }
     @Test fun `default off keeps the original sink and unsupported exact versions install no hooks`() {
         enabled = false; assertTrue(install() is TargetCapabilityInstall.Active)

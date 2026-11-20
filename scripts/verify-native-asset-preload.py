@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
-"""Verify the experimental next-asset contract against an exact official host APK (read only)."""
+"""Verify the next-asset contract against an exact official host APK (read only)."""
 import argparse
 import importlib.util
+import hashlib
 import json
 import zipfile
 from pathlib import Path
@@ -22,16 +23,36 @@ def verify(classes, contract):
                 errors.append(f'Field mismatch: {name}.{field}')
     return errors
 
+def verify_apk(path, section):
+    with zipfile.ZipFile(path) as apk:
+        package, name, code = host._manifest_module.manifest_identity(apk.read('AndroidManifest.xml'))
+        profiles = ROOT / 'host-applemusic/src/main/resources/host-profiles'
+        profile_path = profiles / f'{name}-{code}.json'
+        index = json.loads((profiles / 'index.json').read_text())
+        if package != 'com.apple.android.music' or profile_path.name not in index['profiles']:
+            raise SystemExit('No exact Apple Music profile')
+        profile = json.loads(profile_path.read_text())
+        expected = profile.get(section)
+        if expected is None:
+            raise SystemExit(f'No verified {section} contract for {name}/{code}')
+        with path.open('rb') as content:
+            if hashlib.file_digest(content, 'sha256').hexdigest() != expected['verification']['apkSha256']:
+                raise SystemExit('Unverified host APK checksum')
+        classes = {}
+        for entry in apk.namelist():
+            if entry.endswith('.dex'):
+                classes.update(host.dex_classes(apk.read(entry)))
+    errors = verify(classes, expected)
+    if errors:
+        raise SystemExit('\n'.join(errors))
+    print(f'PASS: {name}/{code} {section} descriptors and access flags')
+
+
 def main():
-    p = argparse.ArgumentParser(description=__doc__); p.add_argument('apk',type=Path); args=p.parse_args()
-    profile=json.loads((ROOT/'host-applemusic/src/main/resources/host-profiles/7.0.0-1614.json').read_text())
-    with zipfile.ZipFile(args.apk) as apk:
-        identity=host._manifest_module.manifest_identity(apk.read('AndroidManifest.xml'))
-        if identity != (profile['packageName'],profile['versionName'],profile['versionCode']): raise SystemExit('Unverified exact host identity')
-        classes={}
-        for name in apk.namelist():
-            if name.endswith('.dex'): classes.update(host.dex_classes(apk.read(name)))
-    errors=verify(classes,profile['nextAssetPreload'])
-    if errors: raise SystemExit('\n'.join(errors))
-    print('PASS: exact 7.0.0/1614 experimental native asset descriptors; physical-device playback remains unverified')
-if __name__=='__main__': main()
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument('apk', type=Path)
+    verify_apk(parser.parse_args().apk, 'nextAssetPreload')
+
+
+if __name__ == '__main__':
+    main()

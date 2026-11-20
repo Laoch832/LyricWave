@@ -59,10 +59,10 @@ internal class AppleMusicBufferedDrmTarget(
 
     override fun install(): TargetCapabilityInstall {
         if (scope.isActive) return TargetCapabilityInstall.Active("Buffered native recovery installed")
-        if (build.versionName != "7.0.0" || build.versionCode != 1614L || document?.optInt("contractVersion") != 1)
-            return TargetCapabilityInstall.Unsupported("Buffered recovery requires exact Apple Music 7.0.0/1614")
+        val contract = document?.takeIf { it.matchesPlaybackBuild(build) }
+            ?: return TargetCapabilityInstall.Unsupported("No verified buffered recovery contract for this Apple Music build")
         return try {
-            c = FragmentProfileMembers(loader, document, "bufferedDrmRecovery", FragmentMemberRequirements(METHODS, FIELDS))
+            c = FragmentProfileMembers(loader, contract, "bufferedDrmRecovery", FragmentMemberRequirements(METHODS, FIELDS))
             fun hook(role: String, before: Boolean, action: (ModernMethodHook.MethodHookParam) -> Unit) {
                 check(register(method(role), object : ModernMethodHook() {
                     private fun safely(p: MethodHookParam) {
