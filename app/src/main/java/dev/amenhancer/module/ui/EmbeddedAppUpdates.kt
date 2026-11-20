@@ -61,9 +61,18 @@ internal fun EmbeddedSettingsHost.EmbeddedAppUpdates(activity: Activity, active:
                 if (enabled) AppUpdateCoordinator.foreground(activity.applicationContext, true)
             })
         Column(Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            Text("LyricWave", fontSize = 24.sp, fontWeight = FontWeight.Bold)
-            Text(localizedText(ModuleText.UPDATE_INSTALLED, snapshot.installed.name))
-            Text(localizedText(ModuleText.UPDATE_STABLE_CHANNEL), color = MiuixTheme.colorScheme.primary)
+            androidx.compose.foundation.layout.Row(
+                verticalAlignment = androidx.compose.ui.Alignment.CenterVertically,
+            ) {
+                Text(localizedText(ModuleText.UPDATE_INSTALLED, snapshot.installed.name), Modifier.weight(1f))
+                EmbeddedSettingsInfo(localizedText(ModuleText.UPDATE_DETAILS)) {
+                    Text(localizedText(ModuleText.UPDATE_STABLE_CHANNEL))
+                    snapshot.release?.let { known ->
+                        Text(localizedText(ModuleText.UPDATE_LAST_CHECK,
+                            DateFormat.getDateTimeInstance(DateFormat.SHORT, DateFormat.SHORT, locale).format(Date(known.checkedAt))))
+                    }
+                }
+            }
             if (snapshot.installed.code > BuildConfig.VERSION_CODE) EmbeddedSettingsNotice(localizedText(ModuleText.UPDATE_RESTART_HOST, snapshot.installed.name))
             TextButton(text = localizedText(if (snapshot.checking) ModuleText.UPDATE_CHECKING else ModuleText.UPDATE_CHECK),
                 enabled = !snapshot.checking, onClick = {
@@ -78,8 +87,6 @@ internal fun EmbeddedSettingsHost.EmbeddedAppUpdates(activity: Activity, active:
                     known.changes.take(3).forEach { change -> Text("• ${change.title}") }
                     TextButton(localizedText(ModuleText.UPDATE_DETAILS), onClick = { showAppRelease(activity, known) })
                 }
-                EmbeddedSettingsNotice(localizedText(ModuleText.UPDATE_LAST_CHECK,
-                    DateFormat.getDateTimeInstance(DateFormat.SHORT, DateFormat.SHORT, locale).format(Date(known.checkedAt))))
             }
             TextButton(localizedText(ModuleText.UPDATE_CONNECTIONS_VALUE, connections), onClick = {
                 showEmbeddedMiuixDialog(activity, localizedText(ModuleText.UPDATE_CONNECTIONS)) { dismiss ->
@@ -116,7 +123,9 @@ private fun EmbeddedSettingsHost.showAppRelease(activity: Activity, release: App
                 Text(change.title, fontWeight = FontWeight.Bold)
                 Text(change.description)
             }
-            release.notices.forEach { EmbeddedSettingsNotice(it) }
+            if (release.notices.isNotEmpty()) EmbeddedSettingsInfo(localizedText(ModuleText.UPDATE_DETAILS)) {
+                release.notices.forEach { Text(it) }
+            }
             if (release.changes.isEmpty() && release.notes.isNotBlank()) Text(release.notes.take(2500))
             release.apks.sortedBy { it.name != release.build?.apk }.forEach { asset ->
                 val size = String.format(locale, "%.1f", asset.size / (1024.0 * 1024.0))

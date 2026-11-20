@@ -48,7 +48,6 @@ import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
@@ -58,7 +57,6 @@ import dev.amenhancer.module.config.TitleCorrectionMode
 import dev.amenhancer.module.i18n.ModuleText
 import dev.amenhancer.module.model.ModuleSettings
 import java.lang.ref.WeakReference
-import top.yukonga.miuix.kmp.basic.HorizontalDivider
 import top.yukonga.miuix.kmp.basic.Icon
 import top.yukonga.miuix.kmp.basic.IconButton
 import top.yukonga.miuix.kmp.basic.MiuixScrollBehavior
@@ -396,10 +394,9 @@ private fun EmbeddedSettingsHost.EmbeddedSettingsScreen(
                     arrayOf("application/zip", "application/x-zip-compressed", "application/octet-stream"),
                 )
             }
-        } else {
-            EmbeddedSettingsIconAction(EmbeddedSvgIcon.Document, localizedText(ModuleText.SETTINGS_DETAILS_ACTION)) {
-                showEmbeddedPageDetails(activity, page)
-            }
+        }
+        EmbeddedSettingsInfo(localizedText(ModuleText.SETTINGS_DETAILS_ACTION)) {
+            EmbeddedPageDetails(page)
         }
     }
 
@@ -643,10 +640,21 @@ private fun EmbeddedSettingsHost.EmbeddedSettingsCategory(
         }
         EmbeddedSettingsPage.INTERFACE -> {
             EmbeddedSettingsGroup {
+                Setting(ModuleText.ISLAND_LYRICS, ModuleText.ISLAND_LYRICS_HELP,
+                    settings.islandLyricsEnabled, EmbeddedSvgIcon.Music) { value ->
+                    onEdit { it.copy(islandLyricsEnabled = value) }
+                }
+                if (settings.islandLyricsEnabled) EmbeddedSettingLink(
+                    localizedText(ModuleText.ISLAND_NOTIFICATION_SETTINGS), icon = EmbeddedSvgIcon.Settings,
+                ) {
+                    runCatching {
+                        activity.startActivity(android.content.Intent(android.provider.Settings.ACTION_APP_NOTIFICATION_SETTINGS)
+                            .putExtra(android.provider.Settings.EXTRA_APP_PACKAGE, dev.amenhancer.module.BuildConfig.APPLICATION_ID))
+                    }
+                }
                 Setting(ModuleText.PLAYBACK_RECOVERY, ModuleText.PLAYBACK_RECOVERY_SUMMARY,
                     settings.playbackStallRecoveryEnabled, EmbeddedSvgIcon.RestoreDefault
                 ) { value -> onEdit { it.copy(playbackStallRecoveryEnabled = value) } }
-                EmbeddedPlaybackDiagnostic(activity, active)
                 Setting(ModuleText.WECHAT_MOMENTS, ModuleText.WECHAT_MOMENTS_SUMMARY,
                     settings.wechatMomentsShareEnabled, EmbeddedSvgIcon.Document
                 ) { value -> onEdit { it.copy(wechatMomentsShareEnabled = value) } }
@@ -744,7 +752,6 @@ private fun EmbeddedSettingsHost.EmbeddedSettingsCategory(
                     }
                 }
                 Text(localizedText(ModuleText.BUFFERED_DRM_STATE, String.format(androidx.compose.ui.platform.LocalConfiguration.current.locales[0], "%.1f", reserveMs / 1000.0), localizedText(bufferState)), modifier = Modifier.padding(20.dp))
-                Text(localizedText(ModuleText.BUFFERED_DRM_NOTICE), modifier = Modifier.padding(20.dp))
 
                 Setting(ModuleText.NEXT_ASSET_PRELOAD, ModuleText.NEXT_ASSET_PRELOAD_SUMMARY,
                     settings.experimentalNextAssetPreloadEnabled, EmbeddedSvgIcon.StartupPrewarm) { value ->
@@ -767,7 +774,6 @@ private fun EmbeddedSettingsHost.EmbeddedSettingsCategory(
                     else -> ModuleText.PRELOAD_WAITING
                 }
                 Text(localizedText(ModuleText.NEXT_ASSET_PRELOAD_STATE, localizedText(stateText)), modifier = Modifier.padding(20.dp))
-                Text(localizedText(ModuleText.NEXT_ASSET_PRELOAD_NOTICE), modifier = Modifier.padding(20.dp))
             }
         }
         EmbeddedSettingsPage.ADVANCED -> {
@@ -831,7 +837,8 @@ private fun EmbeddedSettingsHost.showEmbeddedDpiDialog(activity: Activity, curre
     }
 }
 
-private fun EmbeddedSettingsHost.showEmbeddedPageDetails(activity: Activity, page: EmbeddedSettingsPage) {
+@Composable
+private fun EmbeddedSettingsHost.EmbeddedPageDetails(page: EmbeddedSettingsPage) {
     val entries = when (page) {
         EmbeddedSettingsPage.MAIN -> emptyList()
         EmbeddedSettingsPage.CUSTOM_LYRICS -> listOf(
@@ -852,6 +859,7 @@ private fun EmbeddedSettingsHost.showEmbeddedPageDetails(activity: Activity, pag
             ModuleText.LYRICS_FONT to ModuleText.LYRICS_FONT_IMPORT_SUMMARY,
         )
         EmbeddedSettingsPage.INTERFACE -> listOf(
+            ModuleText.ISLAND_LYRICS to ModuleText.ISLAND_LYRICS_HELP,
             ModuleText.PLAYBACK_RECOVERY to ModuleText.PLAYBACK_RECOVERY_SUMMARY,
             ModuleText.WECHAT_MOMENTS to ModuleText.WECHAT_MOMENTS_SUMMARY,
             ModuleText.TABLET_DUAL_PANE to ModuleText.TABLET_DUAL_PANE_SUMMARY,
@@ -890,59 +898,18 @@ private fun EmbeddedSettingsHost.showEmbeddedPageDetails(activity: Activity, pag
             ModuleText.BOTTOM_BAR_EXPAND_REBOUND to ModuleText.BOTTOM_BAR_EXPAND_REBOUND_SUMMARY,
         )
     }
-    val heading = if (page == EmbeddedSettingsPage.MAIN) ModuleText.SETTINGS_HELP else ModuleText.SETTINGS_DETAILS
-    showEmbeddedMiuixDialog(
-        activity = activity,
-        title = localizedText(heading),
-        footer = { dismiss ->
-            Column(Modifier.fillMaxWidth().padding(top = 16.dp)) {
-                EmbeddedDialogActions(localizedText(ModuleText.GOT_IT), dismiss)
-            }
-        },
-    ) {
-        if (page == EmbeddedSettingsPage.MAIN) {
-            listOf(ModuleText.PRIVATE_STORAGE_NOTICE, ModuleText.RESTART_NOTICE,
-                ModuleText.LSPOSED_HELP_SCOPE, ModuleText.LSPOSED_HELP_RESTART).forEach {
-                Text(
-                    text = localizedText(it),
-                    modifier = Modifier.fillMaxWidth(),
-                    style = MiuixTheme.textStyles.body1,
-                    color = MiuixTheme.colorScheme.onSurface,
-                    textAlign = TextAlign.Start,
-                )
-            }
-        } else {
-            // SmallTitle is a page-group label with its own margins and subdued colours.
-            // Reading content uses the dialog's single inset and normal foreground instead.
-            entries.forEach { (title, summary) ->
-                Column(
-                    modifier = Modifier.fillMaxWidth(),
-                    verticalArrangement = Arrangement.spacedBy(6.dp),
-                ) {
-                    Text(
-                        text = localizedText(title),
-                        modifier = Modifier.fillMaxWidth(),
-                        style = MiuixTheme.textStyles.body1.copy(fontWeight = FontWeight.SemiBold),
-                        color = MiuixTheme.colorScheme.onSurface,
-                        textAlign = TextAlign.Start,
-                    )
-                    Text(
-                        text = localizedText(summary),
-                        modifier = Modifier.fillMaxWidth(),
-                        style = MiuixTheme.textStyles.body1,
-                        color = MiuixTheme.colorScheme.onSurface,
-                        textAlign = TextAlign.Start,
-                    )
-                }
-            }
-            HorizontalDivider(Modifier.fillMaxWidth().padding(vertical = 4.dp))
-            Text(
-                text = localizedText(ModuleText.RESTART_NOTICE),
-                modifier = Modifier.fillMaxWidth(),
-                style = MiuixTheme.textStyles.body1,
-                color = MiuixTheme.colorScheme.onSurface,
-                textAlign = TextAlign.Start,
-            )
+    if (page == EmbeddedSettingsPage.MAIN) {
+        listOf(ModuleText.PRIVATE_STORAGE_NOTICE, ModuleText.RESTART_NOTICE,
+            ModuleText.LSPOSED_HELP_SCOPE, ModuleText.LSPOSED_HELP_RESTART).forEach {
+            Text(localizedText(it), style = MiuixTheme.textStyles.body2)
         }
+    } else {
+        entries.forEach { (title, summary) ->
+            Column(verticalArrangement = Arrangement.spacedBy(3.dp)) {
+                Text(localizedText(title), style = MiuixTheme.textStyles.body2.copy(fontWeight = FontWeight.SemiBold))
+                Text(localizedText(summary), style = MiuixTheme.textStyles.body2)
+            }
+        }
+        if (page == EmbeddedSettingsPage.INTERFACE) EmbeddedPlaybackDiagnostic(active = true)
     }
 }

@@ -348,6 +348,10 @@ internal class AppleMusicCustomLyricsTarget(
             val adjusted = if (display != null && settings.customLyricsEnabled) {
                 playback?.withOffset(id, source, display, displayRaw) ?: display
             } else display
+            if (settings.islandLyricsEnabled && currentSong.current()?.details?.appleMusicId == id) {
+                val islandTtml = if (adjusted !== display) adjusted?.let(parser::documentOf) ?: displayRaw else displayRaw
+                if (islandTtml != null) IslandLyricsSourceState.observeSelected(id, islandTtml)
+            }
             parser.forSubmission(adjusted, id, nativeId)
         }
         resultBridge = LyricsResultSubmissionBridge.create(
@@ -420,6 +424,11 @@ internal class AppleMusicCustomLyricsTarget(
                         val moduleParse = parser.isModuleParse()
                         val metadata = TtmlTimingPolicy.metadataOf(ttml)
                         val appleMusicId = pointer?.let(parser::adamIdOf)
+                        if (!moduleParse && appleMusicId != null && config.settings().islandLyricsEnabled &&
+                            currentSong.current()?.details?.appleMusicId == appleMusicId
+                        ) {
+                            IslandLyricsSourceState.observeNative(appleMusicId, ttml)
+                        }
                         timingObservations.record(pointer, metadata, appleMusicId.takeUnless { moduleParse },
                             nativeTtml = ttml.takeIf { !moduleParse && (autoLyricsRuntime?.llm != null || playback != null) })
                         if (
@@ -501,6 +510,7 @@ internal class AppleMusicCustomLyricsTarget(
             appleMusicId?.let(session::ensureRequested)
             autoSession?.onSongChanged(appleMusicId)
             LlmLyricsSourceState.clear(appleMusicId)
+            IslandLyricsSourceState.resetFor(appleMusicId)
             playback?.onSongChanged(appleMusicId)
             llmSession?.onSongChanged(appleMusicId)
             resultBridge.onSongChanged(appleMusicId)

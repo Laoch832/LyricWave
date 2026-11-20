@@ -15,9 +15,14 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -32,6 +37,13 @@ import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.IntOffset
+import androidx.compose.ui.unit.IntRect
+import androidx.compose.ui.unit.IntSize
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.window.Popup
+import androidx.compose.ui.window.PopupPositionProvider
+import androidx.compose.ui.window.PopupProperties
 import dev.amenhancer.module.i18n.ModuleText
 import kotlin.math.roundToInt
 import top.yukonga.miuix.kmp.basic.BasicComponentDefaults
@@ -96,26 +108,34 @@ internal fun EmbeddedSettingSwitch(
     icon: EmbeddedSvgIcon? = null,
     onCheckedChange: (Boolean) -> Unit,
 ) {
-    SwitchPreference(
-        checked = checked,
-        onCheckedChange = onCheckedChange,
-        title = title,
-        summary = summary,
-        enabled = enabled,
-        startAction = if (icon == null) null else {
-            {
-                EmbeddedSettingsIcon(
-                    icon,
-                    modifier = Modifier.size(24.dp),
-                    tint = if (enabled) {
-                        MiuixTheme.colorScheme.onSurfaceVariantSummary
-                    } else {
-                        MiuixTheme.colorScheme.disabledOnSecondaryVariant
-                    },
-                )
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        Box(Modifier.weight(1f)) {
+            SwitchPreference(
+                checked = checked,
+                onCheckedChange = onCheckedChange,
+                title = title,
+                enabled = enabled,
+                startAction = if (icon == null) null else {
+                    {
+                        EmbeddedSettingsIcon(
+                            icon,
+                            modifier = Modifier.size(24.dp),
+                            tint = if (enabled) {
+                                MiuixTheme.colorScheme.onSurfaceVariantSummary
+                            } else {
+                                MiuixTheme.colorScheme.disabledOnSecondaryVariant
+                            },
+                        )
+                    }
+                },
+            )
+        }
+        if (!summary.isNullOrBlank()) {
+            EmbeddedSettingsInfo(title) {
+                Text(summary, style = MiuixTheme.textStyles.body2)
             }
-        },
-    )
+        }
+    }
 }
 
 @Composable
@@ -200,6 +220,50 @@ internal fun EmbeddedSettingsIconAction(
                 MiuixTheme.colorScheme.disabledOnSecondaryVariant
             },
         )
+    }
+}
+
+@Composable
+internal fun EmbeddedSettingsInfo(
+    label: String,
+    content: @Composable ColumnScope.() -> Unit,
+) {
+    var expanded by remember { mutableStateOf(false) }
+    val gap = with(LocalDensity.current) { 8.dp.roundToPx() }
+    Box {
+        EmbeddedSettingsIconAction(EmbeddedSvgIcon.Info, label) { expanded = !expanded }
+        if (expanded) {
+            val position = remember(gap) {
+                object : PopupPositionProvider {
+                    override fun calculatePosition(
+                        anchorBounds: IntRect,
+                        windowSize: IntSize,
+                        layoutDirection: LayoutDirection,
+                        popupContentSize: IntSize,
+                    ): IntOffset {
+                        val left = if (layoutDirection == LayoutDirection.Ltr) {
+                            anchorBounds.right - popupContentSize.width
+                        } else anchorBounds.left
+                        val above = anchorBounds.top - gap - popupContentSize.height
+                        val top = if (above >= gap) above else anchorBounds.bottom + gap
+                        return IntOffset(
+                            left.coerceIn(0, (windowSize.width - popupContentSize.width).coerceAtLeast(0)),
+                            top.coerceIn(0, (windowSize.height - popupContentSize.height).coerceAtLeast(0)),
+                        )
+                    }
+                }
+            }
+            Popup(position, onDismissRequest = { expanded = false }, properties = PopupProperties(focusable = true)) {
+                Card {
+                    Column(
+                        modifier = Modifier.widthIn(max = 320.dp).heightIn(max = 320.dp)
+                            .verticalScroll(rememberScrollState()).padding(16.dp),
+                        verticalArrangement = Arrangement.spacedBy(10.dp),
+                        content = content,
+                    )
+                }
+            }
+        }
     }
 }
 

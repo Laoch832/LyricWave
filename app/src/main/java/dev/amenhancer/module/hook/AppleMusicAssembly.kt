@@ -19,7 +19,7 @@ internal fun assembleAppleMusicTarget(
         lunabeatCatalogCache = settingsController.lunabeatCatalogCache,
         configuration = config::settings,
     )
-    return AppleMusicHostFactory.appleMusic(config, application, classLoader, lyricsTypefaceSession, currentSong, automatic,
+    val target = AppleMusicHostFactory.appleMusic(config, application, classLoader, lyricsTypefaceSession, currentSong, automatic,
         onOpenLyricsMenu = { activity ->
             showEmbeddedLyricsMenu(
                 activity, currentSong, automatic.playback, config::settings,
@@ -28,4 +28,6 @@ internal fun assembleAppleMusicTarget(
             )
         },
     )
+    settingsController.enableIslandLyricsSource = { target.customLyrics.install() }
+    return target
 }

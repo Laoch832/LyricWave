@@ -190,6 +190,7 @@ class HookEntry : XposedModule() {
                         }.onFailure { error ->
                             ModernXposedRuntime.log("embedded feature installation failed open", error)
                         }
+                        dev.amenhancer.module.island.IslandLyricsRuntime.install(application, currentSong, config.settings().islandLyricsEnabled)
                         val playerActivityClass = runCatching {
                             targetClassLoader.loadClass(EmbeddedSettingsHost.PLAYER_ACTIVITY_NAME)
                         }.getOrNull()
@@ -199,7 +200,6 @@ class HookEntry : XposedModule() {
                             activityMatcher = AppleMusicHostFactory.settingsActivityMatcher(application, playerActivityClass),
                             nativeBridgeFactory = { onOpen -> AppleMusicHostFactory.settingsViewBridge(application, onOpen) },
                         )
-                        dev.amenhancer.module.ui.EmbeddedShareRuntime.install { config.settings().wechatMomentsShareEnabled }
                         settingsHost = host
                         AppleMusicHostFactory.installSettingsEntry(application, targetClassLoader, host)
                         runCatching {

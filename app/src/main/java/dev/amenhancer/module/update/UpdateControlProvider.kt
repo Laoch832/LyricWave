@@ -48,6 +48,10 @@ class UpdateControlProvider : ContentProvider() {
                 dev.amenhancer.module.share.MomentsShareRelay.dispatch(app, requireNotNull(extras))
                 Bundle().apply { putBoolean("accepted", true) }
             }
+            dev.amenhancer.module.island.IslandLyricsNotification.METHOD -> {
+                dev.amenhancer.module.island.IslandLyricsNotification.update(app, extras)
+                Bundle()
+            }
             "feedback_config" -> {
                 val enabled = extras?.getBoolean("enabled", true) ?: true
                 app.getSharedPreferences("lyricwave_feedback_config", Context.MODE_PRIVATE).edit().putBoolean("enabled", enabled).apply()

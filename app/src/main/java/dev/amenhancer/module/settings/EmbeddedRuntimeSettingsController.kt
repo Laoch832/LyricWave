@@ -55,7 +55,17 @@ internal class EmbeddedRuntimeSettingsController(
 
     override fun currentSettings(): ModuleSettings = session.settings()
 
-    override fun saveOrdinarySettings(settings: ModuleSettings): Boolean = session.saveSettings(settings)
+    internal var enableIslandLyricsSource: () -> Unit = {}
+
+    override fun saveOrdinarySettings(settings: ModuleSettings): Boolean {
+        val oldEnabled = session.settings().islandLyricsEnabled
+        val saved = session.saveSettings(settings)
+        if (saved && oldEnabled != settings.islandLyricsEnabled) {
+            if (settings.islandLyricsEnabled) runCatching(enableIslandLyricsSource)
+            dev.amenhancer.module.island.IslandLyricsRuntime.setEnabled(settings.islandLyricsEnabled)
+        }
+        return saved
+    }
 
     override fun saveAutomaticLyricsEnabled(enabled: Boolean): Boolean =
         session.saveAutomaticLyricsEnabled(enabled).also { if (it) LyricsPlaybackRuntimeRegistry.onSettingsChanged() }

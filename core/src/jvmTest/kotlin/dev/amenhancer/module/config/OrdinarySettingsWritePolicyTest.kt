@@ -122,6 +122,7 @@ class OrdinarySettingsWritePolicyTest {
                 "lyrics_hdr_brightness_percent" to 200,
                 "lyrics_hdr_flashbang_enabled" to false,
                 "share_links_use_china_storefront" to false,
+                "island_lyrics_enabled" to false,
                 "wechat_moments_share_enabled" to false,
                 "future_blur_enabled" to false,
                 "cjk_karaoke_animation_enabled" to true,

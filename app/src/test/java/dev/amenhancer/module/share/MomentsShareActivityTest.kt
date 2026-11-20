@@ -41,6 +41,7 @@ import org.robolectric.shadows.ShadowToast
 @LooperMode(LooperMode.Mode.PAUSED)
 class MomentsShareActivityTest {
     private val artwork = "https://is1-ssl.mzstatic.com/image/thumb/cover/100x100bb.jpg"
+    private val netEaseLauncher = "com.netease.cloudmusic.activity.IconChangeDefaultAlias"
     private lateinit var app: Application
     private lateinit var activity: MomentsShareActivity
     private fun views(view: View): List<View> = listOf(view) + if (view is ViewGroup)
@@ -62,9 +63,20 @@ class MomentsShareActivityTest {
             packageName = Contract.INTERMEDIARY_PACKAGE; applicationInfo = info
         })
         val launcher = Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_LAUNCHER).setPackage(Contract.INTERMEDIARY_PACKAGE)
-        shadowOf(app.packageManager).addResolveInfoForIntent(launcher, ResolveInfo().apply {
-            activityInfo = ActivityInfo().apply { packageName = Contract.INTERMEDIARY_PACKAGE; name = "MainActivity"; applicationInfo = info; exported = true }
-        })
+        fun registerLauncher(component: String, process: String, order: Int) {
+            shadowOf(app.packageManager).addResolveInfoForIntent(launcher, ResolveInfo().apply {
+                priority = order
+                activityInfo = ActivityInfo().apply {
+                    packageName = Contract.INTERMEDIARY_PACKAGE
+                    name = component
+                    processName = process
+                    applicationInfo = info
+                    exported = true
+                }
+            })
+        }
+        registerLauncher("com.squareup.leakcanary.internal.DisplayLeakActivity", "${info.packageName}:leakcanary", 100)
+        registerLauncher(netEaseLauncher, info.packageName, 0)
         val controller = Robolectric.buildActivity(MomentsShareActivity::class.java,
             Intent(Intent.ACTION_SEND).putExtra(Intent.EXTRA_TEXT, "https://music.apple.com/cn/song/123")
                 .putExtra(Contract.TITLE, "Despacito").putExtra(Contract.ARTIST, "Luis Fonsi")
@@ -98,7 +110,8 @@ class MomentsShareActivityTest {
     }
     @Test fun `launching NetEase without its module receiver never reports success and shows scope diagnosis`() {
         openButton().performClick()
-        assertEquals(Contract.INTERMEDIARY_PACKAGE, shadowOf(activity).nextStartedActivity?.component?.packageName)
+        assertEquals(android.content.ComponentName(Contract.INTERMEDIARY_PACKAGE, netEaseLauncher),
+            shadowOf(activity).nextStartedActivity?.component)
         shadowOf(Looper.getMainLooper()).idleFor(Duration.ofSeconds(31))
         assertTrue(texts().any { "[N0]" in it && "LSPosed" in it })
         assertFalse(texts().any { it.startsWith("NetEase share panel opened") })

@@ -29,6 +29,7 @@
 - YouLyPlus / YouLy+：LLM 歌词翻译提示词与兼容接口处理的参考实现。
 - [Tcrrry Lyrics Plugin](https://github.com/tcrrry/Tcrrry-Lyrics-Plugin)：CJK 尾词渐变处理的参考实现。
 - [Kifranei/AM-plus-plus-media-plugin](https://github.com/Kifranei/AM-plus-plus-media-plugin)：平板媒体控件、音频输出规则与图形资源。
+- [HyperLyrics Enhanced](https://github.com/juren233/HyperLyrics-Enhanced)：灵动岛歌词功能与 HyperOS 焦点通知参数的参考。
 - AMLL：TTML 歌词生态与平板播放器布局参考。
 - [libxposed](https://github.com/libxposed)：模块运行所依赖的 Xposed API 与服务。
 

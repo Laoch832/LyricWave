@@ -142,3 +142,10 @@ This project uses `org.jetbrains.kotlin:kotlin-stdlib:2.4.10`.
 Licensed under the Apache License, Version 2.0. The license is available at:
 
     https://www.apache.org/licenses/LICENSE-2.0
+
+
+## HyperLyrics Enhanced
+
+- 来源：[juren233/HyperLyrics-Enhanced](https://github.com/juren233/HyperLyrics-Enhanced)，[5c6d3ea](https://github.com/juren233/HyperLyrics-Enhanced/tree/5c6d3ea3eb8a5a2c879a768d980f5a7aa36d77ab)。
+- 许可：[GPL-3.0](https://github.com/juren233/HyperLyrics-Enhanced/blob/5c6d3ea3eb8a5a2c879a768d980f5a7aa36d77ab/LICENSE)。
+- 使用范围：参考 `FocusNotificationBuilder.kt` 中的焦点通知参数，使用澜音现有 Apple Music 歌词和媒体状态生成精简通知。

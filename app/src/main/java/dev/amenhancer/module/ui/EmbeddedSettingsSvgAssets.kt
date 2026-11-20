@@ -39,6 +39,7 @@ internal enum class EmbeddedSvgIcon {
     MoreVertical,
     DragHandle,
     Document,
+    Info,
 
     // Dedicated settings semantics.
     HideStatusBar,
@@ -81,6 +82,9 @@ internal object EmbeddedSettingsSvgAssets {
     private val vectorCache = mutableMapOf<EmbeddedSvgIcon, ImageVector>()
 
     private val specs: Map<EmbeddedSvgIcon, EmbeddedSvgSpec> = mapOf(
+        EmbeddedSvgIcon.Info to stroked(
+            "M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18Z M12 11v5 M12 7.8v.15",
+        ),
         EmbeddedSvgIcon.AddLyrics to stroked(
             "M7 3.5H14.5L19 8V19Q19 20.5 17.5 20.5H7Q5.5 20.5 5.5 19V5Q5.5 3.5 7 3.5Z " +
                 "M14.5 3.5V8H19 " +

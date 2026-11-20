@@ -8,7 +8,7 @@ internal class CustomLyricsFeature : FeatureHook {
 
     override fun install(context: HookContext): FeatureInstallResult {
         val settings = context.config.settings()
-        if (!settings.customLyricsEnabled && !settings.llmLyricsTransliterationEnabled) {
+        if (!settings.customLyricsEnabled && !settings.llmLyricsTransliterationEnabled && !settings.islandLyricsEnabled) {
             return FeatureInstallResult.disabled()
         }
         return context.target.customLyrics.install().toFeatureInstallResult()

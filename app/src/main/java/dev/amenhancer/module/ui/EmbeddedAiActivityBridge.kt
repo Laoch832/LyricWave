@@ -45,7 +45,7 @@ internal fun EmbeddedSettingsHost.EmbeddedAiLyricsSummary(activity: Activity, se
 }
 
 @Composable
-internal fun EmbeddedSettingsHost.EmbeddedPlaybackDiagnostic(activity: Activity, active: Boolean) {
+internal fun EmbeddedSettingsHost.EmbeddedPlaybackDiagnostic(active: Boolean) {
     var now by androidx.compose.runtime.remember { androidx.compose.runtime.mutableLongStateOf(android.os.SystemClock.elapsedRealtime()) }
     androidx.compose.runtime.LaunchedEffect(active) {
         while (active) { now = android.os.SystemClock.elapsedRealtime(); kotlinx.coroutines.delay(1000) }

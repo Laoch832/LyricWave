@@ -1,10 +1,8 @@
 package dev.amenhancer.module.share
 
 import android.app.Activity
-import android.content.BroadcastReceiver
 import android.content.ClipData
 import android.content.ClipboardManager
-import android.content.Context
 import android.content.Intent
 import android.os.Bundle
 import android.os.Handler
@@ -16,6 +14,7 @@ import android.widget.Button
 import android.widget.LinearLayout
 import android.widget.TextView
 import android.widget.Toast
+import android.widget.PopupWindow
 import java.util.UUID
 import java.util.concurrent.Executors
 import android.text.Editable
@@ -38,7 +37,7 @@ class MomentsShareActivity : Activity() {
     override fun onDestroy() { panel.close(); super.onDestroy() }
 }
 
-internal class MomentsSharePanel(private val owner: Activity, private val intent: Intent) : android.content.ContextWrapper(owner) {
+private class MomentsSharePanel(private val owner: MomentsShareActivity, private val intent: Intent) : android.content.ContextWrapper(owner) {
     private var closed = false
     private val isDestroyed get() = closed || owner.isDestroyed
     private val isFinishing get() = owner.isFinishing
@@ -54,15 +53,12 @@ internal class MomentsSharePanel(private val owner: Activity, private val intent
     private val draftExecutor = ShareDraftStore.io
     private var refreshDraftActions: () -> Unit = {}
     private var artworkUrl: String? = null
+    private var helpPopup: PopupWindow? = null
     private val metadataExecutor = Executors.newSingleThreadExecutor { Thread(it, "LyricWave-share-metadata").apply { isDaemon = true } }
     internal var metadataResolver: (String) -> MomentsSongMetadata? = AppleSongMetadataLookup()::lookup
     private lateinit var titleInput: EditText
     private lateinit var artistInput: EditText
-    internal var onOutcome: ((Int, String?) -> Unit)? = null
-    private var confirmedStart: (() -> Unit)? = null
-    private var confirmedRequest: Pair<String, Long>? = null
-    fun startConfirmedShare(id: String, deadline: Long) { confirmedRequest = id to deadline; confirmedStart?.invoke() }
-    fun buildView(savedInstanceState: Bundle?, showHeader: Boolean = true): android.view.View {
+    fun buildView(savedInstanceState: Bundle?): android.view.View {
         val originalUrl = Contract.extract(intent.getCharSequenceExtra(Intent.EXTRA_TEXT)?.toString().orEmpty())
         chinaStorefront = savedInstanceState?.getBoolean(Contract.CHINA_STOREFRONT)
             ?: intent.getBooleanExtra(Contract.CHINA_STOREFRONT, false)
@@ -74,7 +70,7 @@ internal class MomentsSharePanel(private val owner: Activity, private val intent
         val initialArtist = savedInstanceState?.getString(Contract.ARTIST)
             ?: MomentsSongMetadata.clean(intent.getStringExtra(Contract.ARTIST)).orEmpty()
         val layout = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; setPadding(32, 48, 32, 32) }
-        if (showHeader) layout.addView(TextView(this).apply { text = ModuleText.WECHAT_MOMENTS_CARD.text(); textSize = 22f })
+        layout.addView(TextView(this).apply { text = ModuleText.WECHAT_MOMENTS_CARD.text(); textSize = 22f })
         titleInput = EditText(this).apply { hint = ModuleText.SHARE_SONG_TITLE.text(); setSingleLine(true); setText(initialTitle) }
         artistInput = EditText(this).apply { hint = ModuleText.SHARE_SONG_ARTIST.text(); setSingleLine(true); setText(initialArtist) }
         layout.addView(titleInput); layout.addView(artistInput)
@@ -86,8 +82,20 @@ internal class MomentsSharePanel(private val owner: Activity, private val intent
                 linkPreview.text = Contract.withChinaStorefront(url, checked).orEmpty()
             }
         }
-        layout.addView(regionSwitch); layout.addView(linkPreview)
-        val status = TextView(this).apply { text = ModuleText.WECHAT_SHARE_NOTICE.text(); textSize = 15f }
+        layout.addView(LinearLayout(this).apply {
+            gravity = android.view.Gravity.CENTER_VERTICAL
+            addView(regionSwitch, LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f))
+            val target = (48 * resources.displayMetrics.density).toInt()
+            addView(Button(this@MomentsSharePanel).apply {
+                text = "ⓘ"
+                textSize = 22f
+                contentDescription = ModuleText.SETTINGS_DETAILS_ACTION.text()
+                setPadding(0, 0, 0, 0)
+                setOnClickListener { showHelp(this) }
+            }, LinearLayout.LayoutParams(target, target))
+        })
+        layout.addView(linkPreview)
+        val status = TextView(this).apply { textSize = 15f }
         layout.addView(status)
         layout.addView(Button(this).apply {
             text = ModuleText.COPY_SONG_LINK.text(); isEnabled = url != null
@@ -190,7 +198,6 @@ internal class MomentsSharePanel(private val owner: Activity, private val intent
             attempt = current
             current.start()
         }
-        confirmedStart = begin
         open.setOnClickListener { begin() }
         if (url != null && MomentsSongMetadata.songId(url) != null && (initialTitle.isBlank() || initialArtist.isBlank() || artworkUrl == null)) {
             status.text = (if (open.isEnabled) ModuleText.SHARE_METADATA_BACKGROUND else ModuleText.SHARE_METADATA_LOADING).text()
@@ -205,25 +212,61 @@ internal class MomentsSharePanel(private val owner: Activity, private val intent
                     }
                     open.isEnabled = !pending && MomentsSongMetadata.title(titleInput.text.toString()) != null
                     refreshDraftActions()
-                    if (!pending && !draftEditsProtected) status.text = if (MomentsSongMetadata.title(titleInput.text.toString()) == null)
-                        ModuleText.SHARE_METADATA_MISSING.text() else ModuleText.WECHAT_SHARE_NOTICE.text() +
-                            (if (artworkUrl == null) "\n" + ModuleText.SHARE_ARTWORK_MISSING.text() else "")
+                    if (!pending && !draftEditsProtected) status.text = when {
+                        MomentsSongMetadata.title(titleInput.text.toString()) == null -> ModuleText.SHARE_METADATA_MISSING.text()
+                        artworkUrl == null -> ModuleText.SHARE_ARTWORK_MISSING.text()
+                        else -> ""
+                    }
                 }
             }
         }
         return content
     }
-    val shareUrl: String? get() = Contract.withChinaStorefront(Contract.extract(intent.getCharSequenceExtra(Intent.EXTRA_TEXT)?.toString().orEmpty()), chinaStorefront)
+
+    private fun showHelp(anchor: android.view.View) {
+        if (helpPopup?.isShowing == true) {
+            helpPopup?.dismiss()
+            return
+        }
+        val density = resources.displayMetrics.density
+        val padding = (16 * density).toInt()
+        val width = minOf((300 * density).toInt(), resources.displayMetrics.widthPixels - 2 * padding)
+        if (width <= 0) return
+        val description = TextView(this).apply {
+            text = ModuleText.WECHAT_SHARE_NOTICE.text()
+            textSize = 15f
+            setPadding(padding, padding, padding, padding)
+        }
+        description.measure(
+            android.view.View.MeasureSpec.makeMeasureSpec(width, android.view.View.MeasureSpec.EXACTLY),
+            android.view.View.MeasureSpec.UNSPECIFIED,
+        )
+        val origin = IntArray(2).also(anchor::getLocationOnScreen)
+        val visible = android.graphics.Rect().also(anchor::getWindowVisibleDisplayFrame)
+        val gap = (8 * density).toInt()
+        val enoughRoomAbove = origin[1] - visible.top >= description.measuredHeight + gap
+        val offset = if (enoughRoomAbove) -anchor.height - description.measuredHeight - gap else gap
+        helpPopup = PopupWindow(description, width, description.measuredHeight, true).apply {
+            val night = resources.configuration.uiMode and android.content.res.Configuration.UI_MODE_NIGHT_MASK ==
+                android.content.res.Configuration.UI_MODE_NIGHT_YES
+            description.setTextColor(if (night) 0xFFF3F3F3.toInt() else 0xFF202023.toInt())
+            setBackgroundDrawable(android.graphics.drawable.GradientDrawable().apply {
+                setColor(if (night) 0xFF333338.toInt() else 0xFFF6F6FA.toInt())
+                cornerRadius = 16 * density
+            })
+            elevation = 6 * density
+            isOutsideTouchable = true
+            showAsDropDown(anchor, 0, offset, android.view.Gravity.END)
+        }
+    }
     /** A local deadline is independent of ordered-broadcast delivery or remote main-thread health. */
     private inner class ShareAttempt(
         val url: String, val title: String, val artist: String?, val artwork: String?,
         val status: TextView, val button: Button, val region: android.widget.Switch, val stop: Button,
     ) {
-        val id = confirmedRequest?.first ?: UUID.randomUUID().toString()
-        private val deadline = confirmedRequest?.second ?: (SystemClock.elapsedRealtime() + Contract.REQUEST_TIMEOUT_MS)
-        private var remoteCancel: android.os.ResultReceiver? = null
+        val id = UUID.randomUUID().toString()
+        private val deadline = SystemClock.elapsedRealtime() + Contract.REQUEST_TIMEOUT_MS
         private var lastCode = 0
-        private var rejectionReason = 0
         private var detail: String? = null
         private val valid get() = attempt === this && !isDestroyed && !isFinishing
         private val timeout = Runnable { if (valid) fail(lastCode) }
@@ -240,50 +283,30 @@ internal class MomentsSharePanel(private val owner: Activity, private val intent
             stop.visibility = android.view.View.VISIBLE
             stop.setOnClickListener { if (valid) finish(ModuleText.SHARE_WAIT_STOPPED.text()) }
             tick.run(); handler.postDelayed(timeout, (deadline - SystemClock.elapsedRealtime()).coerceAtLeast(0))
-            if (owner is MomentsShareActivity || owner is MomentsShareHandoffActivity) {
-                try {
-                    val launch = NetEaseShareLaunch.resolve(packageManager)
-                    if (launch == null) fail(Contract.RESULT_MISSING)
-                    else { startActivity(launch); handler.postDelayed(poll, 800) }
-                } catch (_: Exception) { fail(Contract.RESULT_LAUNCH) }
-            } else {
-                val callback = object : android.os.ResultReceiver(handler) {
-                    override fun onReceiveResult(code: Int, data: Bundle?) {
-                        @Suppress("DEPRECATION")
-                        val cancel = data?.getParcelable<android.os.ResultReceiver>(MomentsShareHandoff.CANCEL)
-                        if (!valid) { cancel?.send(0, Bundle()); return }
-                        if (code == MomentsShareHandoff.READY) { remoteCancel = cancel; cancel?.send(MomentsShareHandoff.READY, Bundle()); return }
-                        detail = data?.getString(MomentsShareRelay.DETAIL)
-                        rejectionReason = data?.getInt(MomentsShareHandoff.REJECTION, 0)?.takeIf { it in 1..7 } ?: 0
-                        when (code) {
-                            Contract.RESULT_OPENED -> finish(ModuleText.WECHAT_EDITOR_OPENED.text(), code)
-                            MomentsShareHandoff.CANCELLED -> finish(ModuleText.SHARE_WAIT_STOPPED.text())
-                            else -> fail(code)
-                        }
-                    }
+            try {
+                val launch = NetEaseShareLaunch.resolve(packageManager)
+                if (launch == null) fail(Contract.RESULT_MISSING)
+                else {
+                    owner.startActivity(launch)
+                    handler.postDelayed(poll, 800)
                 }
-                try {
-                    val handoff = MomentsShareHandoff.intent(url, title, artist, artwork, id, deadline, callback)
-                    if (android.os.Build.VERSION.SDK_INT >= 35) {
-                        // The ResultReceiver already reports the outcome. Android 15+ can
-                        // authenticate the caller without delivering a result to Apple Music.
-                        owner.startActivity(handoff,
-                            android.app.ActivityOptions.makeBasic().setShareIdentityEnabled(true).toBundle())
-                    } else owner.startActivityForResult(handoff, MomentsShareHandoff.REQUEST_CODE)
-                } catch (error: Exception) {
-                    dev.amenhancer.module.feedback.FeedbackRuntime.record("share", error, mapOf("result" to Contract.RESULT_RELAY))
-                    fail(Contract.RESULT_RELAY)
-                }
+            } catch (_: Exception) {
+                fail(Contract.RESULT_LAUNCH)
             }
         }
-        fun dispose() { handler.removeCallbacks(timeout); handler.removeCallbacks(poll); handler.removeCallbacks(tick); remoteCancel?.send(0, Bundle()); remoteCancel = null }
-        private fun finish(message: String, code: Int = MomentsShareHandoff.CANCELLED) {
+
+        fun dispose() {
+            handler.removeCallbacks(timeout)
+            handler.removeCallbacks(poll)
+            handler.removeCallbacks(tick)
+        }
+
+        private fun finish(message: String) {
             if (!valid) return
             dispose(); attempt = null; pending = false
             button.isEnabled = true; region.isEnabled = true; stop.visibility = android.view.View.GONE
             status.text = message
             refreshDraftActions()
-            onOutcome?.invoke(code, detail)
         }
         private fun send() {
             val callback = object : android.os.ResultReceiver(handler) {
@@ -291,7 +314,7 @@ internal class MomentsSharePanel(private val owner: Activity, private val intent
                     if (!valid) return
                     lastCode = code; detail = data?.getString(MomentsShareRelay.DETAIL)
                     when {
-                        code == Contract.RESULT_OPENED -> finish(ModuleText.WECHAT_EDITOR_OPENED.text(), Contract.RESULT_OPENED)
+                        code == Contract.RESULT_OPENED -> finish(ModuleText.WECHAT_EDITOR_OPENED.text())
                         code in listOf(0, Contract.RESULT_NOT_READY, Contract.RESULT_PENDING) -> {
                             handler.removeCallbacks(poll)
                             if (SystemClock.elapsedRealtime() < deadline) handler.postDelayed(poll, 500) else fail(code)
@@ -319,17 +342,13 @@ internal class MomentsSharePanel(private val owner: Activity, private val intent
                 Contract.RESULT_LAUNCH -> ModuleText.WECHAT_PANEL_LAUNCH_FAILED
                 Contract.RESULT_BUSY -> ModuleText.WECHAT_SHARE_BUSY
                 Contract.RESULT_RELAY -> ModuleText.SHARE_RELAY_UNAVAILABLE
-                MomentsShareHandoff.REJECTED -> ModuleText.SHARE_HANDOFF_REJECTED
                 Contract.RESULT_MISSING -> ModuleText.WECHAT_MISSING
                 else -> ModuleText.WECHAT_BRIDGE_UNAVAILABLE
             }.text()
             val safeDetail = detail?.takeIf { it.matches(Regex("[0-9A-Za-z./_-]{1,80}")) }
             val text = "$message [N$code]" + (safeDetail?.let { " ($it)" } ?: "")
-            dev.amenhancer.module.feedback.FeedbackRuntime.record("share", codes = buildMap {
-                put("result", code)
-                if (code == MomentsShareHandoff.REJECTED && rejectionReason in 1..7) put("component", rejectionReason)
-            })
-            finish(text, code); Toast.makeText(this@MomentsSharePanel, text, Toast.LENGTH_LONG).show()
+            dev.amenhancer.module.feedback.FeedbackRuntime.record("share", codes = mapOf("result" to code))
+            finish(text); Toast.makeText(this@MomentsSharePanel, text, Toast.LENGTH_LONG).show()
         }
     }
     fun saveState(outState: Bundle) {
@@ -338,5 +357,5 @@ internal class MomentsSharePanel(private val owner: Activity, private val intent
         outState.putString(Contract.TITLE, titleInput.text.toString())
         outState.putString(Contract.ARTIST, artistInput.text.toString())
     }
-    fun close() { attempt?.dispose(); attempt = null; closed = true; draftRevision++; metadataExecutor.shutdownNow(); handler.removeCallbacksAndMessages(null); confirmedStart = null; onOutcome = null }
+    fun close() { helpPopup?.dismiss(); helpPopup = null; attempt?.dispose(); attempt = null; closed = true; draftRevision++; metadataExecutor.shutdownNow(); handler.removeCallbacksAndMessages(null) }
 }
