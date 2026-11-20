@@ -32,7 +32,10 @@ fi
 
 PYTHON="${GAMDL_BUILD_PYTHON:-python3.13}"
 "$PYTHON" -c 'import sys; assert sys.version_info[:2] == (3, 13)'
-"$PYTHON" -m pip install --disable-pip-version-check "maturin==1.15.0"
+# Per Chaquopy's Android wheel guidance, cibuildwheel downloads a correctly
+# provisioned Android CPython sysroot (including libpython3.so for PyO3).
+# A plain Linux-host maturin invocation fails during cross-link: -lpython3.
+"$PYTHON" -m pip install --disable-pip-version-check "cibuildwheel==4.3.5"
 
 TEMP="$(mktemp -d)"
 trap 'rm -rf "$TEMP"' EXIT
@@ -48,18 +51,17 @@ fi
 
 rustup target add aarch64-linux-android
 export ANDROID_NDK_HOME="$NDK"
-export CARGO_TARGET_AARCH64_LINUX_ANDROID_LINKER="$CLANG"
-export CC_aarch64_linux_android="$CLANG"
-export AR_aarch64_linux_android="$BIN/llvm-ar"
-export PYO3_CROSS_PYTHON_VERSION="3.13"
+export ANDROID_HOME="${ANDROID_HOME:-${ANDROID_SDK_ROOT:-}}"
+export CIBW_TEST_SKIP="*"
+export CIBW_BUILD_VERBOSITY=1
+export CIBW_ANDROID_API_LEVEL=26
 mkdir -p "$DEST"
 rm -f "$DEST"/gamdl-4.1.1-*.whl
 (
     cd "$TEMP"
-    "$PYTHON" -m maturin build --release \
-        --target aarch64-linux-android \
-        --interpreter "$PYTHON" \
-        --out "$DEST"
+    "$PYTHON" -m cibuildwheel --platform android \
+        --only cp313-android_arm64_v8a \
+        --output-dir "$DEST"
 )
 mapfile -t WHEELS < <(find "$DEST" -maxdepth 1 -type f -name 'gamdl-4.1.1-*.whl')
 if [[ "${#WHEELS[@]}" -ne 1 ]]; then
