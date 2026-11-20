@@ -63,3 +63,5 @@ CI 的 Android job 也按同样顺序运行完整源检查、测试、Lint 和 A
 - [ ] 使用者确认实际版权授权及适用服务条款，才对相关内容进行文件导出。
 
 未满足这些项目时 PR 维持 Draft，不合并、不生成稳定 Release。
+
+当前 `pywidevine==1.9.0` 需要 `pycryptodome>=3.23.0`，因此 Android 源码构建也会固定产出 pycryptodome 3.23.0 wheel，不能仅使用 Chaquopy 预编译仓库较旧的 3.21.0。

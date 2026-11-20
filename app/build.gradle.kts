@@ -103,11 +103,17 @@ val gamdlAndroidWheel = fileTree("gamdl-wheels") {
 }.files.singleOrNull() ?: throw GradleException(
     "Missing Gamdl Android wheel: run bash scripts/build-gamdl-android.sh before Gradle."
 )
+val cryptoAndroidWheel = fileTree("gamdl-wheels") {
+    include("pycryptodome-3.23.0-*.whl")
+}.files.singleOrNull() ?: throw GradleException(
+    "Missing pycryptodome Android wheel: run bash scripts/build-gamdl-android.sh before Gradle."
+)
 chaquopy {
     defaultConfig {
         version = "3.13"
         pip {
-            install("gamdl-wheels/" + gamdlAndroidWheel.name)
+            install(gamdlAndroidWheel.absolutePath)
+            install(cryptoAndroidWheel.absolutePath)
             install("pywidevine==1.9.0")
         }
     }

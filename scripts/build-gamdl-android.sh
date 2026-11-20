@@ -72,3 +72,30 @@ case "$(basename "${WHEELS[0]}")" in
     *) echo "Wheel platform is not Android ARM64: ${WHEELS[0]}" >&2; exit 4 ;;
 esac
 echo "Verified Android wheel: $(basename "${WHEELS[0]}")"
+
+# pywidevine >=1.9 requires pycryptodome >=3.23; Chaquopy's CPython
+# 3.13 index currently tops out at 3.21. Cross-build the newer upstream
+# C-extension rather than weakening the dependency constraint.
+CRYPTO_VERSION="3.23.0"
+CRYPTO_SOURCE="$TEMP/pycryptodome"
+mkdir -p "$CRYPTO_SOURCE" "$TEMP/sdist"
+"$PYTHON" -m pip download --no-deps --no-binary=:all: \
+    "pycryptodome==$CRYPTO_VERSION" --dest "$TEMP/sdist"
+mapfile -t ARCHIVES < <(find "$TEMP/sdist" -maxdepth 1 -name 'pycryptodome-*.tar.gz' -type f)
+if [[ "${#ARCHIVES[@]}" -ne 1 ]]; then
+    echo "Expected one pinned pycryptodome source archive." >&2
+    exit 5
+fi
+tar -xzf "${ARCHIVES[0]}" -C "$CRYPTO_SOURCE" --strip-components=1
+(
+    cd "$CRYPTO_SOURCE"
+    "$PYTHON" -m cibuildwheel --only cp313-android_arm64_v8a \
+        --output-dir "$DEST"
+)
+mapfile -t CRYPTO_WHEELS < <(find "$DEST" -maxdepth 1 -name "pycryptodome-$CRYPTO_VERSION-*.whl" -type f)
+if [[ "${#CRYPTO_WHEELS[@]}" -ne 1 ]]; then
+    echo "Expected one Android pycryptodome 3.23.0 wheel." >&2
+    exit 6
+fi
+echo "Verified Android crypto wheel: $(basename "${CRYPTO_WHEELS[0]}")"
+
