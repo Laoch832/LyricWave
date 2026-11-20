@@ -3,7 +3,6 @@ package dev.amenhancer.module.ui
 import android.app.Activity
 import android.app.AlertDialog
 import android.content.res.ColorStateList
-import android.view.View
 import android.widget.Button
 import android.widget.LinearLayout
 import android.widget.TextView
@@ -31,15 +30,6 @@ internal fun EmbeddedSettingsHost.EmbeddedAiActivityPage(activity: Activity, set
                 orientation = LinearLayout.VERTICAL
                 renderEmbeddedAiLyricsActivityPage(activity, this, settings)
             }
-        })
-    }
-}
-
-@Composable
-internal fun EmbeddedSettingsHost.EmbeddedAiLyricsSummary(activity: Activity, settings: ModuleSettings, onOpen: () -> Unit) {
-    key(settings) {
-        AndroidView(modifier = Modifier.fillMaxWidth(), factory = {
-            LinearLayout(activity).apply { orientation = LinearLayout.VERTICAL; addAiLyricsSummary(activity, this, onOpen) }
         })
     }
 }
@@ -103,16 +93,6 @@ internal fun EmbeddedSettingsHost.embeddedActionButton(activity: Activity, label
         bindEmbeddedTheme(activity) { colors ->
             backgroundTintList = ColorStateList.valueOf(colors.primary); setTextColor(colors.onPrimary)
         }
-        setOnClickListener { onClick() }
-    }
-
-internal fun EmbeddedSettingsHost.embeddedNavigationRow(activity: Activity, title: String, summary: String, onClick: () -> Unit): View =
-    LinearLayout(activity).apply {
-        orientation = LinearLayout.VERTICAL
-        setPadding(dp(activity, 10), dp(activity, 10), dp(activity, 10), dp(activity, 10))
-        addView(TextView(activity).apply { text = title; textSize = 16f; setEmbeddedTextColor(activity) { it.onSurface } })
-        addView(TextView(activity).apply { text = summary; textSize = 13f; setEmbeddedTextColor(activity) { it.onSurfaceVariant } })
-        isClickable = true; isFocusable = true; bindEmbeddedClickFeedback(activity)
         setOnClickListener { onClick() }
     }
 

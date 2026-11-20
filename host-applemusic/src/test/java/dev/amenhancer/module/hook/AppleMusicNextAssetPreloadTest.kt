@@ -85,8 +85,8 @@ class AppleMusicNextAssetPreloadTest {
     private val hooks = mutableMapOf<Method, ModernMethodHook>()
     private var enabled = false
     private lateinit var source: Source
-    private fun install(version: Long = 1614): TargetCapabilityInstall = AppleMusicNextAssetPreloadTarget(
-        TargetBuild("com.apple.android.music", "7.0.0", version), profile, loader, { enabled },
+    private fun install(version: Long = 1614, name: String = "7.0.0", document: JSONObject = profile): TargetCapabilityInstall = AppleMusicNextAssetPreloadTarget(
+        TargetBuild("com.apple.android.music", name, version), document, loader, { enabled },
         register = { method, hook, _ -> hooks[method] = hook; true },
     ).install()
     private fun call(receiver: Any, name: String, vararg args: Any?) {
@@ -159,6 +159,17 @@ class AppleMusicNextAssetPreloadTest {
         source.sourcePrepareListener.player.position = 50_000
         tick(); assertEquals(1, source.assetRequestManager.fetches)
         call(source, "releaseSourceInternal")
+    }
+    @Test fun `1622 preloads with its own verified profile`() {
+        assertTrue(install(1622, "7.0.1") is TargetCapabilityInstall.Unsupported)
+        assertTrue(hooks.isEmpty())
+        val document = JSONObject(javaClass.getResourceAsStream("/host-profiles/7.0.1-1622.json")!!
+            .bufferedReader().readText()).getJSONObject("nextAssetPreload")
+        assertTrue(install(1622, "7.0.1", document) is TargetCapabilityInstall.Active)
+        enabled = true
+        call(source, "prepareSourceInternal", null)
+        tick()
+        assertEquals(1, source.assetRequestManager.fetches)
     }
     @Test fun `unsupported exact version installs no hooks`() {
         assertTrue(install(1615) is TargetCapabilityInstall.Unsupported); assertTrue(hooks.isEmpty())

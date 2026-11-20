@@ -247,9 +247,9 @@ internal fun EmbeddedSettingsHost.showSettingsDialog(activity: Activity) {
                                 val scrollState = pageScrollStates.getOrPut(page) { ScrollState(0) }
                                 EmbeddedSettingsScreen(activity, page, current, wide, scrollState, goBack) {
                                     when (page) {
-                                        EmbeddedSettingsPage.MAIN -> EmbeddedSettingsHome(activity, current, refresh, ::open, active) { edit -> update(edit(settings)) }
+                                        EmbeddedSettingsPage.MAIN -> EmbeddedSettingsHome(activity, current, refresh, ::open)
                                         EmbeddedSettingsPage.CUSTOM_LYRICS ->
-                                            EmbeddedCustomLyricsPage(activity, current, refresh, ::update, ::open)
+                                            EmbeddedCustomLyricsPage(activity, current, refresh, active, ::update, ::open)
                                         EmbeddedSettingsPage.AUTOMATIC_LYRICS ->
                                             EmbeddedAutomaticLyricsPage(activity, current, ::applySavedChange, ::update)
                                         EmbeddedSettingsPage.LLM_LYRICS ->
@@ -468,19 +468,20 @@ private const val EMBEDDED_SETTINGS_RAIL_MIN_WIDTH_DP = 600
 
 private val EmbeddedSettingsNavigationPages = listOf(
     EmbeddedSettingsPage.CUSTOM_LYRICS,
+    EmbeddedSettingsPage.LLM_LYRICS,
+    EmbeddedSettingsPage.PLAYBACK,
     EmbeddedSettingsPage.LYRICS_EFFECTS,
     EmbeddedSettingsPage.INTERFACE,
     EmbeddedSettingsPage.TITLE_REGION,
     EmbeddedSettingsPage.ADVANCED,
-    EmbeddedSettingsPage.EXPERIMENTAL,
     EmbeddedSettingsPage.PLUGINS,
 )
 
 private val EmbeddedSettingsPage.navigationCategory: EmbeddedSettingsPage
     get() = when (this) {
-        EmbeddedSettingsPage.MAIN, EmbeddedSettingsPage.AUTOMATIC_LYRICS, EmbeddedSettingsPage.LLM_LYRICS ->
+        EmbeddedSettingsPage.MAIN, EmbeddedSettingsPage.AUTOMATIC_LYRICS ->
             EmbeddedSettingsPage.CUSTOM_LYRICS
-        EmbeddedSettingsPage.AI_LYRICS_ACTIVITY -> EmbeddedSettingsPage.LLM_LYRICS.navigationCategory
+        EmbeddedSettingsPage.AI_LYRICS_ACTIVITY -> EmbeddedSettingsPage.LLM_LYRICS
         EmbeddedSettingsPage.BOTTOM_BAR_ANIMATION -> EmbeddedSettingsPage.INTERFACE
         else -> this
     }
@@ -488,6 +489,8 @@ private val EmbeddedSettingsPage.navigationCategory: EmbeddedSettingsPage
 private val EmbeddedSettingsPage.navigationIcon: EmbeddedSvgIcon
     get() = when (navigationCategory) {
         EmbeddedSettingsPage.CUSTOM_LYRICS -> EmbeddedSvgIcon.CustomLyrics
+        EmbeddedSettingsPage.LLM_LYRICS -> EmbeddedSvgIcon.Translation
+        EmbeddedSettingsPage.PLAYBACK -> EmbeddedSvgIcon.Music
         EmbeddedSettingsPage.LYRICS_EFFECTS -> EmbeddedSvgIcon.LyricEffects
         EmbeddedSettingsPage.INTERFACE -> EmbeddedSvgIcon.TabletDualPane
         EmbeddedSettingsPage.TITLE_REGION -> EmbeddedSvgIcon.TitleMode
@@ -503,7 +506,7 @@ private val EmbeddedSettingsPage.title: ModuleText
         EmbeddedSettingsPage.LYRICS_EFFECTS -> ModuleText.CATEGORY_LYRICS_EFFECTS
         EmbeddedSettingsPage.INTERFACE -> ModuleText.CATEGORY_INTERFACE
         EmbeddedSettingsPage.TITLE_REGION -> ModuleText.CATEGORY_TITLE_REGION
-        EmbeddedSettingsPage.EXPERIMENTAL -> ModuleText.EXPERIMENTAL_FEATURES
+        EmbeddedSettingsPage.PLAYBACK -> ModuleText.CATEGORY_PLAYBACK
         EmbeddedSettingsPage.ADVANCED -> ModuleText.ADVANCED_SETTINGS
         EmbeddedSettingsPage.PLUGINS -> ModuleText.PLUGINS
         EmbeddedSettingsPage.AI_LYRICS_ACTIVITY -> ModuleText.AI_ACTIVITY_TITLE
@@ -517,8 +520,6 @@ private fun EmbeddedSettingsHost.EmbeddedSettingsHome(
     settings: ModuleSettings,
     revision: Int,
     onOpen: (EmbeddedSettingsPage) -> Unit,
-    active: Boolean,
-    onEdit: ((ModuleSettings) -> ModuleSettings) -> Unit,
 ) {
     val lyricsCount = remember(revision) { runCatching { controller.lyricsEntries().size }.getOrDefault(0) }
     val font = remember(revision) { runCatching { controller.currentSettings().fontManifest }.getOrDefault(settings.fontManifest) }
@@ -531,6 +532,7 @@ private fun EmbeddedSettingsHost.EmbeddedSettingsHome(
 
     fun state(enabled: Boolean) = localizedText(if (enabled) ModuleText.STATE_ON else ModuleText.STATE_OFF)
 
+    EmbeddedSettingsSection(localizedText(ModuleText.SETTINGS_LYRICS_GROUP))
     EmbeddedSettingsGroup {
         EmbeddedSettingLink(
             localizedText(ModuleText.CATEGORY_LYRICS_MANAGEMENT),
@@ -543,6 +545,15 @@ private fun EmbeddedSettingsHost.EmbeddedSettingsHome(
             EmbeddedSvgIcon.LyricEffects,
         ) { onOpen(EmbeddedSettingsPage.LYRICS_EFFECTS) }
         EmbeddedSettingLink(
+            localizedText(ModuleText.LLM_LYRICS_FALLBACK), icon = EmbeddedSvgIcon.Translation,
+        ) { onOpen(EmbeddedSettingsPage.LLM_LYRICS) }
+    }
+    EmbeddedSettingsSection(localizedText(ModuleText.SETTINGS_PLAYBACK_GROUP))
+    EmbeddedSettingsGroup {
+        EmbeddedSettingLink(
+            localizedText(ModuleText.CATEGORY_PLAYBACK), icon = EmbeddedSvgIcon.Music,
+        ) { onOpen(EmbeddedSettingsPage.PLAYBACK) }
+        EmbeddedSettingLink(
             localizedText(ModuleText.CATEGORY_INTERFACE),
             localizedText(ModuleText.SUMMARY_INTERFACE, state(settings.dualPaneEnabled), state(settings.phoneLiquidGlassEnabled)),
             EmbeddedSvgIcon.TabletDualPane,
@@ -554,6 +565,7 @@ private fun EmbeddedSettingsHost.EmbeddedSettingsHome(
             EmbeddedSvgIcon.TitleMode,
         ) { onOpen(EmbeddedSettingsPage.TITLE_REGION) }
     }
+    EmbeddedSettingsSection(localizedText(ModuleText.SETTINGS_APP_GROUP))
     EmbeddedSettingsGroup {
         EmbeddedSettingLink(
             localizedText(ModuleText.ADVANCED_SETTINGS),
@@ -562,16 +574,12 @@ private fun EmbeddedSettingsHost.EmbeddedSettingsHome(
             } else "DPI · $dpi",
             EmbeddedSvgIcon.Settings,
         ) { onOpen(EmbeddedSettingsPage.ADVANCED) }
-        EmbeddedSettingLink(localizedText(ModuleText.EXPERIMENTAL_FEATURES), localizedText(ModuleText.BUFFERED_DRM_RECOVERY), EmbeddedSvgIcon.StartupPrewarm) {
-            onOpen(EmbeddedSettingsPage.EXPERIMENTAL)
-        }
         EmbeddedSettingLink(
             localizedText(ModuleText.PLUGINS),
             localizedText(if (plugins == null) ModuleText.PLUGIN_RUNTIME_UNAVAILABLE else ModuleText.SUMMARY_PLUGINS),
             EmbeddedSvgIcon.Plugins,
         ) { onOpen(EmbeddedSettingsPage.PLUGINS) }
     }
-    EmbeddedAppUpdates(activity, active, settings, onEdit)
 }
 
 @Composable
@@ -652,9 +660,6 @@ private fun EmbeddedSettingsHost.EmbeddedSettingsCategory(
                             .putExtra(android.provider.Settings.EXTRA_APP_PACKAGE, dev.amenhancer.module.BuildConfig.APPLICATION_ID))
                     }
                 }
-                Setting(ModuleText.PLAYBACK_RECOVERY, ModuleText.PLAYBACK_RECOVERY_SUMMARY,
-                    settings.playbackStallRecoveryEnabled, EmbeddedSvgIcon.RestoreDefault
-                ) { value -> onEdit { it.copy(playbackStallRecoveryEnabled = value) } }
                 Setting(ModuleText.WECHAT_MOMENTS, ModuleText.WECHAT_MOMENTS_SUMMARY,
                     settings.wechatMomentsShareEnabled, EmbeddedSvgIcon.Document
                 ) { value -> onEdit { it.copy(wechatMomentsShareEnabled = value) } }
@@ -722,60 +727,7 @@ private fun EmbeddedSettingsHost.EmbeddedSettingsCategory(
                 onSelectedIndexChange = { index -> onEdit { it.copy(titleCorrectionMode = modes[index]) } },
             )
         }
-        EmbeddedSettingsPage.EXPERIMENTAL -> {
-            EmbeddedSettingsGroup {
-                Setting(ModuleText.BUFFERED_DRM_RECOVERY, ModuleText.BUFFERED_DRM_RECOVERY_SUMMARY,
-                    settings.experimentalBufferedDrmRecoveryEnabled, EmbeddedSvgIcon.StartupPrewarm) { value ->
-                    onEdit { it.copy(experimentalBufferedDrmRecoveryEnabled = value) }
-                }
-                var reserveMs by remember { mutableStateOf(0L) }
-                var recoveryStage by remember { mutableStateOf(dev.amenhancer.module.playback.DrmRoundTripRecovery.Stage.IDLE) }
-                var bufferAvailable by remember { mutableStateOf(false) }
-                LaunchedEffect(active, settings.experimentalBufferedDrmRecoveryEnabled) {
-                    while (active) {
-                        reserveMs = dev.amenhancer.module.playback.BufferedDrmRecoveryStatus.bufferedMs
-                        recoveryStage = dev.amenhancer.module.playback.BufferedDrmRecoveryStatus.stage
-                        bufferAvailable = dev.amenhancer.module.playback.BufferedDrmRecoveryStatus.available
-                        kotlinx.coroutines.delay(500)
-                    }
-                }
-                val bufferState = when {
-                    !settings.experimentalBufferedDrmRecoveryEnabled -> ModuleText.PRELOAD_OFF
-                    !bufferAvailable -> ModuleText.PRELOAD_UNSUPPORTED
-                    else -> when (recoveryStage) {
-                        dev.amenhancer.module.playback.DrmRoundTripRecovery.Stage.NEXT -> ModuleText.BUFFERED_DRM_NEXT
-                        dev.amenhancer.module.playback.DrmRoundTripRecovery.Stage.REFILL -> ModuleText.BUFFERED_DRM_REFILL
-                        dev.amenhancer.module.playback.DrmRoundTripRecovery.Stage.COMPLETE -> ModuleText.BUFFERED_DRM_COMPLETE
-                        dev.amenhancer.module.playback.DrmRoundTripRecovery.Stage.CANCELLED -> ModuleText.BUFFERED_DRM_CANCELLED
-                        dev.amenhancer.module.playback.DrmRoundTripRecovery.Stage.FAILED -> ModuleText.BUFFERED_DRM_FAILED
-                        else -> ModuleText.BUFFERED_DRM_WAITING
-                    }
-                }
-                Text(localizedText(ModuleText.BUFFERED_DRM_STATE, String.format(androidx.compose.ui.platform.LocalConfiguration.current.locales[0], "%.1f", reserveMs / 1000.0), localizedText(bufferState)), modifier = Modifier.padding(20.dp))
-
-                Setting(ModuleText.NEXT_ASSET_PRELOAD, ModuleText.NEXT_ASSET_PRELOAD_SUMMARY,
-                    settings.experimentalNextAssetPreloadEnabled, EmbeddedSvgIcon.StartupPrewarm) { value ->
-                    onEdit { it.copy(experimentalNextAssetPreloadEnabled = value) }
-                }
-                var status by remember { mutableStateOf(dev.amenhancer.module.playback.NextAssetPreloadStatus.state) }
-                LaunchedEffect(active, settings.experimentalNextAssetPreloadEnabled) {
-                    while (active) {
-                        status = dev.amenhancer.module.playback.NextAssetPreloadStatus.state
-                        kotlinx.coroutines.delay(500)
-                    }
-                }
-                val stateText = if (!settings.experimentalNextAssetPreloadEnabled) ModuleText.PRELOAD_OFF else when (status) {
-                    dev.amenhancer.module.playback.NextAssetPreloadState.REQUESTING -> ModuleText.PRELOAD_REQUESTING
-                    dev.amenhancer.module.playback.NextAssetPreloadState.READY -> ModuleText.PRELOAD_READY
-                    dev.amenhancer.module.playback.NextAssetPreloadState.USED -> ModuleText.PRELOAD_USED
-                    dev.amenhancer.module.playback.NextAssetPreloadState.NATIVE -> ModuleText.PRELOAD_NATIVE
-                    dev.amenhancer.module.playback.NextAssetPreloadState.FALLBACK -> ModuleText.PRELOAD_FALLBACK
-                    dev.amenhancer.module.playback.NextAssetPreloadState.UNSUPPORTED -> ModuleText.PRELOAD_UNSUPPORTED
-                    else -> ModuleText.PRELOAD_WAITING
-                }
-                Text(localizedText(ModuleText.NEXT_ASSET_PRELOAD_STATE, localizedText(stateText)), modifier = Modifier.padding(20.dp))
-            }
-        }
+        EmbeddedSettingsPage.PLAYBACK -> EmbeddedPlaybackSettings(settings, active, onEdit)
         EmbeddedSettingsPage.ADVANCED -> {
             EmbeddedSettingsGroup {
             if (nativeBridge.supportsStartupPagePrewarm(activity)) Setting(
@@ -860,7 +812,6 @@ private fun EmbeddedSettingsHost.EmbeddedPageDetails(page: EmbeddedSettingsPage)
         )
         EmbeddedSettingsPage.INTERFACE -> listOf(
             ModuleText.ISLAND_LYRICS to ModuleText.ISLAND_LYRICS_HELP,
-            ModuleText.PLAYBACK_RECOVERY to ModuleText.PLAYBACK_RECOVERY_SUMMARY,
             ModuleText.WECHAT_MOMENTS to ModuleText.WECHAT_MOMENTS_SUMMARY,
             ModuleText.TABLET_DUAL_PANE to ModuleText.TABLET_DUAL_PANE_SUMMARY,
             ModuleText.TABLET_DUAL_PANE_HIDE_STATUS_BAR to ModuleText.TABLET_DUAL_PANE_HIDE_STATUS_BAR_SUMMARY,
@@ -870,8 +821,11 @@ private fun EmbeddedSettingsHost.EmbeddedPageDetails(page: EmbeddedSettingsPage)
             ModuleText.BOTTOM_BAR_ANIMATION_SETTINGS to ModuleText.BOTTOM_BAR_ANIMATION_SETTINGS_SUMMARY,
         )
         EmbeddedSettingsPage.TITLE_REGION -> listOf(ModuleText.TITLE_CORRECTION to ModuleText.TITLE_CORRECTION_SUMMARY)
-        EmbeddedSettingsPage.EXPERIMENTAL -> listOf(ModuleText.BUFFERED_DRM_RECOVERY to ModuleText.BUFFERED_DRM_NOTICE,
-            ModuleText.NEXT_ASSET_PRELOAD to ModuleText.NEXT_ASSET_PRELOAD_NOTICE)
+        EmbeddedSettingsPage.PLAYBACK -> listOf(
+            ModuleText.PLAYBACK_RECOVERY to ModuleText.PLAYBACK_RECOVERY_SUMMARY,
+            ModuleText.BUFFERED_DRM_RECOVERY to ModuleText.BUFFERED_DRM_NOTICE,
+            ModuleText.NEXT_ASSET_PRELOAD to ModuleText.NEXT_ASSET_PRELOAD_NOTICE,
+        )
         EmbeddedSettingsPage.ADVANCED -> listOf(
             ModuleText.STARTUP_PAGE_PREWARM to ModuleText.STARTUP_PAGE_PREWARM_SUMMARY,
             ModuleText.CELLULAR_SETTINGS to ModuleText.CELLULAR_SETTINGS_SUMMARY,
@@ -910,6 +864,6 @@ private fun EmbeddedSettingsHost.EmbeddedPageDetails(page: EmbeddedSettingsPage)
                 Text(localizedText(summary), style = MiuixTheme.textStyles.body2)
             }
         }
-        if (page == EmbeddedSettingsPage.INTERFACE) EmbeddedPlaybackDiagnostic(active = true)
+        if (page == EmbeddedSettingsPage.PLAYBACK) EmbeddedPlaybackDiagnostic(active = true)
     }
 }

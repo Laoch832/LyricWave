@@ -24,10 +24,10 @@ class NativeAssetContractTest(unittest.TestCase):
         self.assertTrue(preload.verify(changed,self.contract))
         changed=copy.deepcopy(self.classes);changed[owner]['field_access']['callbacksByMediaItem']=1
         self.assertTrue(preload.verify(changed,self.contract))
-    def test_only_exact_1614_has_experimental_contract(self):
+    def test_only_verified_builds_have_a_preload_contract(self):
         paths=list((ROOT/'host-applemusic/src/main/resources/host-profiles').glob('*.json'))
         enabled=[p.name for p in paths if 'nextAssetPreload' in json.loads(p.read_text())]
-        self.assertEqual(['7.0.0-1614.json'],enabled)
+        self.assertEqual(['7.0.0-1614.json', '7.0.1-1622.json'], sorted(enabled))
         self.assertEqual(1,self.contract['contractVersion'])
         self.assertFalse(self.contract['verification']['deviceValidated'])
         self.assertEqual(64,len(self.contract['verification']['apkSha256']))

@@ -26,20 +26,21 @@ internal class AppleMusicNextAssetPreloadTarget(
     private val workers = Collections.synchronizedMap(WeakHashMap<Any, Worker>())
     private lateinit var c: Contract
     override fun install(): TargetCapabilityInstall {
-        if (scope.isActive) return TargetCapabilityInstall.Active("Native next asset experiment already installed")
-        if (build.packageName != "com.apple.android.music" || build.versionName != "7.0.0" || build.versionCode != 1614L || document == null) {
+        if (scope.isActive) return TargetCapabilityInstall.Active("Native next-asset preloading already installed")
+        val contract = document?.takeIf { it.matchesPlaybackBuild(build) }
+        if (contract == null) {
             NextAssetPreloadStatus.state = State.UNSUPPORTED
-            return TargetCapabilityInstall.Unsupported("Native next asset experiment requires exact Apple Music 7.0.0/1614")
+            return TargetCapabilityInstall.Unsupported("No verified next-asset contract for this Apple Music build")
         }
         return try {
-            c = Contract(document, loader)
+            c = Contract(contract, loader)
             fun hook(method: Method, before: Boolean = false, action: (ModernMethodHook.MethodHookParam) -> Unit) {
                 check(register(method, object : ModernMethodHook() {
                     private fun safely(param: MethodHookParam) {
                         runCatching { action(param) }.onFailure {
                             NextAssetPreloadStatus.state = State.FALLBACK
                             // No exception messages: native objects may contain signed URLs.
-                            ModernXposedRuntime.log("Next asset experiment fell back: ${it.javaClass.simpleName}")
+                            ModernXposedRuntime.log("Next-asset preloading fell back: ${it.javaClass.simpleName}")
                         }
                     }
                     override fun beforeHookedMethod(param: MethodHookParam) { if (before) safely(param) }

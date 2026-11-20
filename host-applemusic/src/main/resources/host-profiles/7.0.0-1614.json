@@ -6576,7 +6576,9 @@
           },
           "fields": {}
         }
-      }
+      },
+      "versionName": "7.0.0",
+      "versionCode": 1614
     }
   },
   "bufferedDrmRecovery": {
@@ -7753,7 +7755,9 @@
             }
           }
         }
-      }
+      },
+      "versionName": "7.0.0",
+      "versionCode": 1614
     }
   },
   "settingsVariants": [

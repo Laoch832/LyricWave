@@ -38,7 +38,8 @@ class FileLlmLyricsCache(
     private val capacity = maxEntries.coerceIn(1, MAX_ENTRIES)
 
     data class CachedSong(val appleMusicId: Long, val title: String?, val artist: String?,
-                          val model: String, val savedAt: Long, val bytes: Long)
+                          val model: String, val savedAt: Long, val bytes: Long,
+                          val hasTranslation: Boolean = false, val hasTransliteration: Boolean = false)
     enum class LookupState { HIT, MISS, SOURCE_CHANGED, SETTINGS_CHANGED, CORRUPT }
     data class Lookup(val state: LookupState, val ttml: String? = null)
 
@@ -74,12 +75,18 @@ class FileLlmLyricsCache(
             val raw = runCatching { JSONObject(file.readText(Charsets.UTF_8)) }.getOrNull() ?: return@mapNotNull null
             fun text(name: String) = raw.optString(name).takeIf { it.isNotBlank() && it != "null" }?.take(180)
             CachedSong(id, text("title"), text("artist"), entry.slots.values.first().model,
-                raw.optLong("savedAt", file.lastModified()), file.length())
+                raw.optLong("savedAt", file.lastModified()), file.length(),
+                TRANSLATION_KIND in entry.slots, TRANSLITERATION_KIND in entry.slots)
         }.sortedByDescending { it.savedAt }
     }
 
     fun preview(appleMusicId: Long): String? = synchronized(lock) {
         entryFile(appleMusicId)?.let(::readEntry)?.slots?.get(TRANSLATION_KIND)?.ttml?.let(LlmLyricsDocument::translationPreview)
+    }
+
+    fun transliterationPreview(appleMusicId: Long): String? = synchronized(lock) {
+        entryFile(appleMusicId)?.let(::readEntry)?.slots?.get(TRANSLITERATION_KIND)?.ttml
+            ?.let { LlmLyricsDocument.trackPreview(it, TRANSLITERATION_KIND) }
     }
 
     fun delete(appleMusicId: Long): Boolean = synchronized(lock) {

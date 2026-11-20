@@ -90,6 +90,7 @@ internal fun EmbeddedSettingsHost.EmbeddedCustomLyricsPage(
     activity: Activity,
     settings: ModuleSettings,
     revision: Int,
+    active: Boolean,
     onSettingsChanged: (ModuleSettings) -> Unit,
     onOpenPage: (EmbeddedSettingsPage) -> Unit,
 ) {
@@ -115,7 +116,6 @@ internal fun EmbeddedSettingsHost.EmbeddedCustomLyricsPage(
         modifier = Modifier.fillMaxWidth(),
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
-        EmbeddedAiLyricsSummary(activity, settings) { onOpenPage(EmbeddedSettingsPage.AI_LYRICS_ACTIVITY) }
         EmbeddedSettingsGroup {
             EmbeddedSettingSwitch(
                 title = localizedText(ModuleText.CUSTOM_LYRICS_REPLACEMENT),
@@ -290,6 +290,7 @@ internal fun EmbeddedSettingsHost.EmbeddedCustomLyricsPage(
                 }
             }
         }
+        EmbeddedAiCacheLibrary(activity, searchText, active)
     }
 }
 
