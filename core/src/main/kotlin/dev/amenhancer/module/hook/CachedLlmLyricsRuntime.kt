@@ -26,7 +26,8 @@ fun createCachedLlmLyricsRuntime(
     onStatusChanged: (LlmLyricsStatusSnapshot) -> Unit = {},
 ): LlmLyricsRuntime = LlmLyricsRuntime(
     configuration = configuration,
-    translate = { request, isCancelled ->
+    translate = { request, cancelled ->
+      val isCancelled = { cancelled() || cache.generation() != request.cacheGeneration }
       cache.withTranslation(request.appleMusicId, isCancelled) translation@{
         fun event(kind: LlmActivityKind, reason: String? = null) {
             runCatching { activity?.event(kind, request.config, request.appleMusicId, request.title, request.artist, reason) }
@@ -70,7 +71,8 @@ fun createCachedLlmLyricsRuntime(
         }
         if (isCancelled()) return@translation null
         // Saving must not depend on a host pointer surviving a settings page or playback visit.
-        val saved = cache.write(request.appleMusicId, request.originalTtml, request.config, translated, request.title, request.artist)
+        val saved = cache.write(request.appleMusicId, request.originalTtml, request.config, translated, request.title, request.artist,
+            expectedGeneration = request.cacheGeneration)
         event(if (saved) LlmActivityKind.CACHE_SAVED else LlmActivityKind.CACHE_SAVE_FAILED)
         translated.takeUnless { isCancelled() }
       }
@@ -82,6 +84,7 @@ fun createCachedLlmLyricsRuntime(
     discardPending = discardPending,
     onStatusChanged = onStatusChanged,
     executor = executor,
+    cacheGeneration = cache::generation,
     close = close,
     onRejected = { request ->
         runCatching { activity?.event(LlmActivityKind.PLAYER_REJECTED, request.config,

@@ -7,6 +7,20 @@ import org.junit.Assert.assertThrows
 import org.junit.Test
 
 class NativeMetadataLifecycleContractTest {
+    class LiveData1622
+    class ComposeFixture { fun observe(source: LiveData1622, composer: Any) = source }
+
+    @Test fun `verified 1622 LiveData alias passes the library observe contract`() {
+        val point = AppleMusicHookPoint.COMPOSE_OBSERVE_AS_STATE
+        val target = AppleMusicHookProfiles.exactTargets(AppleMusicVersion("7.0.1", 1622L), point).single()
+        assertEquals("androidx.lifecycle.I", target.parameterTypeNames?.first())
+        val method = ComposeFixture::class.java.getDeclaredMethod("observe", LiveData1622::class.java, Any::class.java)
+        val context = HookContractContext(point, target, ComposeFixture::class.java, method,
+            classLookup = { name -> if (name == "androidx.lifecycle.I") LiveData1622::class.java else throw ClassNotFoundException(name) })
+        assertEquals(ContractResult.Passed, AppleMusicHookContracts.validate(context))
+        assertEquals(true, AppleMusicHookContracts.validate(context.copy(classLookup = null)) is ContractResult.Rejected)
+    }
+
     class Fragment {
         var resumed = false
         fun onResume() { resumed = true }

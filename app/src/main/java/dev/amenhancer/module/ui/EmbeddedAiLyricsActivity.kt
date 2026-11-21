@@ -74,6 +74,7 @@ private fun EmbeddedSettingsHost.addAiActivityPanel(
     }
     fun translate(id: Long, title: String?, artist: String?, configured: Boolean) {
         if (!translating.compareAndSet(false, true)) return
+        val cacheGeneration = cache.generation()
         last = null
         postMessage(ModuleText.AI_TRANSLATING)
         aiTranslateWorker.execute {
@@ -88,7 +89,7 @@ private fun EmbeddedSettingsHost.addAiActivityPanel(
                     else observed?.ttml ?: controller.readLyrics(id)
                 if (raw == null) { postMessage(ModuleText.AI_SOURCE_UNAVAILABLE); return@execute }
                 val runtime = createCachedLlmLyricsRuntime(cache, { config }, Executor { it.run() }, activity = journal)
-                val request = LlmLyricsRequest(id, raw, config, title ?: observed?.title, artist ?: observed?.artist)
+                val request = LlmLyricsRequest(id, raw, config, cacheGeneration, title ?: observed?.title, artist ?: observed?.artist)
                 val result = runtime.translate(request) { Thread.currentThread().isInterrupted }
                 val saved = result != null && cache.read(id, raw, config) != null
                 if (saved) LlmLyricsCacheUpdates.publish(id)

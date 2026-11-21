@@ -36,6 +36,18 @@ class FileLlmLyricsCache(
     private val epoch = epochs.getOrPut(directory.canonicalPath) { AtomicLong() }
     fun revision(): Long = epoch.get()
     private val capacity = maxEntries.coerceIn(1, MAX_ENTRIES)
+    private val clearGeneration = clearGenerations.getOrPut(directory.canonicalPath) { AtomicLong() }
+
+    fun generation(): Long = clearGeneration.get()
+
+    fun usageBytes(): Long = synchronized(lock) {
+        directory.listFiles()?.sumOf(File::length) ?: 0L
+    }
+
+    fun clear(): Boolean = synchronized(lock) {
+        clearGeneration.incrementAndGet()
+        directory.deleteRecursively().also { epoch.incrementAndGet() }
+    }
 
     data class CachedSong(val appleMusicId: Long, val title: String?, val artist: String?,
                           val model: String, val savedAt: Long, val bytes: Long,
@@ -124,8 +136,7 @@ class FileLlmLyricsCache(
             val file = entryFile(appleMusicId) ?: return@synchronized null
             val entry = readEntry(file) ?: return@synchronized null
             if (!entry.originalSha256.equals(identity.originalSha256, ignoreCase = true)) {
-                runCatching { file.delete() }
-                reorder(appleMusicId, dropped = true)
+                removeStaleEntry(file, appleMusicId)
                 return@synchronized null
             }
             val slot = entry.slots[kind] ?: return@synchronized null
@@ -147,10 +158,12 @@ class FileLlmLyricsCache(
         title: String? = null,
         artist: String? = null,
         kind: String = TRANSLATION_KIND,
+        expectedGeneration: Long = generation(),
     ): Boolean {
         val identity = identityOf(appleMusicId, originalTtml, config, kind) ?: return false
         if (!isAcceptableTtml(resultTtml)) return false
         return synchronized(lock) {
+            if (expectedGeneration != generation()) return@synchronized false
             runCatching {
                 if (!directory.exists() && !directory.mkdirs()) return@runCatching false
                 val file = entryFile(appleMusicId) ?: return@runCatching false
@@ -344,13 +357,22 @@ class FileLlmLyricsCache(
     private fun removeSlot(file: File, appleMusicId: Long, entry: Entry, kind: String) {
         val remaining = entry.slots - kind
         if (remaining.isEmpty()) {
-            runCatching { file.delete() }
-            reorder(appleMusicId, dropped = true)
+            removeStaleEntry(file, appleMusicId)
             return
         }
         runCatching {
             val bytes = encodeEntry(entry.copy(slots = remaining))
-            if (bytes.size.toLong() <= MAX_ENTRY_BYTES) atomicWrite(file, bytes)
+            if (bytes.size.toLong() <= MAX_ENTRY_BYTES) {
+                atomicWrite(file, bytes)
+                epoch.incrementAndGet()
+            }
+        }
+    }
+
+    private fun removeStaleEntry(file: File, appleMusicId: Long) {
+        if (runCatching { file.delete() }.getOrDefault(false)) {
+            reorder(appleMusicId, dropped = true)
+            epoch.incrementAndGet()
         }
     }
 
@@ -534,6 +556,7 @@ class FileLlmLyricsCache(
         const val DIRECTORY = "ampp-llm-lyrics"
         private val locks = ConcurrentHashMap<String, Any>()
         private val epochs = ConcurrentHashMap<String, AtomicLong>()
+        private val clearGenerations = ConcurrentHashMap<String, AtomicLong>()
         private val translationGates = mutableMapOf<String, TranslationGate>()
         const val ENTRY_PREFIX = "llm_"
         const val ENTRY_SUFFIX = ".json"

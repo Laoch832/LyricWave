@@ -37,8 +37,8 @@ android {
         applicationId = "dev.amenhancer.module"
         minSdk = 26
         targetSdk = 37
-        versionCode = 145
-        versionName = "1.7.13"
+        versionCode = 146
+        versionName = "1.7.14"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }

@@ -29,6 +29,34 @@ class LlmLyricsCacheTest {
     }
 
     @Test
+    fun `clearing in another instance invalidates in-flight writes and refreshes the library`() {
+        val writerGeneration = cache.generation()
+        assertTrue(cache.write(42, original, config(), translated))
+        val revisionBeforeClear = cache.revision()
+        val settingsCache = FileLlmLyricsCache(directory)
+        assertTrue(settingsCache.clear())
+        assertTrue(cache.revision() > revisionBeforeClear)
+        assertFalse(cache.write(42, original, config(), translated, expectedGeneration = writerGeneration))
+        assertTrue(cache.songs().isEmpty())
+        assertTrue(cache.write(42, original, config(), translated))
+        assertEquals(translated, settingsCache.read(42, original, config()))
+    }
+
+    @Test
+    fun `invalidated source and configuration refresh the cached song list`() {
+        for ((id, source, settings) in listOf(
+            Triple(42L, original.replace("Hello", "Goodbye"), config()),
+            Triple(43L, original, config().copy(model = "other")),
+        )) {
+            assertTrue(cache.write(id, original, config(), translated))
+            val revision = cache.revision()
+            assertNull(cache.read(id, source, settings))
+            assertTrue(cache.revision() > revision)
+            assertFalse(cache.songs().any { it.appleMusicId == id })
+        }
+    }
+
+    @Test
     fun `explicit thinking-type efforts round trip through a fresh cache instance with version five`() {
         val efforts = listOf(
             LlmLyricsThinkingEffort.LOW to "low",

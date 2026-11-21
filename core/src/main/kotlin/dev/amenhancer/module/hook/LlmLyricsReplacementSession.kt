@@ -11,6 +11,7 @@ data class LlmLyricsRequest(
     val appleMusicId: Long,
     val originalTtml: String,
     val config: LlmLyricsConfig,
+    val cacheGeneration: Long = 0L,
     val title: String? = null,
     val artist: String? = null,
     /** Bounded, generation-checked UI progress; never carries server response text. */
@@ -32,6 +33,7 @@ data class LlmLyricsRuntime(
     val discardPending: () -> Unit = {},
     val onRejected: (LlmLyricsRequest) -> Unit = { _ -> },
     val onStatusChanged: (LlmLyricsStatusSnapshot) -> Unit = {},
+    val cacheGeneration: () -> Long = { 0L },
 )
 
 /**
@@ -205,7 +207,7 @@ class LlmLyricsReplacementSession(
             songTitle = title
             if (!wantTranslation) translationPhase = if (!runtime.translationEnabled()) LlmLyricsPhase.OFF else translationSkipReason
             if (!wantTransliteration) transliterationPhase = LlmLyricsPhase.OFF
-            val request = LlmLyricsRequest(appleMusicId, originalTtml, config!!, title, artist)
+            val request = LlmLyricsRequest(appleMusicId, originalTtml, config!!, runtime.cacheGeneration(), title, artist)
             val stamp = generation
             if (wantTranslation && !translationAttempted) {
                 translationAttempted = true
@@ -317,7 +319,7 @@ class LlmLyricsReplacementSession(
                 else runtime.translationEnabled() && isTranslationAllowed(request.appleMusicId))
 
     private fun matchesLocked(request: LlmLyricsRequest, stamp: Long): Boolean =
-        !closed && generation == stamp && selected && activeId == request.appleMusicId &&
+        !closed && generation == stamp && runtime.cacheGeneration() == request.cacheGeneration && selected && activeId == request.appleMusicId &&
             original == request.originalTtml && configuration == request.config
 
     private fun invalidateLocked() {

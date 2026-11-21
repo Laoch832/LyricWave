@@ -25,6 +25,21 @@ import org.junit.Test
 class EmbeddedContentManagerTest {
 
     @Test
+    fun `deleting one cached source preserves manual lyrics sibling sources and offsets`() {
+        val manager = EmbeddedContentManager(EmbeddedConfigurationSession(MemoryStorage()), sequenceFileIds("lyrics_song"))
+        val cache = manager.sourceCache
+        manager.addLyrics(42, "Imported", ttml("manual"))
+        manager.addLyrics(42, "AMLL", wordTtml("amll"), CustomLyricsSources.AMLL)
+        manager.addLyrics(42, "Lunabeat", wordTtml("lunabeat"), CustomLyricsSources.LUNABEAT)
+        assertTrue(cache.setOffsetMs(42, CustomLyricsSources.AMLL, 250))
+        assertTrue(cache.deleteCachedLyrics(42, CustomLyricsSources.AMLL))
+        assertEquals(null, cache.entryFor(42, CustomLyricsSources.AMLL))
+        assertTrue(cache.entryFor(42, CustomLyricsSources.LUNABEAT) != null)
+        assertEquals(250, cache.offsetMs(42, CustomLyricsSources.AMLL))
+        assertEquals(ttml("manual"), manager.readLyrics(42))
+    }
+
+    @Test
     fun `cache update refreshes the source and preserves manual lyrics`() {
         val storage = MemoryStorage()
         val manager = EmbeddedContentManager(EmbeddedConfigurationSession(storage), sequenceFileIds("lyrics_song"))

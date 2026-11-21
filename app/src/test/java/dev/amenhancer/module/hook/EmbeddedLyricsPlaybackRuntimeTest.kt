@@ -6,6 +6,7 @@ import dev.amenhancer.module.config.EmbeddedConfigurationSession
 import dev.amenhancer.module.config.EmbeddedContentManager
 import dev.amenhancer.module.config.HostPrivateEmbeddedStorage
 import dev.amenhancer.module.lyrics.LyricsPlaybackSources
+import dev.amenhancer.module.lyrics.FileLlmLyricsCache
 import dev.amenhancer.module.lyrics.source.LyricFetchFailure
 import dev.amenhancer.module.model.CustomLyricsSources
 import dev.amenhancer.module.model.ModuleSettings
@@ -44,6 +45,8 @@ class EmbeddedLyricsPlaybackRuntimeTest {
             if (id == 42L && name == source) AutoLyricsCandidate(source, ttml) to null
             else null to LyricFetchFailure.NOT_FOUND
         },
+        lookupCacheSongNames = { _, _ -> emptyMap() },
+        llmCache = FileLlmLyricsCache(files.newFolder()),
     )
 
     private fun withRuntime(manager: EmbeddedContentManager, block: (EmbeddedLyricsPlaybackRuntime) -> Unit) {
