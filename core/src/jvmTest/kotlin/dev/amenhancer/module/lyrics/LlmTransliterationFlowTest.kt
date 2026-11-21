@@ -74,4 +74,13 @@ class LlmTransliterationFlowTest {
         val invalid = """{"lang":"ja-Latn","lines":[{"id":"L1","groups":[["鏡よ"]],"english_units":[[0]]}]}"""
         assertNull(document.withResponse(invalid))
     }
+
+    @Test
+    fun `mislabeling a valid timed reading does not discard the track`() {
+        val original = """<tt xmlns="http://www.w3.org/ns/ttml" xmlns:itunes="http://music.apple.com/lyric-ttml-internal" itunes:timing="Word" xml:lang="ja"><head/><body><div><p begin="00:00:01.000" end="00:00:03.000"><span begin="00:00:01.000" end="00:00:02.000">鏡</span> <span begin="00:00:02.000" end="00:00:03.000">Hello!</span></p></div></body></tt>"""
+        val document = requireNotNull(LlmTransliterationDocument.prepare(original))
+        val answer = """{"lang":"ja-Latn","lines":[{"id":"L1","groups":[["kagami  ","Hello!"]],"english_units":[[1]]}]}"""
+        val baseline = requireNotNull(document.withResponse(answer))
+        assertEquals(baseline, document.withResponse(answer.replace("[[1]]", "[[0,1]]")))
+    }
 }
