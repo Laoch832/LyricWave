@@ -204,15 +204,15 @@ private class MomentsSharePanel(private val owner: MomentsShareActivity, private
             metadataExecutor.execute {
                 val metadata = runCatching { metadataResolver(originalUrl!!) }.getOrNull()
                 handler.post {
-                    if (isDestroyed || isFinishing || shareStarted) return@post
+                    if (isDestroyed || isFinishing) return@post
                     if (metadata != null && !draftEditsProtected) {
-                        artworkUrl = MomentsSongMetadata.artwork(metadata.artworkUrl)
-                        if (initialTitle.isBlank() && titleInput.text.toString() == initialTitle) titleInput.setText(metadata.title)
-                        if (initialArtist.isBlank() && artistInput.text.toString() == initialArtist) artistInput.setText(metadata.artist.orEmpty())
+                        artworkUrl = MomentsSongMetadata.artwork(metadata.artworkUrl) ?: artworkUrl
+                        if (!shareStarted && initialTitle.isBlank() && titleInput.text.toString() == initialTitle) titleInput.setText(metadata.title)
+                        if (!shareStarted && initialArtist.isBlank() && artistInput.text.toString() == initialArtist) artistInput.setText(metadata.artist.orEmpty())
                     }
                     open.isEnabled = !pending && MomentsSongMetadata.title(titleInput.text.toString()) != null
                     refreshDraftActions()
-                    if (!pending && !draftEditsProtected) status.text = when {
+                    if (!shareStarted && !pending && !draftEditsProtected) status.text = when {
                         MomentsSongMetadata.title(titleInput.text.toString()) == null -> ModuleText.SHARE_METADATA_MISSING.text()
                         artworkUrl == null -> ModuleText.SHARE_ARTWORK_MISSING.text()
                         else -> ""

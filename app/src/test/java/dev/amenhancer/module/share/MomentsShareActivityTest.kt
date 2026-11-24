@@ -9,6 +9,7 @@ import android.content.pm.ActivityInfo
 import android.content.pm.ApplicationInfo
 import android.content.pm.PackageInfo
 import android.content.pm.ResolveInfo
+import android.os.Bundle
 import android.os.Looper
 import android.view.View
 import android.view.ViewGroup
@@ -219,6 +220,52 @@ class MomentsShareActivityTest {
             assertTrue(texts().contains("Manual title")); assertTrue(texts().contains("Manual artist"))
             assertTrue(texts().any { "without a cover" in it })
         } finally { gate.countDown(); controller.pause().stop().destroy() }
+    }
+
+    @Test fun `retry carries artwork fetched after the first attempt without replacing the failure status`() {
+        val gate = CountDownLatch(1)
+        val sentArtwork = mutableListOf<String?>()
+        val host = app.createPackageContext(Contract.INTERMEDIARY_PACKAGE, 0)
+        val receiver = object : BroadcastReceiver() {
+            override fun onReceive(context: Context, intent: Intent) {
+                sentArtwork += intent.getStringExtra(Contract.ARTWORK)
+                assertEquals("Manual title", intent.getStringExtra(Contract.TITLE))
+                resultCode = if (sentArtwork.size == 1) Contract.RESULT_LAUNCH else Contract.RESULT_OPENED
+            }
+        }
+        host.registerReceiver(receiver, IntentFilter(Contract.OPEN), Context.RECEIVER_EXPORTED)
+        val controller = Robolectric.buildActivity(MomentsShareActivity::class.java,
+            Intent(Intent.ACTION_SEND).putExtra(Intent.EXTRA_TEXT, "https://music.apple.com/cn/song/123")
+                .putExtra(Contract.TITLE, "Manual title"))
+        controller.get().metadataResolver = {
+            check(gate.await(5, TimeUnit.SECONDS))
+            MomentsSongMetadata("Fetched title", "Fetched artist", artwork)
+        }
+        activity = controller.setup().visible().get()
+        val main = shadowOf(Looper.getMainLooper())
+        try {
+            openButton().performClick()
+            main.idleFor(Duration.ofSeconds(2))
+            assertEquals(listOf<String?>(null), sentArtwork)
+            assertTrue(texts().any { "[N7]" in it })
+            gate.countDown()
+            val state = Bundle()
+            for (i in 0 until 200) {
+                main.idle()
+                controller.saveInstanceState(state)
+                if (state.getString(Contract.ARTWORK) == artwork) break
+                Thread.sleep(10)
+            }
+            assertEquals(artwork, state.getString(Contract.ARTWORK))
+            assertTrue(texts().any { "[N7]" in it })
+            openButton().performClick()
+            main.idleFor(Duration.ofSeconds(2))
+            assertEquals(listOf(null, artwork), sentArtwork)
+        } finally {
+            gate.countDown()
+            controller.pause().stop().destroy()
+            host.unregisterReceiver(receiver)
+        }
     }
 
     @Test fun `blocked receiver still reaches the independent deadline and restores region controls`() {
