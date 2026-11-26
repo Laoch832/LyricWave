@@ -153,10 +153,10 @@ private class MomentsSharePanel(private val owner: MomentsShareActivity, private
             }
         }
         clearDraft.setOnClickListener {
-            if (!pending && savedDraft != null) {
+            if (!pending && url != null && savedDraft != null) {
                 val revision = ++draftRevision
                 draftExecutor.execute {
-                    val success = runCatching { draftStore.clear() }.isSuccess
+                    val success = runCatching { draftStore.clear(url) }.isSuccess
                     handler.post {
                         if (!isDestroyed && revision == draftRevision) {
                             if (success) savedDraft = null
@@ -170,7 +170,7 @@ private class MomentsSharePanel(private val owner: MomentsShareActivity, private
         if (url != null) {
             val revision = draftRevision
             draftExecutor.execute {
-                val draft = draftStore.load(url)
+                val draft = runCatching { draftStore.load(url) }.getOrNull()
                 handler.post {
                     if (!isDestroyed && revision == draftRevision) {
                         savedDraft = draft

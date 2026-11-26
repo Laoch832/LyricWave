@@ -47,8 +47,44 @@ class ShareDraftStoreTest {
         ShareDraftStore(app) { now }.save(draft(now))
         val recreated = ShareDraftStore(app) { now + 1000 }
         assertNull(recreated.load("https://music.apple.com/cn/song/456"))
-        assertEquals(draft(now), recreated.load(url)); recreated.clear(); assertNull(recreated.load(url))
+        assertEquals(draft(now), recreated.load(url)); recreated.clear(url); assertNull(recreated.load(url))
     }
+    @Test fun `saving and clearing a second song preserves a legacy draft`() {
+        val app = RuntimeEnvironment.getApplication()
+        val now = System.currentTimeMillis()
+        val first = draft(now)
+        val second = first.copy(url = "https://music.apple.com/us/song/456", title = "Second")
+        File(app.filesDir, "lyricwave-share-draft-v1.json").writeText(ShareDraftCodec.encode(first))
+        val store = ShareDraftStore(app) { now }
+        assertEquals(first, store.load(url))
+        store.save(second)
+        val reopened = ShareDraftStore(app) { now }
+        assertEquals(second, reopened.load(second.url))
+        assertEquals(first, reopened.load(url))
+        reopened.clear(second.url)
+        assertNull(reopened.load(second.url))
+        assertEquals(first, reopened.load(url))
+    }
+
+    @Test fun `retention and capacity apply independently to each song`() {
+        val app = RuntimeEnvironment.getApplication()
+        var now = System.currentTimeMillis()
+        val store = ShareDraftStore(app) { now }
+        val first = draft(now)
+        store.save(first)
+        now += 1000
+        val later = first.copy(url = "https://music.apple.com/us/song/100", editedAt = now)
+        store.save(later)
+        now = first.editedAt + ShareDraftCodec.RETENTION_MS
+        assertNull(store.load(url))
+        assertEquals(later, store.load(later.url))
+        repeat(12) { index ->
+            store.save(first.copy(url = "https://music.apple.com/us/song/${200 + index}", editedAt = now))
+        }
+        assertNull(store.load(later.url))
+        assertNotNull(store.load("https://music.apple.com/us/song/211"))
+    }
+
     @Test fun `failed writes retain previous content and bad or expired storage is discarded`() {
         val app = RuntimeEnvironment.getApplication(); val now = System.currentTimeMillis(); val store = ShareDraftStore(app) { now }
         store.save(draft(now))
@@ -118,7 +154,7 @@ class ShareDraftStoreTest {
             assertEquals(cover, delivered?.getStringExtra(Contract.ARTWORK))
         } finally {
             controller.pause().stop().destroy()
-            store.clear()
+            store.clear(url)
         }
     }
     @Test fun `user restores saves and clears a draft without native sending or late metadata overwriting edits`() {
