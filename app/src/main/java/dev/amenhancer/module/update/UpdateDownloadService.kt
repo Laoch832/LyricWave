@@ -120,7 +120,13 @@ class UpdateDownloadService : Service() {
         val builder = Notification.Builder(this, CHANNEL).setSmallIcon(if (active) android.R.drawable.stat_sys_download else android.R.drawable.stat_sys_download_done)
             .setContentTitle(if (active) ModuleText.UPDATE_DOWNLOADER.text() else "LyricWave")
             .setContentText(displayMessage).setCategory(Notification.CATEGORY_PROGRESS).setOngoing(active).setOnlyAlertOnce(true)
-        launch?.let { builder.setContentIntent(PendingIntent.getActivity(this, 1, it, PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)) }
+        if (state.phase == DownloadPhase.VERIFIED) {
+            val install = UpdateInstallActivity.pendingIntent(this, UpdateTransfer.assetId)
+            builder.setContentIntent(install)
+                .addAction(Notification.Action.Builder(null, ModuleText.UPDATE_INSTALL.text(), install).build())
+        } else {
+            launch?.let { builder.setContentIntent(PendingIntent.getActivity(this, 1, it, PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)) }
+        }
         if (state.phase == DownloadPhase.DOWNLOADING) {
             val speed = measuredRate.bytesPerSecond
             val remaining = measuredRate.remainingSeconds

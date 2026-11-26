@@ -95,6 +95,70 @@ class BackgroundDownloadTest {
         assertTrue(runCatching { provider.call("install", null, null) }.isFailure)
         UpdateTransfer.file?.delete()
     }
+    @Test fun `completed notification restores exact cached update and asks permission only after install tap`() {
+        val controller = Robolectric.buildService(UpdateDownloadService::class.java).create()
+        val service = controller.get()
+        val file = File(service.cacheDir, "updates/update-42-aaaaaaaaaaaa.apk").apply {
+            parentFile!!.mkdirs()
+            writeBytes(byteArrayOf(1, 2, 3, 4))
+        }
+        UpdateTransfer.assetId = 42
+        UpdateTransfer.file = file
+        UpdateTransfer.build = build
+        UpdateTransfer.state = DownloadState(DownloadPhase.VERIFIED, asset.name, 4, 4, file = file)
+        UpdateTransfer.persist(service)
+        val notification = service.notification()
+        assertEquals("Install", notification.actions.single().title.toString())
+        val intent = shadowOf(notification.contentIntent).savedIntent
+        assertEquals(UpdateInstallActivity::class.java.name, intent.component?.className)
+        assertEquals(42L, intent.getLongExtra(UpdateInstallActivity.EXTRA_ASSET, -1))
+        reset()
+        val screen = Robolectric.buildActivity(UpdateInstallActivity::class.java, intent)
+        try {
+            var checked = false
+            screen.get().verifyArchive = { apk, metadata ->
+                assertEquals(file, apk)
+                assertEquals(build, metadata)
+                checked = true
+            }
+            val activity = screen.setup().get()
+            val controls = activity.findViewById<android.view.ViewGroup>(android.R.id.content).getChildAt(0) as android.view.ViewGroup
+            assertNull(shadowOf(activity).nextStartedActivity)
+            val install = (0 until controls.childCount).map(controls::getChildAt)
+                .filterIsInstance<android.widget.Button>().single { it.text == "Install" }
+            install.performClick()
+            waitUntil { install.isEnabled }
+            assertTrue(checked)
+            assertEquals(android.provider.Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES, shadowOf(activity).nextStartedActivity?.action)
+        } finally {
+            screen.pause().stop().destroy()
+            controller.destroy()
+        }
+    }
+
+    @Test fun `tampered completed update never launches the installer or its permission screen`() {
+        val app = RuntimeEnvironment.getApplication()
+        val file = File(app.cacheDir, "tampered-notification.apk").apply { writeText("modified") }
+        UpdateTransfer.assetId = 42
+        UpdateTransfer.file = file
+        UpdateTransfer.build = build
+        UpdateTransfer.state = DownloadState(DownloadPhase.VERIFIED, asset.name, 4, 4, file = file)
+        val intent = Intent(app, UpdateInstallActivity::class.java).putExtra(UpdateInstallActivity.EXTRA_ASSET, 42L)
+        val screen = Robolectric.buildActivity(UpdateInstallActivity::class.java, intent).setup()
+        try {
+            val activity = screen.get()
+            val controls = activity.findViewById<android.view.ViewGroup>(android.R.id.content).getChildAt(0) as android.view.ViewGroup
+            val install = (0 until controls.childCount).map(controls::getChildAt)
+                .filterIsInstance<android.widget.Button>().single { it.text == "Install" }
+            install.performClick()
+            waitUntil { install.isEnabled }
+            assertNull(shadowOf(activity).nextStartedActivity)
+        } finally {
+            screen.pause().stop().destroy()
+            file.delete()
+        }
+    }
+
     @Test fun `real downloader failover reaches foreground source status and still verifies the APK`() {
         val data = byteArrayOf(1, 2, 3, 4)
         val routedAsset = asset.copy(downloadUrl = AppUpdateClient.ORIGIN + "/api/v1/download/42",
