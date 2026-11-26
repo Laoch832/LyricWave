@@ -526,3 +526,10 @@ Day3（11-11）继续验收完整保存→恢复→编辑→原生中继流程�
 - 用相同 Vercel 项目源站补查 UTC 11 月 24 至 26 日，三天各一页，零批次、零新增唯一记录。未上传原始记录或变更私有存储。DRM 偶发无声保持上轮状态，等待真机证据。
 - 两项功能及验收：①按精确链接保留最多 12 份分享草稿，每份独立保留 24 小时，兼容旧单份存档。测试覆盖相邻歌曲不覆盖、恢复、清除、有效期与上限、损坏保护以及还原后须经显式发送。②通知打开本模块独立安装页，按原资产 ID 恢复下载，只有用户确认并重新验包后才交给系统。覆盖完成通知入口、进程恢复、未知来源设置和篡改包拒绝，系统实际通知和安装待真机确认。
 - 两项小缺陷：①备用下载页安装前再次校验时只对身份、版本和证书，未复核下载元数据 SHA-256；复用统一校验器并以变更文件复现。②分享文字里无效链接在有效 Apple Music 链接前面时整条消息被拒绝，回归验证跳过损坏候选。检查了更新、分享、上游反馈及宿主线索，其他项缺少独立可验证复现。本轮未启用 USB 独占或微信注入。
+
+#### 1.7.16 正式交付核验
+
+- 正式源码 [5d82a2b23c249d54ca7af83698bdffdfb55504fd](https://github.com/Laoch832/LyricWave/commit/5d82a2b23c249d54ca7af83698bdffdfb55504fd)，版本 1.7.16/148，以 Laoch832/173591322 快进推送 main。两项功能和两项用户缺陷修复随包交付。
+- 最终源码的本地核心 496 项和应用分享、更新 32 项定向测试通过，架构、12 个精确 profile/799 个成员、glass 参考和 35 个 Python 检查通过。相同 SHA 的 [Android CI](https://github.com/Laoch832/LyricWave/actions/runs/45735844229) 通过全量单测、Lint、两种 APK 构建和固定签名，[网站 CI](https://github.com/Laoch832/LyricWave/actions/runs/45736012020) 及 Vercel 检查通过。[发布流程](https://github.com/Laoch832/LyricWave/actions/runs/45736544235) 首次因 Maven 获取 Robolectric Android 测试包 I/O 错误停止；同 SHA 完整重试后二次四个作业全部通过，签名和发布均使用第二次的产物。
+- [Release v1.7.16](https://github.com/Laoch832/LyricWave/releases/tag/v1.7.16) 为最新正式版，作者 Laoch832/173591322，draft=false、prerelease=false，标签及目标提交均与上述 SHA 一致。下载签名 APK、SHA256SUMS.txt、SIGNATURE.txt、build-metadata.json、client-update.json 核验一致。APK 12362881 bytes，SHA-256 为 `dd1b9e0de4c50cbd27b8aa7237b02e160ea38e1526d59e91cd6635bd8e28a1b8`，APK v2 签名有效，证书为固定指纹 `4ec2f441139585083e476b596a503db7e6c459ec1ca1d9bcf59d815b6981da53`。实际 APK 包含独立安装页及草稿存储。
+- [客户端更新源站](https://originlw.canz-monkey.cn/api/v1/client-update) 与 Release 的版本、变更说明、资产和哈希一致。没有可用 Android 真机，仍需验证系统通知进入安装页、实体安装确认及朋友圈最终卡片。既有 DRM、逐字歌词分行、横屏字体仍待复现。本段为发布后记账。
