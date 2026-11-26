@@ -4,7 +4,6 @@ import android.app.Activity
 import android.content.ClipData
 import android.content.Context
 import android.content.Intent
-import android.content.pm.PackageManager
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
@@ -22,7 +21,6 @@ import dev.amenhancer.module.BuildConfig
 import dev.amenhancer.module.ModuleConstants
 import dev.amenhancer.module.i18n.ModuleText
 import java.io.File
-import java.security.MessageDigest
 import java.util.concurrent.CancellationException
 import java.util.concurrent.Executors
 
@@ -209,18 +207,7 @@ internal class UpdateDownloadSession(
     fun verifyArchive(file: File) {
         val build = release?.build ?: throw AppUpdateException("metadata")
         archiveCheck?.let { it(file, build); return }
-        @Suppress("DEPRECATION")
-        val info = context.packageManager.getPackageArchiveInfo(file.path,
-            if (Build.VERSION.SDK_INT >= 28) PackageManager.GET_SIGNING_CERTIFICATES else PackageManager.GET_SIGNATURES)
-            ?: throw AppUpdateException("apk")
-        @Suppress("DEPRECATION")
-        val code = if (Build.VERSION.SDK_INT >= 28) info.longVersionCode else info.versionCode.toLong()
-        @Suppress("DEPRECATION")
-        val signatures = if (Build.VERSION.SDK_INT >= 28) info.signingInfo?.apkContentsSigners else info.signatures
-        val signature = signatures?.singleOrNull() ?: throw AppUpdateException("signature")
-        val certificate = MessageDigest.getInstance("SHA-256").digest(signature.toByteArray()).joinToString("") { "%02x".format(it) }
-        if (info.packageName != ModuleConstants.MODULE_PACKAGE || code != build.versionCode || info.versionName != build.versionName ||
-            certificate != AppUpdateClient.CERTIFICATE_SHA256) throw AppUpdateException("signature")
+        UpdateApkVerifier.verify(context, file, build)
     }
     private fun runTask(action: () -> Unit) {
         if (busy || closed) return

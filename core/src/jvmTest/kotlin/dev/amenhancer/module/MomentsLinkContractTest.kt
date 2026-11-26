@@ -20,4 +20,9 @@ class MomentsLinkContractTest {
         }
         assertNull(MomentsLinkContract.validate("https://music.apple.com/" + "x".repeat(4096)))
     }
+
+    @Test fun `extract skips malformed candidates before a valid share link`() {
+        val valid = "https://music.apple.com/cn/song/123"
+        assertEquals(valid, MomentsLinkContract.extract("Bad https://music.apple.com/% then $valid."))
+    }
 }

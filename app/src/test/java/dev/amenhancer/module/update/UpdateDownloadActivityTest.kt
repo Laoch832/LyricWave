@@ -121,6 +121,20 @@ class UpdateDownloadActivityTest {
         assertTrue(stopped.await(5, TimeUnit.SECONDS)); assertTrue(activity.isFinishing)
         controller.pause().stop().destroy()
     }
+    @Test fun `backup verification rejects an altered APK by checksum before reading its signature`() {
+        val app = RuntimeEnvironment.getApplication()
+        val session = UpdateDownloadSession(app, 42, false, check = { release })
+        val altered = File(app.cacheDir, "altered-backup.apk").apply { writeText("modified") }
+        try {
+            session.prepare()
+            await { session.state.phase == DownloadPhase.READY }
+            assertEquals("checksum", assertThrows(AppUpdateException::class.java) { session.verifyArchive(altered) }.reason)
+        } finally {
+            session.close()
+            altered.delete()
+        }
+    }
+
     @Test fun `backup session cannot delete a concurrent foreground transfer file`() {
         val app = RuntimeEnvironment.getApplication()
         val foregroundFile = File(app.cacheDir, "updates/update-active.apk").apply { parentFile!!.mkdirs(); writeText("active transfer") }

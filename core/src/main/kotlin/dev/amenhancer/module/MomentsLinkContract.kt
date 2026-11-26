@@ -34,7 +34,9 @@ object MomentsLinkContract {
         original.replaceRange(pathStart + country.range.first + 1, pathStart + country.range.last + 1, "cn")
     }
     fun extract(text: String): String? = Regex("https://music\\.apple\\.com/[^\\s<>\\\"]+", RegexOption.IGNORE_CASE)
-        .find(text.take(16384))?.value?.trimEnd('.', ',', ')', '，', '。')?.let(::validate)
+        .findAll(text.take(16384)).firstNotNullOfOrNull { match ->
+            validate(match.value.trimEnd('.', ',', ')', '，', '。'))
+        }
     fun validate(value: String?): String? = value?.takeIf { it.length in 1..4096 }?.let {
         runCatching {
             val uri = URI(it)
