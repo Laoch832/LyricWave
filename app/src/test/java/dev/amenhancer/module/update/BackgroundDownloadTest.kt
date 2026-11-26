@@ -3,6 +3,7 @@ package dev.amenhancer.module.update
 import android.app.Notification
 import android.content.Intent
 import android.os.Looper
+import dev.amenhancer.module.i18n.ModuleText
 import org.junit.Assert.*
 import org.junit.Before
 import org.junit.Test
@@ -108,7 +109,7 @@ class BackgroundDownloadTest {
         UpdateTransfer.state = DownloadState(DownloadPhase.VERIFIED, asset.name, 4, 4, file = file)
         UpdateTransfer.persist(service)
         val notification = service.notification()
-        assertEquals("Install", notification.actions.single().title.toString())
+        assertEquals(ModuleText.UPDATE_INSTALL.text(), notification.actions.single().title.toString())
         val intent = shadowOf(notification.contentIntent).savedIntent
         assertEquals(UpdateInstallActivity::class.java.name, intent.component?.className)
         assertEquals(42L, intent.getLongExtra(UpdateInstallActivity.EXTRA_ASSET, -1))
@@ -125,7 +126,7 @@ class BackgroundDownloadTest {
             val controls = activity.findViewById<android.view.ViewGroup>(android.R.id.content).getChildAt(0) as android.view.ViewGroup
             assertNull(shadowOf(activity).nextStartedActivity)
             val install = (0 until controls.childCount).map(controls::getChildAt)
-                .filterIsInstance<android.widget.Button>().single { it.text == "Install" }
+                .filterIsInstance<android.widget.Button>().single { it.text == ModuleText.UPDATE_INSTALL.text() }
             install.performClick()
             waitUntil { install.isEnabled }
             assertTrue(checked)
@@ -149,7 +150,7 @@ class BackgroundDownloadTest {
             val activity = screen.get()
             val controls = activity.findViewById<android.view.ViewGroup>(android.R.id.content).getChildAt(0) as android.view.ViewGroup
             val install = (0 until controls.childCount).map(controls::getChildAt)
-                .filterIsInstance<android.widget.Button>().single { it.text == "Install" }
+                .filterIsInstance<android.widget.Button>().single { it.text == ModuleText.UPDATE_INSTALL.text() }
             install.performClick()
             waitUntil { install.isEnabled }
             assertNull(shadowOf(activity).nextStartedActivity)

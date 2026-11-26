@@ -45,7 +45,7 @@ internal class ShareDraftStore(context: Context, private val clock: () -> Long =
                 require(output.size() <= MAX_BYTES)
                 JSONObject(output.toString(Charsets.UTF_8.name()))
             }
-            when (root.opt("schemaVersion")) {
+            when (root.opt("schemaVersion") as? Int) {
                 1 -> listOf(root)
                 2 -> root.getJSONArray("drafts").let { array ->
                     require(array.length() <= MAX_DRAFTS)
