@@ -542,3 +542,10 @@ Day3（11-11）继续验收完整保存→恢复→编辑→原生中继流程�
 - 通过同 Vercel 项目的反馈源站补查 UTC 11 月 26–28 日，逐日验证各一页，截至查询共零批次、零新增唯一记录。原始记录和凭据未入库。DRM 偶发无声仍缺新的真机证据。
 - 两项功能验收：①启用续传时可从内嵌面板或后台通知暂停，等待分段写入结束后显示暂停，重开恢复同一资产与来源；继续时只复用重新验证通过的分段。覆盖进程恢复、续传缺失分段和整包校验。②分享页可显式打开当前歌曲封面预览；只读取已校验的 Apple 图片地址，关闭时取消任务，失败后保留原生分享入口。覆盖实际按钮、预览渲染和不启动分享。
 - 四项小缺陷：① [4859d32c](https://github.com/Zennmn/AM-plus-plus/commit/4859d32cae40dcdfb519284685669ab39284299b) 同一逐字歌词行换行动画刷新会重置渐变，需延续原位置。② [cebcf41e](https://github.com/Zennmn/AM-plus-plus/commit/cebcf41e277e5a5fad3ca3e933e0b355daf8c333) 两个声部起点太近时原生入场漏掉次行，增加精确契约并跑宿主测试。③前台下载被系统超时终止后控制状态可能停在检查或下载，测试确认返回可重试失败并清除旧控制票据。④不支持 Range 的源退化到单流并失败时原先会提前删除已校验分段，测试确认换回 Range 源仅下载缺失分段。其余候选缺可验证复现，保留待确认。前两项真机仍待验收。
+
+#### 1.7.17 正式交付核验
+
+- 正式源码 [1de28e166c26daf3b8d3131e4ad3fa3af30e678c](https://github.com/Laoch832/LyricWave/commit/1de28e166c26daf3b8d3131e4ad3fa3af30e678c)，版本 1.7.17/149，以 Laoch832/173591322 快进推送 main。暂停续传和分享封面预览随包交付，四个缺陷按上述证据记录。
+- 最终源码的本地核心 498、应用定向 21、Apple Music 宿主 512 项测试通过。架构、12 个精确 profile/799 个目标、glass 参考和 35 项 Python 检查通过。相同 SHA 的 [Android CI](https://github.com/Laoch832/LyricWave/actions/runs/46093324250) 通过完整单测、Lint、Debug/Release APK 构建和固定签名，[网站 CI](https://github.com/Laoch832/LyricWave/actions/runs/46093324269) 和 Vercel 同样通过。[发布流程](https://github.com/Laoch832/LyricWave/actions/runs/46093945079) 首次因下载 Robolectric SDK I/O 错误终止；同 SHA 完整重试后四个作业成功，签名和发布使用同次构建。
+- [Release v1.7.17](https://github.com/Laoch832/LyricWave/releases/tag/v1.7.17) 为最新正式版，作者 Laoch832/173591322，draft=false、prerelease=false，标签及目标提交为上述 SHA。全部五个附件下载通过，APK 12379265 bytes，SHA-256 为 `4baaf2c2df6ad6f1409b8afc47dcbade3de72540ba3265d02f05cf8cc763178f`，APK v2 签名有效，证书为固定指纹 `4ec2f441139585083e476b596a503db7e6c459ec1ca1d9bcf59d815b6981da53`。包内确认封面预览代码和新版宿主 profile，更新源站返回同一资产、版本和哈希。
+- 真机仍需验收通知操作、网易云和朋友圈最终卡片、横屏与逐字歌词动画以及 DRM 偶发无声。此段为发布后记账。
