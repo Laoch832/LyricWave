@@ -27,17 +27,20 @@ import dev.amenhancer.module.i18n.ModuleText
 /** Opens NetEase Cloud Music's native share panel with the original Apple Music URL. */
 class MomentsShareActivity : Activity() {
     internal var metadataResolver: (String) -> MomentsSongMetadata? = AppleSongMetadataLookup()::lookup
+    internal var coverLoader: (String) -> android.graphics.Bitmap? = ShareCoverPreview::load
     private lateinit var panel: MomentsSharePanel
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        panel = MomentsSharePanel(this, intent).also { it.metadataResolver = metadataResolver }
+        panel = MomentsSharePanel(this, intent, coverLoader).also { it.metadataResolver = metadataResolver }
         setContentView(panel.buildView(savedInstanceState))
     }
     override fun onSaveInstanceState(outState: Bundle) { panel.saveState(outState); super.onSaveInstanceState(outState) }
     override fun onDestroy() { panel.close(); super.onDestroy() }
 }
 
-private class MomentsSharePanel(private val owner: MomentsShareActivity, private val intent: Intent) : android.content.ContextWrapper(owner) {
+private class MomentsSharePanel(private val owner: MomentsShareActivity, private val intent: Intent,
+    private val coverLoader: (String) -> android.graphics.Bitmap?,
+) : android.content.ContextWrapper(owner) {
     private var closed = false
     private val isDestroyed get() = closed || owner.isDestroyed
     private val isFinishing get() = owner.isFinishing
@@ -54,6 +57,7 @@ private class MomentsSharePanel(private val owner: MomentsShareActivity, private
     private var refreshDraftActions: () -> Unit = {}
     private var artworkUrl: String? = null
     private var helpPopup: PopupWindow? = null
+    private var coverDialog: android.app.AlertDialog? = null
     private val metadataExecutor = Executors.newSingleThreadExecutor { Thread(it, "LyricWave-share-metadata").apply { isDaemon = true } }
     internal var metadataResolver: (String) -> MomentsSongMetadata? = AppleSongMetadataLookup()::lookup
     private lateinit var titleInput: EditText
@@ -101,6 +105,11 @@ private class MomentsSharePanel(private val owner: MomentsShareActivity, private
             text = ModuleText.COPY_SONG_LINK.text(); isEnabled = url != null
             setOnClickListener { Contract.withChinaStorefront(url, chinaStorefront)?.let { (getSystemService(CLIPBOARD_SERVICE) as ClipboardManager).setPrimaryClip(ClipData.newPlainText("Apple Music", it)) } }
         })
+        val previewCover = Button(this).apply {
+            text = ModuleText.SHARE_PREVIEW_COVER.text()
+            setOnClickListener { artworkUrl?.let(::showCover) }
+        }
+        layout.addView(previewCover)
         val open = Button(this).apply { text = ModuleText.WECHAT_SHARE_OPEN.text(); isEnabled = url != null && MomentsSongMetadata.title(initialTitle) != null }
         titleInput.addTextChangedListener(object : TextWatcher {
             override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) = Unit
@@ -117,6 +126,8 @@ private class MomentsSharePanel(private val owner: MomentsShareActivity, private
         listOf(saveDraft, restoreDraft, clearDraft).forEach { draftActions.addView(it) }
         layout.addView(draftActions)
         refreshDraftActions = {
+            previewCover.visibility = if (artworkUrl != null) android.view.View.VISIBLE else android.view.View.GONE
+            previewCover.isEnabled = !pending
             saveDraft.isEnabled = !pending && url != null && MomentsSongMetadata.title(titleInput.text.toString()) != null
             restoreDraft.isEnabled = !pending && savedDraft != null
             restoreDraft.visibility = if (savedDraft != null) android.view.View.VISIBLE else android.view.View.GONE
@@ -221,6 +232,49 @@ private class MomentsSharePanel(private val owner: MomentsShareActivity, private
             }
         }
         return content
+    }
+
+    private fun showCover(url: String) {
+        if (coverDialog != null || pending) return
+        val image = android.widget.ImageView(this).apply {
+            adjustViewBounds = true
+            scaleType = android.widget.ImageView.ScaleType.FIT_CENTER
+            maxHeight = resources.displayMetrics.heightPixels / 2
+            contentDescription = ModuleText.SHARE_PREVIEW_COVER.text()
+            visibility = android.view.View.GONE
+        }
+        val status = TextView(this).apply { text = ModuleText.SHARE_COVER_LOADING.text() }
+        val content = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            val padding = (16 * resources.displayMetrics.density).toInt()
+            setPadding(padding, padding, padding, padding)
+            addView(status)
+            addView(image)
+        }
+        val dialog = android.app.AlertDialog.Builder(owner)
+            .setTitle(ModuleText.SHARE_PREVIEW_COVER.text())
+            .setView(content)
+            .setPositiveButton(ModuleText.CLOSE.text(), null)
+            .create()
+        coverDialog = dialog
+        val request = metadataExecutor.submit {
+            val bitmap = runCatching { coverLoader(url) }.getOrNull()
+            handler.post {
+                if (isDestroyed || coverDialog !== dialog || !dialog.isShowing) return@post
+                if (bitmap == null) {
+                    status.text = ModuleText.SHARE_COVER_PREVIEW_FAILED.text()
+                } else {
+                    status.visibility = android.view.View.GONE
+                    image.setImageBitmap(bitmap)
+                    image.visibility = android.view.View.VISIBLE
+                }
+            }
+        }
+        dialog.setOnDismissListener {
+            request.cancel(true)
+            if (coverDialog === dialog) coverDialog = null
+        }
+        dialog.show()
     }
 
     private fun showHelp(anchor: android.view.View) {
@@ -357,5 +411,5 @@ private class MomentsSharePanel(private val owner: MomentsShareActivity, private
         outState.putString(Contract.TITLE, titleInput.text.toString())
         outState.putString(Contract.ARTIST, artistInput.text.toString())
     }
-    fun close() { helpPopup?.dismiss(); helpPopup = null; attempt?.dispose(); attempt = null; closed = true; draftRevision++; metadataExecutor.shutdownNow(); handler.removeCallbacksAndMessages(null) }
+    fun close() { coverDialog?.dismiss(); coverDialog = null; helpPopup?.dismiss(); helpPopup = null; attempt?.dispose(); attempt = null; closed = true; draftRevision++; metadataExecutor.shutdownNow(); handler.removeCallbacksAndMessages(null) }
 }

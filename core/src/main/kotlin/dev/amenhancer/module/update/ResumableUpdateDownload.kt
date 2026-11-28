@@ -45,6 +45,7 @@ internal class ResumableUpdateDownload(private val transport: AppUpdateDownloade
                 val saved = if (journal.isFile && journal.length() <= 32768) runCatching {
                     UpdateResumeCheckpoint.decode(journal.readText(), asset, build)?.verifiedBlocks(part, cancellation::check)
                 }.getOrNull() else null
+                if (cancellation.cancelled && cancellation.retainsCheckpoint) cancellation.check()
                 val blocks = (saved ?: emptyList()).toMutableList()
                 if (saved == null) { part.delete(); journal.delete() }
                 val bytes = AtomicLong(blocks.sumOf { it.length })
@@ -76,8 +77,8 @@ internal class ResumableUpdateDownload(private val transport: AppUpdateDownloade
                     try {
                         if (probe.responseCode == 200) {
                             // Ranges are unavailable; the established verified single-stream path owns this transfer.
-                            part.delete(); journal.delete()
                             return transport.downloadWithoutResume(asset, build, directory, cancellation, official, progress)
+                                .also { part.delete(); journal.delete() }
                         }
                         if (probe.responseCode != 206) throw AppUpdateException("http", probe.responseCode)
                         transport.range(probe, 0, 0, asset.size)
@@ -128,7 +129,7 @@ internal class ResumableUpdateDownload(private val transport: AppUpdateDownloade
                     var interrupted = false
                     while (!pool.isTerminated) try { pool.awaitTermination(100, TimeUnit.MILLISECONDS) }
                         catch (_: InterruptedException) { interrupted = true }
-                    if (cancellation.cancelled) { part.delete(); journal.delete() }
+                    if (cancellation.cancelled && !cancellation.retainsCheckpoint) { part.delete(); journal.delete() }
                     if (success) journal.delete()
                     if (interrupted) Thread.currentThread().interrupt()
                 }

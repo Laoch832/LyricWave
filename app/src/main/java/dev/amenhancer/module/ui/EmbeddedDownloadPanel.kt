@@ -45,6 +45,7 @@ internal fun EmbeddedSettingsHost.showEmbeddedDownloadPanel(activity: Activity, 
         var busy by remember { mutableStateOf(false) }
         var needsInstallPermission by remember { mutableStateOf(false) }
         val phase = snapshot.getString("phase", "READY")
+        val paused = phase == "PAUSED"
         val running = phase == "CHECKING" || phase == "DOWNLOADING"
         val total = snapshot.getLong("total")
         val bytes = snapshot.getLong("bytes")
@@ -60,7 +61,7 @@ internal fun EmbeddedSettingsHost.showEmbeddedDownloadPanel(activity: Activity, 
             scope.launch {
                 try {
                     val id = if (assetId > 0) assetId else snapshot.getLong("asset_id", -1)
-                    val extras = Bundle().apply { putLong("asset_id", id); putInt("connections", threads); putBoolean("official", source); putBoolean("resumable", resumable) }
+                    val extras = Bundle().apply { putLong("asset_id", id); putInt("connections", threads); putBoolean("official", source); putBoolean("resumable", resumable || paused) }
                     val result = updateTransferCommand(activity, method, extras)
                     needsInstallPermission = result.getBoolean("install_permission")
                     val action = result.getParcelable<PendingIntent>("action") ?: throw ModuleControlException("control_protocol")
@@ -89,7 +90,7 @@ internal fun EmbeddedSettingsHost.showEmbeddedDownloadPanel(activity: Activity, 
             runCatching { updateTransferCommand(activity, "status") }.onSuccess { existing ->
                 snapshot = existing
                 val current = existing.getString("phase", "READY")
-                if (assetId > 0 && current !in listOf("CHECKING", "DOWNLOADING") &&
+                if (assetId > 0 && current !in listOf("CHECKING", "DOWNLOADING", "PAUSED") &&
                     (current != "VERIFIED" || existing.getLong("asset_id", -1) != assetId)) command("begin")
             }.onFailure {
                 if (it is kotlinx.coroutines.CancellationException) throw it
@@ -123,6 +124,7 @@ internal fun EmbeddedSettingsHost.showEmbeddedDownloadPanel(activity: Activity, 
                     localizedText(ModuleText.UPDATE_TRANSFER_RATE, "%.0f".format(rate.bytesPerSecond!! / 1024.0), rate.remainingSeconds!!)
                     else localizedText(ModuleText.UPDATE_WAITING_DATA))
             }
+            "PAUSED" -> Text(localizedText(ModuleText.UPDATE_PAUSED))
             "VERIFIED" -> Text(localizedText(ModuleText.UPDATE_READY_TO_INSTALL))
             "FAILED" -> if (snapshot.getString("reason") == "cancelled") Text(localizedText(ModuleText.UPDATE_CANCELLED))
                 else if (snapshot.getString("reason") == "already_current") Text(localizedText(ModuleText.UPDATE_CURRENT))
@@ -149,9 +151,14 @@ internal fun EmbeddedSettingsHost.showEmbeddedDownloadPanel(activity: Activity, 
                     })
                 }
             }
-            TextButton(localizedText(ModuleText.UPDATE_START), enabled = !busy && (assetId > 0 || snapshot.getLong("asset_id") > 0), onClick = { command("begin") })
+            TextButton(localizedText(if (paused) ModuleText.UPDATE_CONTINUE else ModuleText.UPDATE_START),
+                enabled = !busy && (assetId > 0 || snapshot.getLong("asset_id") > 0), onClick = {
+                    command("begin", if (paused) snapshot.getBoolean("official") else official)
+                })
             if (phase == "FAILED") TextButton(localizedText(ModuleText.UPDATE_GITHUB_DOWNLOAD), enabled = !busy, onClick = { command("begin", true) })
         }
+        if (phase == "DOWNLOADING" && snapshot.getBoolean("pausable")) TextButton(localizedText(ModuleText.UPDATE_PAUSE),
+            enabled = !busy, onClick = { command("pause") })
         if (running) TextButton(localizedText(ModuleText.UPDATE_CANCEL), enabled = !busy, onClick = { command("cancel") })
         if (phase == "VERIFIED") TextButton(localizedText(ModuleText.UPDATE_INSTALL), enabled = !busy, onClick = { command("install") })
         if (snapshot.containsKey("notifications") && (!snapshot.getBoolean("notifications") || (android.os.Build.VERSION.SDK_INT >= 36 && !snapshot.getBoolean("promoted")))) TextButton(localizedText(ModuleText.UPDATE_NOTIFICATION_SETTINGS), onClick = { command("notifications") })

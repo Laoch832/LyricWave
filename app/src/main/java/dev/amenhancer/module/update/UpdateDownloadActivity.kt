@@ -99,6 +99,7 @@ class UpdateDownloadActivity : Activity() {
             DownloadPhase.READY -> ModuleText.UPDATE_DOWNLOAD_READY.text(state.name)
             DownloadPhase.DOWNLOADING -> ModuleText.UPDATE_PROGRESS.text(
                 "%.1f".format(state.bytes / 1048576.0), "%.1f".format(state.total / 1048576.0), state.connections)
+            DownloadPhase.PAUSED -> ModuleText.UPDATE_PAUSED.text()
             DownloadPhase.VERIFIED -> ModuleText.UPDATE_VERIFIED.text(state.name)
             DownloadPhase.FAILED -> ModuleText.UPDATE_DOWNLOAD_FAILED.text(state.reason)
         }
@@ -142,7 +143,7 @@ class UpdateDownloadActivity : Activity() {
     }
 }
 
-internal enum class DownloadPhase { CHECKING, READY, DOWNLOADING, VERIFIED, FAILED }
+internal enum class DownloadPhase { CHECKING, READY, DOWNLOADING, PAUSED, VERIFIED, FAILED }
 internal data class DownloadState(val phase: DownloadPhase = DownloadPhase.CHECKING, val name: String = "",
     val bytes: Long = 0, val total: Long = 0, val connections: Int = 1, val reason: String = "", val file: File? = null, val official: Boolean = false, val resumedBytes: Long = 0)
 

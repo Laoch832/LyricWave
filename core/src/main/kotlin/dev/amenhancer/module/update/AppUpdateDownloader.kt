@@ -14,8 +14,20 @@ import java.util.concurrent.atomic.AtomicLong
 /** One operation owns its sockets. Cancellation also unblocks an outstanding read. */
 class UpdateDownloadCancellation {
     @Volatile var cancelled = false; private set
+    @Volatile internal var retainsCheckpoint = false; private set
     private val connections = Collections.synchronizedSet(mutableSetOf<HttpURLConnection>())
-    fun cancel() { cancelled = true; synchronized(connections) { connections.toList() }.forEach { it.disconnect() } }
+    fun cancel() = stop(retainCheckpoint = false)
+    fun pause() = stop(retainCheckpoint = true)
+
+    private fun stop(retainCheckpoint: Boolean) {
+        val active = synchronized(connections) {
+            if (cancelled) return
+            retainsCheckpoint = retainCheckpoint
+            cancelled = true
+            connections.toList()
+        }
+        active.forEach { it.disconnect() }
+    }
     internal fun check() { if (cancelled || Thread.currentThread().isInterrupted) throw CancellationException() }
     internal fun add(connection: HttpURLConnection) { connections.add(connection); check() }
     internal fun remove(connection: HttpURLConnection) { connections.remove(connection); connection.disconnect() }

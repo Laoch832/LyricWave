@@ -67,10 +67,10 @@ class UpdateControlProvider : ContentProvider() {
                 val action = Intent(app, UpdateDownloadService::class.java).setAction("begin").putExtra("ticket", ticket)
                 Bundle().apply { putParcelable("action", PendingIntent.getForegroundService(app, ticket.hashCode(), action, PendingIntent.FLAG_CANCEL_CURRENT or PendingIntent.FLAG_IMMUTABLE)) }
             }
-            "cancel" -> Bundle().apply {
+            "cancel", "pause" -> Bundle().apply {
                 val token = UpdateTransfer.controlToken
-                putParcelable("action", PendingIntent.getService(app, 2, Intent(app, UpdateDownloadService::class.java)
-                    .setAction("cancel").putExtra("ticket", token), PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE))
+                putParcelable("action", PendingIntent.getService(app, if (method == "pause") 5 else 2, Intent(app, UpdateDownloadService::class.java)
+                    .setAction(method).putExtra("ticket", token), PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE))
             }
             "install" -> {
                 val file = UpdateTransfer.file ?: throw IllegalStateException("No verified update")
@@ -117,6 +117,7 @@ internal object UpdateTransfer {
     @Volatile var build: UpdateBuild? = null
     @Volatile var controlToken = ""
     @Volatile var assetId = -1L
+    @Volatile var pausable = false
     fun persist(context: Context) {
         val metadata = build ?: return
         val apk = file ?: return
@@ -125,8 +126,25 @@ internal object UpdateTransfer {
             .put("apk", metadata.apk).put("sha256", metadata.sha256)
         context.getSharedPreferences("lyricwave_verified_download", Context.MODE_PRIVATE).edit().putString("complete", row.toString()).apply()
     }
+    fun recordPause(context: Context, request: TransferRequest, official: Boolean) {
+        context.getSharedPreferences("lyricwave_verified_download", Context.MODE_PRIVATE).edit()
+            .putLong("paused_asset", request.id).putBoolean("paused_official", official).apply()
+    }
+
+    fun clearPause(context: Context) {
+        context.getSharedPreferences("lyricwave_verified_download", Context.MODE_PRIVATE).edit()
+            .remove("paused_asset").remove("paused_official").apply()
+    }
+
     fun restore(context: Context) {
-        if (build != null || state.phase == DownloadPhase.DOWNLOADING || state.phase == DownloadPhase.CHECKING) return
+        if (state.phase != DownloadPhase.READY || build != null) return
+        val storage = context.getSharedPreferences("lyricwave_verified_download", Context.MODE_PRIVATE)
+        val pausedAsset = storage.getLong("paused_asset", -1)
+        if (pausedAsset > 0) {
+            assetId = pausedAsset
+            state = DownloadState(DownloadPhase.PAUSED, official = storage.getBoolean("paused_official", false))
+            return
+        }
         runCatching {
             val saved = context.getSharedPreferences("lyricwave_verified_download", Context.MODE_PRIVATE).getString("complete", null) ?: return
             val row = org.json.JSONObject(saved)
@@ -149,6 +167,7 @@ internal object UpdateTransfer {
     fun snapshot(context: Context) = Bundle().apply {
         val value = state
         putLong("asset_id", assetId)
+        putBoolean("pausable", pausable)
         putString("phase", value.phase.name); putString("name", value.name)
         putLong("bytes", value.bytes); putLong("total", value.total); putInt("connections", value.connections)
         putString("reason", value.reason); putBoolean("official", value.official); putLong("resumed_bytes", value.resumedBytes)

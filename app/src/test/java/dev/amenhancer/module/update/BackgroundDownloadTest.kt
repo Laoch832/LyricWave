@@ -26,7 +26,7 @@ class BackgroundDownloadTest {
     private val build = UpdateBuild(999, "9.0.0", asset.name, "a".repeat(64))
     private val release = AppUpdateRelease("v9.0.0", "9.0.0", "", "2026-11-08T00:00:00Z", false, AppUpdateClient.RELEASES_URL,
         listOf(asset), build, UpdateComparison.NEWER, 1)
-    @Before fun reset() { UpdateTransfer.state = DownloadState(DownloadPhase.READY); UpdateTransfer.file = null; UpdateTransfer.build = null; UpdateTransfer.controlToken = "" }
+    @Before fun reset() { UpdateTransfer.state = DownloadState(DownloadPhase.READY); UpdateTransfer.file = null; UpdateTransfer.build = null; UpdateTransfer.controlToken = ""; UpdateTransfer.pausable = false }
     private fun waitUntil(condition: () -> Boolean) {
         val end = System.nanoTime() + TimeUnit.SECONDS.toNanos(10)
         while (!condition()) { shadowOf(Looper.getMainLooper()).idle(); if (System.nanoTime() > end) fail("Timeout"); Thread.sleep(10) }
@@ -96,6 +96,65 @@ class BackgroundDownloadTest {
         assertTrue(runCatching { provider.call("install", null, null) }.isFailure)
         UpdateTransfer.file?.delete()
     }
+    @Test fun `pause terminates the foreground transfer and restores its asset and source for continuing`() {
+        val controller = Robolectric.buildService(UpdateDownloadService::class.java).create()
+        val service = controller.get()
+        val started = CountDownLatch(1)
+        service.checkRelease = { release }
+        service.fetchFile = { _, _, _, cancellation, _, progress ->
+            progress(UpdateDownloadProgress(2, 4, 1, official = true))
+            started.countDown()
+            while (!cancellation.cancelled) Thread.sleep(5)
+            throw java.util.concurrent.CancellationException()
+        }
+        val ticket = UpdateTransfer.issue(asset.id, 1, false, resumable = true)
+        try {
+            service.onStartCommand(Intent(service, UpdateDownloadService::class.java).setAction("begin").putExtra("ticket", ticket), 0, 1)
+            assertTrue(started.await(5, TimeUnit.SECONDS))
+            val pause = service.notification().actions.single { it.title == ModuleText.UPDATE_PAUSE.text() }
+            val intent = shadowOf(pause.actionIntent).savedIntent
+            service.onStartCommand(intent, 0, 2)
+            waitUntil { UpdateTransfer.state.phase == DownloadPhase.PAUSED }
+            assertEquals("", UpdateTransfer.controlToken)
+            assertTrue(UpdateTransfer.state.official)
+            reset()
+            UpdateTransfer.restore(service)
+            assertEquals(asset.id, UpdateTransfer.assetId)
+            assertEquals(DownloadPhase.PAUSED, UpdateTransfer.state.phase)
+            assertTrue(UpdateTransfer.snapshot(service).getBoolean("official"))
+            service.fetchFile = { _, _, directory, _, request, _ ->
+                assertTrue(request.official && request.resumable)
+                File(directory, "resumed-test.apk").apply { writeBytes(byteArrayOf(1, 2, 3, 4)) }
+            }
+            service.verifyFile = { _, _ -> }
+            val next = UpdateTransfer.issue(asset.id, 1, true, resumable = true)
+            service.onStartCommand(Intent(service, UpdateDownloadService::class.java).setAction("begin").putExtra("ticket", next), 0, 3)
+            waitUntil { UpdateTransfer.state.phase == DownloadPhase.VERIFIED }
+        } finally {
+            controller.destroy()
+        }
+    }
+
+    @Test fun `foreground timeout leaves a retryable failure with no active controls`() {
+        val controller = Robolectric.buildService(UpdateDownloadService::class.java).create()
+        val service = controller.get()
+        val started = CountDownLatch(1)
+        val releaseGate = CountDownLatch(1)
+        service.checkRelease = { started.countDown(); releaseGate.await(5, TimeUnit.SECONDS); release }
+        val ticket = UpdateTransfer.issue(asset.id, 1, false)
+        try {
+            service.onStartCommand(Intent(service, UpdateDownloadService::class.java).setAction("begin").putExtra("ticket", ticket), 0, 1)
+            assertTrue(started.await(5, TimeUnit.SECONDS))
+            service.onTimeout(1, android.content.pm.ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC)
+            assertEquals(DownloadPhase.FAILED, UpdateTransfer.state.phase)
+            assertEquals("foreground_service", UpdateTransfer.state.reason)
+            assertEquals("", UpdateTransfer.controlToken)
+        } finally {
+            releaseGate.countDown()
+            controller.destroy()
+        }
+    }
+
     @Test fun `completed notification restores exact cached update and asks permission only after install tap`() {
         val controller = Robolectric.buildService(UpdateDownloadService::class.java).create()
         val service = controller.get()

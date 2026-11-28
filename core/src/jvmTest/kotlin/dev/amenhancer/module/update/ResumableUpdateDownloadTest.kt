@@ -20,7 +20,7 @@ class ResumableUpdateDownloadTest {
     private val asset = UpdateAsset(71, "LyricWave-9.0.0.apk", body.size.toLong(), AppUpdateClient.ORIGIN+"/api/v1/download/71", "https://github.com/Laoch832/LyricWave/releases/download/v9.0.0/LyricWave-9.0.0.apk")
     private val build = UpdateBuild(900, "9.0.0", asset.name, hash(body))
     private val requests = Collections.synchronizedList(mutableListOf<String>())
-    private fun transport(failing: Boolean = false, ignoreRange: Boolean = false): (URL) -> HttpURLConnection = { url -> object : HttpURLConnection(url) {
+    private fun transport(failing: Boolean = false, ignoreRange: Boolean = false, truncated: Boolean = false): (URL) -> HttpURLConnection = { url -> object : HttpURLConnection(url) {
         private val requested by lazy { getRequestProperty("Range").orEmpty().also { requests.add(it) } }
         private val bounds by lazy { requested.removePrefix("bytes=").split('-').map(String::toInt) }
         override fun getResponseCode() = if (failing && bounds[0] >= 200000) 503 else if (ignoreRange) 200 else 206
@@ -30,7 +30,11 @@ class ResumableUpdateDownloadTest {
             "Content-Length" -> if (ignoreRange) body.size.toString() else (bounds[1]-bounds[0]+1).toString()
             else -> null
         }
-        override fun getInputStream() = ByteArrayInputStream(if (ignoreRange) body else body.copyOfRange(bounds[0], bounds[1]+1))
+        override fun getInputStream() = ByteArrayInputStream(when {
+            truncated -> byteArrayOf(1)
+            ignoreRange -> body
+            else -> body.copyOfRange(bounds[0], bounds[1]+1)
+        })
         override fun connect() = Unit
         override fun disconnect() = Unit
         override fun usingProxy() = false
@@ -48,6 +52,23 @@ class ResumableUpdateDownloadTest {
         assertEquals(200000L, progress.first().resumedBytes)
         assertFalse(temporary.root.listFiles()!!.any { it.extension in listOf("json","part") })
     }
+    @Test fun `pausing preserves rehashed blocks and continuing fetches only missing ranges`() {
+        interrupted()
+        val pause = UpdateDownloadCancellation()
+        val first = runCatching {
+            downloader().download(asset, build, temporary.root, pause, official = true) { pause.pause() }
+        }
+        assertTrue(first.exceptionOrNull() is CancellationException)
+        assertTrue(temporary.root.listFiles()!!.any { it.extension == "json" })
+        requests.clear()
+        val progress = mutableListOf<UpdateDownloadProgress>()
+        val apk = downloader().download(asset, build, temporary.root, UpdateDownloadCancellation(), official = true,
+            progress = progress::add)
+        assertEquals(200000L, progress.first().resumedBytes)
+        assertFalse(requests.contains("bytes=0-199999"))
+        assertArrayEquals(body, apk.readBytes())
+    }
+
     @Test fun `corrupted retained block is fetched again instead of trusted`() {
         interrupted()
         val part = temporary.root.listFiles()!!.single { it.extension == "part" }
@@ -66,6 +87,21 @@ class ResumableUpdateDownloadTest {
         assertTrue(runCatching { downloader().download(asset,build,temporary.root,cancellation,official=true) { cancellation.cancel() } }.exceptionOrNull() is CancellationException)
         assertTrue(requests.isEmpty()); assertFalse(temporary.root.listFiles()!!.any { it.extension in listOf("json","part","apk") })
     }
+    @Test fun `failed no range fallback does not discard verified ranges`() {
+        interrupted()
+        val fallback = AppUpdateDownloader(transport(ignoreRange = true, truncated = true), resumable = true)
+        assertTrue(runCatching {
+            fallback.download(asset, build, temporary.root, UpdateDownloadCancellation(), official = true)
+        }.isFailure)
+        requests.clear()
+        val progress = mutableListOf<UpdateDownloadProgress>()
+        val apk = downloader().download(asset, build, temporary.root, UpdateDownloadCancellation(), official = true,
+            progress = progress::add)
+        assertEquals(200000L, progress.first().resumedBytes)
+        assertFalse(requests.contains("bytes=0-199999"))
+        assertArrayEquals(body, apk.readBytes())
+    }
+
     @Test fun `range unavailable degrades to verified single stream`() {
         val apk=downloader(ignoreRange=true).download(asset,build,temporary.root,UpdateDownloadCancellation(),official=true)
         assertArrayEquals(body,apk.readBytes());assertFalse(temporary.root.listFiles()!!.any { it.extension in listOf("json","part") })

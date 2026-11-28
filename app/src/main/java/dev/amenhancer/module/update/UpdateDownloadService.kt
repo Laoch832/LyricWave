@@ -18,7 +18,8 @@ import java.util.concurrent.atomic.AtomicLong
 /** Module-owned foreground transfer, controlled from the host dialog without opening a module Activity. */
 class UpdateDownloadService : Service() {
     private val worker = Executors.newSingleThreadExecutor()
-    private val cancellation = UpdateDownloadCancellation()
+    private var activeCancellation: UpdateDownloadCancellation? = null
+    @Volatile private var paused = false
     private var transferRateSampler = UpdateTransferRateSampler()
     @Volatile private var measuredRate = UpdateTransferRate()
     private var running = false
@@ -33,17 +34,29 @@ class UpdateDownloadService : Service() {
     override fun onBind(intent: Intent?): IBinder? = null
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         val ticket = intent?.getStringExtra("ticket").orEmpty()
-        if (intent?.action == "cancel") {
-            if (ticket.isNotBlank() && ticket == UpdateTransfer.controlToken) {
-                cancellation.cancel(); UpdateTransfer.state = DownloadState(DownloadPhase.FAILED, reason = "cancelled")
-                stopForeground(STOP_FOREGROUND_REMOVE); stopSelf()
+        val action = intent?.action
+        if (action == "cancel" || action == "pause") {
+            if (running && ticket.isNotBlank() && ticket == UpdateTransfer.controlToken &&
+                (action == "cancel" || (UpdateTransfer.pausable && UpdateTransfer.state.phase == DownloadPhase.DOWNLOADING))
+            ) {
+                val operation = activeCancellation
+                if (operation != null && !operation.cancelled) {
+                    paused = action == "pause"
+                    if (paused) operation.pause() else operation.cancel()
+                }
             }
             return START_NOT_STICKY
         }
         val request = UpdateTransfer.take(ticket)
         if (request == null) { if (!running) stopSelf(startId); return START_NOT_STICKY }
         if (running) return START_NOT_STICKY
-        running = true; UpdateTransfer.controlToken = ticket; UpdateTransfer.assetId = request.id
+        val cancellation = UpdateDownloadCancellation()
+        activeCancellation = cancellation
+        UpdateTransfer.pausable = request.resumable
+        paused = false
+        running = true
+        if (request.id != UpdateTransfer.assetId) UpdateTransfer.clearPause(this)
+        UpdateTransfer.controlToken = ticket; UpdateTransfer.assetId = request.id
         transferRateSampler = UpdateTransferRateSampler(); measuredRate = UpdateTransferRate()
         UpdateTransfer.file = null; UpdateTransfer.build = null
         UpdateTransfer.state = DownloadState(DownloadPhase.CHECKING)
@@ -55,10 +68,14 @@ class UpdateDownloadService : Service() {
         } catch (error: Exception) {
             UpdateTransfer.state = DownloadState(DownloadPhase.FAILED, reason = "foreground_service")
             dev.amenhancer.module.feedback.FeedbackRuntime.record("download", error)
+            UpdateTransfer.controlToken = ""
+            UpdateTransfer.pausable = false
             stopSelf(); return START_NOT_STICKY
         }
         worker.execute {
-            try {
+            var lastSource = request.official
+            var completedBuild: UpdateBuild? = null
+            val outcome = try {
                 val release = checkRelease()
                 val build = release.build ?: throw AppUpdateException("metadata")
                 if (build.versionCode <= BuildConfig.VERSION_CODE) throw AppUpdateException("already_current")
@@ -66,9 +83,10 @@ class UpdateDownloadService : Service() {
                 val directory = File(cacheDir, "updates").apply { mkdirs() }
                 val updated = AtomicLong(-1000)
                 val progressLock = Any()
-                var lastBytes = -1L; var lastSource = request.official; var reused = 0L
+                var lastBytes = -1L; var reused = 0L
                 val file = fetchFile(asset, build, directory, cancellation, request) { p ->
                     synchronized(progressLock) {
+                    if (cancellation.cancelled) return@synchronized
                     if (p.bytes > 0 && p.bytes < lastBytes && p.official == lastSource) return@synchronized
                     lastBytes = p.bytes; lastSource = p.official; reused = p.resumedBytes
                     val now = android.os.SystemClock.elapsedRealtime(); val previous = updated.get()
@@ -79,19 +97,53 @@ class UpdateDownloadService : Service() {
                     }
                     }
                 }
-                try { if (cancellation.cancelled) throw java.util.concurrent.CancellationException(); verifyFile(file, build); if (cancellation.cancelled) throw java.util.concurrent.CancellationException() } catch (error: Exception) { file.delete(); throw error }
-                UpdateTransfer.file = file; UpdateTransfer.build = build
-                UpdateTransfer.state = DownloadState(DownloadPhase.VERIFIED, asset.name, asset.size, asset.size, file = file, resumedBytes = reused)
-                UpdateTransfer.persist(this)
-            } catch (_: java.util.concurrent.CancellationException) {
-                UpdateTransfer.state = DownloadState(DownloadPhase.FAILED, reason = "cancelled")
+                try {
+                    if (!cancellation.cancelled) verifyFile(file, build)
+                } catch (error: Exception) {
+                    file.delete()
+                    throw error
+                }
+                if (cancellation.cancelled) {
+                    if (!paused) file.delete()
+                    throw java.util.concurrent.CancellationException()
+                }
+                completedBuild = build
+                DownloadState(DownloadPhase.VERIFIED, asset.name, asset.size, asset.size, file = file, resumedBytes = reused)
             } catch (error: Exception) {
-                if (!cancellation.cancelled) dev.amenhancer.module.feedback.FeedbackRuntime.record("download", error)
-                UpdateTransfer.state = DownloadState(DownloadPhase.FAILED, reason = if (cancellation.cancelled) "cancelled" else (error as? AppUpdateException)?.reason ?: "network")
-            } finally {
-                if (!cancellation.cancelled) postProgress(manager)
-                stopForeground(if (cancellation.cancelled) STOP_FOREGROUND_REMOVE else STOP_FOREGROUND_DETACH)
+                if (!cancellation.cancelled && error !is java.util.concurrent.CancellationException)
+                    dev.amenhancer.module.feedback.FeedbackRuntime.record("download", error)
+                DownloadState(DownloadPhase.FAILED, reason = (error as? AppUpdateException)?.reason ?: "network")
+            }
+            android.os.Handler(mainLooper).post {
+                if (activeCancellation !== cancellation) return@post
+                val finalState = when {
+                    paused -> {
+                        UpdateTransfer.recordPause(this, request, lastSource)
+                        UpdateTransfer.state.copy(phase = DownloadPhase.PAUSED, official = lastSource)
+                    }
+                    cancellation.cancelled -> {
+                        UpdateTransfer.clearPause(this)
+                        DownloadState(DownloadPhase.FAILED, reason = "cancelled")
+                    }
+                    else -> outcome
+                }
+                if (cancellation.cancelled) {
+                    if (!paused) outcome.file?.delete()
+                    UpdateTransfer.file = null
+                    UpdateTransfer.build = null
+                } else if (outcome.phase == DownloadPhase.VERIFIED) {
+                    UpdateTransfer.clearPause(this)
+                    UpdateTransfer.file = outcome.file
+                    UpdateTransfer.build = completedBuild
+                    UpdateTransfer.persist(this)
+                }
+                UpdateTransfer.state = finalState
                 UpdateTransfer.controlToken = ""
+                activeCancellation = null
+                UpdateTransfer.pausable = false
+                running = false
+                if (!cancellation.cancelled || paused) postProgress(manager)
+                stopForeground(if (cancellation.cancelled && !paused) STOP_FOREGROUND_REMOVE else STOP_FOREGROUND_DETACH)
                 stopSelf()
             }
         }
@@ -107,6 +159,7 @@ class UpdateDownloadService : Service() {
         val percent = if (state.total > 0) (100 * state.bytes / state.total).toInt().coerceIn(0, 100) else 0
         val message = when (state.phase) {
             DownloadPhase.VERIFIED -> ModuleText.UPDATE_READY_TO_INSTALL.text()
+            DownloadPhase.PAUSED -> ModuleText.UPDATE_PAUSED.text()
             DownloadPhase.FAILED -> ModuleText.UPDATE_DOWNLOAD_FAILED.text(state.reason)
             DownloadPhase.DOWNLOADING -> "${percent}% · " + "%.1f / %.1f MB · %d".format(
                 java.util.Locale.ROOT, state.bytes / 1048576.0, state.total / 1048576.0, state.connections)
@@ -140,6 +193,12 @@ class UpdateDownloadService : Service() {
             val cancel = PendingIntent.getService(this, 2, Intent(this, UpdateDownloadService::class.java).setAction("cancel")
                 .putExtra("ticket", UpdateTransfer.controlToken), PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
             builder.addAction(Notification.Action.Builder(null, ModuleText.UPDATE_CANCEL.text(), cancel).build())
+            if (UpdateTransfer.pausable && state.phase == DownloadPhase.DOWNLOADING) {
+                val pause = PendingIntent.getService(this, 5, Intent(this, UpdateDownloadService::class.java)
+                    .setAction("pause").putExtra("ticket", UpdateTransfer.controlToken),
+                    PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
+                builder.addAction(Notification.Action.Builder(null, ModuleText.UPDATE_PAUSE.text(), pause).build())
+            }
             if (Build.VERSION.SDK_INT >= 36) {
                 // The first Android 16 framework lacks the later Builder setter.
                 // Use the framework extra so both versions can request promotion.
@@ -150,7 +209,25 @@ class UpdateDownloadService : Service() {
         } else builder.setAutoCancel(true)
         return builder.build()
     }
-    override fun onTimeout(startId: Int, fgsType: Int) { cancellation.cancel(); stopForeground(STOP_FOREGROUND_REMOVE); stopSelf() }
-    override fun onDestroy() { cancellation.cancel(); worker.shutdownNow(); super.onDestroy() }
+    override fun onTimeout(startId: Int, fgsType: Int) {
+        endInterruptedTransfer("foreground_service")
+        stopForeground(STOP_FOREGROUND_REMOVE)
+        stopSelf()
+    }
+
+    private fun endInterruptedTransfer(reason: String) {
+        val cancellation = activeCancellation ?: return
+        cancellation.cancel()
+        activeCancellation = null
+        UpdateTransfer.controlToken = ""
+        UpdateTransfer.pausable = false
+        UpdateTransfer.state = DownloadState(DownloadPhase.FAILED, reason = reason)
+    }
+
+    override fun onDestroy() {
+        endInterruptedTransfer("cancelled")
+        worker.shutdownNow()
+        super.onDestroy()
+    }
     companion object { const val CHANNEL = "lyricwave_downloads"; const val NOTIFICATION = 7100 }
 }

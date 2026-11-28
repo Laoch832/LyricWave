@@ -87,6 +87,35 @@ class MomentsShareActivityTest {
         awaitMetadata()
 
     }
+    @Test fun `preview loads the attached song cover without starting native sharing`() {
+        val controller = Robolectric.buildActivity(MomentsShareActivity::class.java,
+            Intent(Intent.ACTION_SEND).putExtra(Intent.EXTRA_TEXT, "https://music.apple.com/cn/song/123")
+                .putExtra(Contract.TITLE, "Despacito").putExtra(Contract.ARTWORK, artwork))
+        controller.get().metadataResolver = { null }
+        val requested = java.util.concurrent.atomic.AtomicReference<String>()
+        controller.get().coverLoader = { url ->
+            requested.set(url)
+            android.graphics.Bitmap.createBitmap(2, 2, android.graphics.Bitmap.Config.ARGB_8888)
+        }
+        activity = controller.setup().visible().get()
+        try {
+            views(activity.window.decorView).filterIsInstance<Button>().single { it.text == "Preview cover" }.performClick()
+            val dialog = org.robolectric.shadows.ShadowAlertDialog.getLatestAlertDialog()
+            for (attempt in 0 until 200) {
+                shadowOf(Looper.getMainLooper()).idle()
+                if (views(dialog.window!!.decorView).filterIsInstance<android.widget.ImageView>()
+                        .any { it.drawable is android.graphics.drawable.BitmapDrawable }) break
+                Thread.sleep(10)
+            }
+            assertEquals(artwork, requested.get())
+            assertTrue(views(dialog.window!!.decorView).filterIsInstance<android.widget.ImageView>()
+                .any { it.drawable is android.graphics.drawable.BitmapDrawable && it.visibility == View.VISIBLE })
+            assertNull(shadowOf(activity).nextStartedActivity)
+            dialog.dismiss()
+            assertTrue(openButton().isEnabled)
+        } finally { controller.pause().stop().destroy() }
+    }
+
     @Test fun `China switch updates preview clipboard and the exact link sent to NetEase`() {
         val original = "https://music.apple.com/tr/album/%E6%AD%8C/111?i=123&ls=1"
         val expected = original.replace("/tr/", "/cn/")
